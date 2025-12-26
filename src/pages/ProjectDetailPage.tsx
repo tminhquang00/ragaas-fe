@@ -221,11 +221,63 @@ export const ProjectDetailPage: React.FC = () => {
         setSuggestions([]);
 
         try {
+            // Process files and images
+            const processedFiles: { filename: string; data: string; mime_type?: string }[] = [];
+            const processedImages: { data: string; mime_type: string }[] = [];
+
+            if (files && files.length > 0) {
+                for (const file of files) {
+                    const base64Data = await new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const result = reader.result as string;
+                            // Remove data URL prefix (e.g., "data:image/png;base64,")
+                            const base64 = result.split(',')[1];
+                            resolve(base64);
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+
+                    // Check if file is an image
+                    if (file.type.startsWith('image/')) {
+                        processedImages.push({
+                            data: base64Data,
+                            mime_type: file.type,
+                        });
+                    } else {
+                        processedFiles.push({
+                            filename: file.name,
+                            data: base64Data,
+                            mime_type: file.type,
+                        });
+                    }
+                }
+            }
+
             let fullContent = '';
-            let sources: SourceReference[] = [];
+            const sources: SourceReference[] = [];
             let newSessionId = sid;
 
-            for await (const chunk of apiClient.streamChat(projectId, { query, session_id: sid })) {
+            const chatRequest: {
+                query: string;
+                session_id?: string;
+                files?: { filename: string; data: string; mime_type?: string }[];
+                images?: { data: string; mime_type: string }[];
+            } = {
+                query,
+                session_id: sid,
+            };
+
+            if (processedFiles.length > 0) {
+                chatRequest.files = processedFiles;
+            }
+
+            if (processedImages.length > 0) {
+                chatRequest.images = processedImages;
+            }
+
+            for await (const chunk of apiClient.streamChat(projectId, chatRequest)) {
                 switch (chunk.type) {
                     case 'content':
                         fullContent += chunk.data;
