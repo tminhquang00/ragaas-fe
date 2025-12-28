@@ -150,6 +150,49 @@ export interface ConfluenceSyncRequest {
   image_prompt?: string;
 }
 
+// ============ Batch Upload ============
+
+export interface BatchUploadResponse {
+  task_id: string;
+  message: string;
+  status_url: string;
+  total_files: number;
+}
+
+export interface UploadTaskResult {
+  document_id: string;
+  status: 'success' | 'partial' | 'failed';
+  chunks_created: number;
+  vectors_stored: number;
+  processing_time_ms: number;
+  errors: string[];
+  warnings: string[];
+}
+
+export type UploadTaskStatusType = 'pending' | 'processing' | 'completed' | 'completed_with_errors' | 'failed';
+
+export interface UploadTaskStatus {
+  task_id: string;
+  status: UploadTaskStatusType;
+  total_files: number;
+  processed_files: number;
+  results: UploadTaskResult[];
+  created_at: string;
+  completed_at?: string;
+  errors: string[];
+}
+
+// ============ Visual Grounding ============
+
+export interface BoundingBox {
+  l: number;  // left (0-1)
+  t: number;  // top (0-1)
+  r: number;  // right (0-1)
+  b: number;  // bottom (0-1)
+}
+
+export type SourceType = 'pdf' | 'docx' | 'excel' | 'confluence' | 'text';
+
 // ============ Chat ============
 
 export interface ImageContent {
@@ -183,6 +226,16 @@ export interface SourceReference {
   excerpt: string;
   relevance_score: number;
   position?: string;
+  // Visual grounding fields
+  source_type?: SourceType;
+  bounding_box?: BoundingBox;
+  page_image_url?: string;
+  source_url?: string;
+  // Document-specific fields
+  section?: string;
+  sheet_name?: string;
+  cell_range?: string;
+  binary_hash?: string;
 }
 
 export interface ChatResponse {
@@ -258,3 +311,4 @@ export interface AsyncState<T> {
   data?: T;
   error?: string;
 }
+

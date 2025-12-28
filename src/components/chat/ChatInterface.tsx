@@ -31,11 +31,17 @@ import {
     CloudUpload as UploadIcon,
     Close as CloseIcon,
     InsertDriveFile as FileIcon,
+    Visibility as VisibilityIcon,
+    PictureAsPdf as PdfIcon,
+    Article as DocxIcon,
+    TableChart as ExcelIcon,
+    Link as LinkIcon,
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { SourceReference } from '../../types';
+import { VisualGroundingModal } from './VisualGroundingModal';
 
 interface Message {
     id: string;
@@ -55,10 +61,35 @@ interface ChatInterfaceProps {
     streamingContent: string;
     suggestions?: string[];
     sessionId?: string;
+    apiBaseUrl?: string;
 }
 
-const SourceCitation: React.FC<{ source: SourceReference }> = ({ source }) => {
+interface SourceCitationProps {
+    source: SourceReference;
+    onViewVisualGrounding?: (source: SourceReference) => void;
+}
+
+const getSourceTypeIcon = (sourceType?: string) => {
+    switch (sourceType) {
+        case 'pdf':
+            return <PdfIcon fontSize="small" color="error" />;
+        case 'docx':
+            return <DocxIcon fontSize="small" color="primary" />;
+        case 'excel':
+            return <ExcelIcon fontSize="small" color="success" />;
+        case 'confluence':
+            return <LinkIcon fontSize="small" color="info" />;
+        default:
+            return <DocIcon fontSize="small" color="primary" />;
+    }
+};
+
+const SourceCitation: React.FC<SourceCitationProps> = ({ source, onViewVisualGrounding }) => {
     const theme = useTheme();
+    const hasVisualGrounding = source.source_type === 'pdf' && (
+        !!source.page_image_url ||
+        (!!source.binary_hash && source.page_number !== undefined && !!source.bounding_box)
+    );
 
     return (
         <Box
@@ -67,24 +98,59 @@ const SourceCitation: React.FC<{ source: SourceReference }> = ({ source }) => {
                 borderRadius: 1,
                 background: alpha(theme.palette.background.default, 0.5),
                 border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                cursor: hasVisualGrounding ? 'pointer' : 'default',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': hasVisualGrounding ? {
+                    background: alpha(theme.palette.primary.main, 0.05),
+                    borderColor: theme.palette.primary.main,
+                } : {},
             }}
+            onClick={() => hasVisualGrounding && onViewVisualGrounding?.(source)}
         >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                <DocIcon fontSize="small" color="primary" />
+                {getSourceTypeIcon(source.source_type)}
                 <Typography variant="body2" fontWeight={500}>
                     {source.document_name}
                 </Typography>
+                {source.page_number !== undefined && (
+                    <Chip
+                        size="small"
+                        label={`Page ${source.page_number + 1}`}
+                        variant="outlined"
+                        sx={{ height: 18, fontSize: '0.65rem' }}
+                    />
+                )}
                 {source.position && (
                     <Typography variant="caption" color="text.secondary">
                         {source.position}
                     </Typography>
                 )}
-                <Chip
-                    size="small"
-                    label={`${Math.round(source.relevance_score * 100)}%`}
-                    color="success"
-                    sx={{ ml: 'auto', height: 20, fontSize: '0.7rem' }}
-                />
+                <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {hasVisualGrounding && (
+                        <Tooltip title="View highlighted source">
+                            <VisibilityIcon fontSize="small" color="primary" />
+                        </Tooltip>
+                    )}
+                    {source.source_url && (
+                        <Tooltip title="Open source document">
+                            <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(source.source_url, '_blank');
+                                }}
+                            >
+                                <LinkIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    <Chip
+                        size="small"
+                        label={`${Math.round(source.relevance_score * 100)}%`}
+                        color="success"
+                        sx={{ height: 20, fontSize: '0.7rem' }}
+                    />
+                </Box>
             </Box>
             <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                 "{source.excerpt}"
@@ -241,12 +307,26 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     streamingContent,
     suggestions = [],
     sessionId,
+    apiBaseUrl = '',
 }) => {
     const theme = useTheme();
     const [input, setInput] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Visual grounding modal state
+    const [visualGroundingSource, setVisualGroundingSource] = useState<SourceReference | null>(null);
+    const [isVisualGroundingOpen, setIsVisualGroundingOpen] = useState(false);
+
+    const handleOpenVisualGrounding = (source: SourceReference) => {
+        setVisualGroundingSource(source);
+        setIsVisualGroundingOpen(true);
+    };
+
+    const handleCloseVisualGrounding = () => {
+        setIsVisualGroundingOpen(false);
+    };
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -472,7 +552,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     </AccordionSummary>
                                     <AccordionDetails sx={{ px: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
                                         {message.sources.map((source, idx) => (
-                                            <SourceCitation key={idx} source={source} />
+                                            <SourceCitation
+                                                key={idx}
+                                                source={source}
+                                                onViewVisualGrounding={handleOpenVisualGrounding}
+                                            />
                                         ))}
                                     </AccordionDetails>
                                 </Accordion>
@@ -645,6 +729,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     Drop files here or click 📎 to attach • Supports PDF, Word, TXT, MD, Images
                 </Typography>
             </Box>
+
+            {/* Visual Grounding Modal */}
+            <VisualGroundingModal
+                open={isVisualGroundingOpen}
+                onClose={handleCloseVisualGrounding}
+                source={visualGroundingSource}
+                baseUrl={apiBaseUrl}
+            />
         </Box>
     );
 };

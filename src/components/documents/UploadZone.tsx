@@ -40,6 +40,8 @@ interface UploadZoneProps {
 const acceptedTypes: Accept = {
     'application/pdf': ['.pdf'],
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
     'text/plain': ['.txt'],
     'text/markdown': ['.md'],
 };
@@ -100,10 +102,10 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                 {...getRootProps()}
                 sx={{
                     border: `2px dashed ${isDragReject
-                            ? theme.palette.error.main
-                            : isDragActive
-                                ? theme.palette.primary.main
-                                : alpha(theme.palette.primary.main, 0.3)
+                        ? theme.palette.error.main
+                        : isDragActive
+                            ? theme.palette.primary.main
+                            : alpha(theme.palette.primary.main, 0.3)
                         }`,
                     borderRadius: 2,
                     p: 4,
@@ -141,6 +143,8 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                 <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
                     <Chip label="PDF" size="small" variant="outlined" />
                     <Chip label="DOCX" size="small" variant="outlined" />
+                    <Chip label="XLSX" size="small" variant="outlined" />
+                    <Chip label="PPTX" size="small" variant="outlined" />
                     <Chip label="TXT" size="small" variant="outlined" />
                     <Chip label="MD" size="small" variant="outlined" />
                 </Box>

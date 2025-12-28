@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { ConfigEditor } from '../components/projects';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -18,6 +19,7 @@ import {
     Breadcrumbs,
     Link,
     Tooltip,
+    LinearProgress,
 } from '@mui/material';
 import {
     ArrowBack as BackIcon,
@@ -30,7 +32,7 @@ import { UploadZone, DocumentList } from '../components/documents';
 import { ChatInterface } from '../components/chat';
 import { WidgetEmbed } from '../components/widget';
 import { useAuth } from '../context';
-import { Project, Document, SourceReference } from '../types';
+import { Project, Document, SourceReference, UploadTaskStatus } from '../types';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -74,6 +76,9 @@ export const ProjectDetailPage: React.FC = () => {
 
     // Document upload state
     const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
+    const [uploadTaskId, setUploadTaskId] = useState<string | null>(null);
+    const [uploadTaskStatus, setUploadTaskStatus] = useState<UploadTaskStatus | null>(null);
+    const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Chat state
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -149,6 +154,74 @@ export const ProjectDetailPage: React.FC = () => {
         }
     };
 
+    const handleUpdateProjectConfig = async (newConfig: Record<string, any>) => {
+        if (!apiClient || !projectId) return;
+
+        try {
+            // Optimistic update could go here, but let's wait for server
+            const updated = await apiClient.updateProject(projectId, { config: newConfig as any });
+            setProject(updated);
+            // Show success message (could add a snackbar later)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to update project configuration');
+            throw err; // Re-throw to let the component know it failed
+        }
+    };
+
+    // Poll for upload task status
+    const pollUploadTaskStatus = useCallback(async (taskId: string) => {
+        if (!apiClient || !projectId) return;
+
+        try {
+            const status = await apiClient.getUploadTaskStatus(projectId, taskId);
+            setUploadTaskStatus(status);
+
+            // Update individual file statuses based on task results
+            if (status.results && status.results.length > 0) {
+                setUploadFiles(prev => prev.map((f, idx) => {
+                    const result = status.results[idx];
+                    if (!result) return f;
+                    return {
+                        ...f,
+                        status: result.status === 'success' ? 'success' : 'error',
+                        error: result.errors.length > 0 ? result.errors.join(', ') : undefined,
+                    };
+                }));
+            }
+
+            // Stop polling if task is complete
+            if (['completed', 'completed_with_errors', 'failed'].includes(status.status)) {
+                if (pollingIntervalRef.current) {
+                    clearInterval(pollingIntervalRef.current);
+                    pollingIntervalRef.current = null;
+                }
+                setUploadTaskId(null);
+                fetchDocuments();
+            }
+        } catch (err) {
+            console.error('Failed to poll task status:', err);
+        }
+    }, [apiClient, projectId, fetchDocuments]);
+
+    // Start polling when task ID is set
+    useEffect(() => {
+        if (uploadTaskId && apiClient && projectId) {
+            // Initial poll
+            pollUploadTaskStatus(uploadTaskId);
+            // Set up interval polling
+            pollingIntervalRef.current = setInterval(() => {
+                pollUploadTaskStatus(uploadTaskId);
+            }, 2500);
+        }
+
+        return () => {
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+            }
+        };
+    }, [uploadTaskId, apiClient, projectId, pollUploadTaskStatus]);
+
     const handleFilesAdded = async (files: File[]) => {
         if (!apiClient || !projectId) return;
 
@@ -158,32 +231,30 @@ export const ProjectDetailPage: React.FC = () => {
         }));
 
         setUploadFiles((prev) => [...prev, ...newUploadFiles]);
+        setUploadTaskStatus(null);
 
-        // Upload each file
-        for (const uploadFile of newUploadFiles) {
+        // Mark all files as uploading
+        setUploadFiles((prev) =>
+            prev.map((f) =>
+                newUploadFiles.some((nf) => nf.file === f.file)
+                    ? { ...f, status: 'uploading' as const }
+                    : f
+            )
+        );
+
+        try {
+            // Use batch upload API
+            const response = await apiClient.uploadDocuments(projectId, files);
+            setUploadTaskId(response.task_id);
+        } catch (err) {
+            // Mark all new files as error
             setUploadFiles((prev) =>
                 prev.map((f) =>
-                    f.file === uploadFile.file ? { ...f, status: 'uploading' as const } : f
+                    newUploadFiles.some((nf) => nf.file === f.file)
+                        ? { ...f, status: 'error' as const, error: err instanceof Error ? err.message : 'Upload failed' }
+                        : f
                 )
             );
-
-            try {
-                await apiClient.uploadDocument(projectId, uploadFile.file);
-                setUploadFiles((prev) =>
-                    prev.map((f) =>
-                        f.file === uploadFile.file ? { ...f, status: 'success' as const } : f
-                    )
-                );
-                fetchDocuments();
-            } catch (err) {
-                setUploadFiles((prev) =>
-                    prev.map((f) =>
-                        f.file === uploadFile.file
-                            ? { ...f, status: 'error' as const, error: err instanceof Error ? err.message : 'Upload failed' }
-                            : f
-                    )
-                );
-            }
         }
     };
 
@@ -284,8 +355,48 @@ export const ProjectDetailPage: React.FC = () => {
                         setStreamingContent(fullContent);
                         break;
                     case 'source':
-                        if (chunk.metadata) {
-                            sources.push(chunk.metadata as unknown as SourceReference);
+                        // Source data is in chunk.data as a JSON string - parse it first
+                        let sourceData: Record<string, unknown> | null = null;
+
+                        // Always try to parse from chunk.data first (contains full source reference)
+                        if (chunk.data) {
+                            try {
+                                sourceData = typeof chunk.data === 'string'
+                                    ? JSON.parse(chunk.data)
+                                    : chunk.data as Record<string, unknown>;
+                            } catch (e) {
+                                console.warn('Failed to parse source data:', chunk.data, e);
+                            }
+                        }
+
+                        // Fallback to metadata only if data parsing failed and metadata has more than just document_id
+                        if (!sourceData && chunk.metadata && Object.keys(chunk.metadata).length > 1) {
+                            sourceData = chunk.metadata as Record<string, unknown>;
+                        }
+
+                        if (sourceData) {
+                            console.log('Parsed source:', sourceData);
+                            const sourceRef: SourceReference = {
+                                document_id: String(sourceData.document_id || ''),
+                                document_name: String(sourceData.document_name || sourceData.source_doc_name || 'Unknown'),
+                                chunk_id: String(sourceData.chunk_id || ''),
+                                excerpt: String(sourceData.excerpt || sourceData.content || ''),
+                                relevance_score: Number(sourceData.relevance_score || sourceData.score || 0),
+                                position: sourceData.position as string | undefined,
+                                // Visual grounding fields
+                                source_type: (sourceData.source_type as SourceReference['source_type']) || undefined,
+                                page_number: sourceData.page_number !== undefined && sourceData.page_number !== null
+                                    ? Number(sourceData.page_number) : undefined,
+                                bounding_box: sourceData.bounding_box as SourceReference['bounding_box'],
+                                page_image_url: sourceData.page_image_url as string | undefined,
+                                source_url: sourceData.source_url as string | undefined,
+                                // Document-specific fields
+                                section: sourceData.section as string | undefined,
+                                sheet_name: sourceData.sheet_name as string | undefined,
+                                cell_range: sourceData.cell_range as string | undefined,
+                                binary_hash: sourceData.binary_hash as string | undefined,
+                            };
+                            sources.push(sourceRef);
                         }
                         break;
                     case 'complete':
@@ -436,6 +547,7 @@ export const ProjectDetailPage: React.FC = () => {
                     <Tab label="Documents" />
                     <Tab label="Chat" disabled={project.status !== 'active'} />
                     <Tab label="Widget" disabled={project.status !== 'active'} />
+                    <Tab label="Settings" />
                 </Tabs>
             </Box>
 
@@ -507,6 +619,28 @@ export const ProjectDetailPage: React.FC = () => {
 
             {/* Documents Tab */}
             <TabPanel value={tab} index={1}>
+                {/* Task Progress Display */}
+                {uploadTaskStatus && ['pending', 'processing'].includes(uploadTaskStatus.status) && (
+                    <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: 1, borderColor: 'divider' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="subtitle2" color="primary">
+                                Processing Documents
+                            </Typography>
+                            <Chip
+                                size="small"
+                                label={`${uploadTaskStatus.processed_files}/${uploadTaskStatus.total_files} files`}
+                                color="primary"
+                                variant="outlined"
+                            />
+                        </Box>
+                        <LinearProgress
+                            variant="determinate"
+                            value={(uploadTaskStatus.processed_files / uploadTaskStatus.total_files) * 100}
+                            sx={{ height: 8, borderRadius: 4 }}
+                        />
+                    </Box>
+                )}
+
                 <UploadZone
                     files={uploadFiles}
                     onFilesAdded={handleFilesAdded}
@@ -534,6 +668,7 @@ export const ProjectDetailPage: React.FC = () => {
                         streamingContent={streamingContent}
                         suggestions={suggestions}
                         sessionId={sessionId}
+                        apiBaseUrl={import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}
                     />
                 </Card>
             </TabPanel>
@@ -545,6 +680,16 @@ export const ProjectDetailPage: React.FC = () => {
                         projectId={projectId!}
                         apiClient={apiClient}
                         projectName={project.name}
+                    />
+                )}
+            </TabPanel>
+
+            {/* Settings Tab */}
+            <TabPanel value={tab} index={4}>
+                {project && project.config && (
+                    <ConfigEditor
+                        config={project.config}
+                        onSave={handleUpdateProjectConfig}
                     />
                 )}
             </TabPanel>

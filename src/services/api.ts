@@ -4,7 +4,6 @@ import {
     CreateProjectResponse,
     ProjectListResponse,
     Document,
-    DocumentProcessingResult,
     ProcessingConfig,
     DocumentListResponse,
     DocumentChunk,
@@ -18,6 +17,9 @@ import {
     WidgetConfig,
     WidgetEmbedCode,
     ApiError,
+    BatchUploadResponse,
+    UploadTaskStatus,
+    BoundingBox,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -158,14 +160,21 @@ export class RAGaaSClient {
 
     // ============ Documents ============
 
-    async uploadDocument(
+    /**
+     * Upload multiple documents for batch processing.
+     * Returns immediately with a task_id for polling progress.
+     */
+    async uploadDocuments(
         projectId: string,
-        file: File,
+        files: File[],
         config?: ProcessingConfig,
         customMetadata?: Record<string, unknown>
-    ): Promise<DocumentProcessingResult> {
+    ): Promise<BatchUploadResponse> {
         const formData = new FormData();
-        formData.append('file', file);
+        // Append all files with the same field name 'files'
+        for (const file of files) {
+            formData.append('files', file);
+        }
         if (config) {
             formData.append('processing_config', JSON.stringify(config));
         }
@@ -190,10 +199,42 @@ export class RAGaaSClient {
         return response.json();
     }
 
+    /**
+     * Get the status of a background ingestion task.
+     */
+    async getUploadTaskStatus(
+        projectId: string,
+        taskId: string
+    ): Promise<UploadTaskStatus> {
+        return this.request(`/api/v1/projects/${projectId}/documents/tasks/${taskId}`);
+    }
+
+    /**
+     * Build a visual grounding URL for displaying a highlighted PDF page.
+     */
+    buildVisualGroundingUrl(
+        binaryHash: string,
+        pageNo: number,
+        bbox: BoundingBox,
+        highlightColor: string = 'blue',
+        lineWidth: number = 3
+    ): string {
+        const params = new URLSearchParams({
+            page_no: pageNo.toString(),
+            bbox_l: bbox.l.toString(),
+            bbox_t: bbox.t.toString(),
+            bbox_r: bbox.r.toString(),
+            bbox_b: bbox.b.toString(),
+            highlight_color: highlightColor,
+            line_width: lineWidth.toString(),
+        });
+        return `${this.baseUrl}/api/v1/page-highlight/${binaryHash}?${params.toString()}`;
+    }
+
     async syncConfluence(
         projectId: string,
         request: ConfluenceSyncRequest
-    ): Promise<{ pages_ingested: number; documents: DocumentProcessingResult[] }> {
+    ): Promise<{ pages_ingested: number; documents: unknown[] }> {
         return this.request(`/api/v1/projects/${projectId}/documents/confluence`, {
             method: 'POST',
             body: JSON.stringify(request),

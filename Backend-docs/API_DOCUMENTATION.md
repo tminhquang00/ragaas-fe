@@ -19,6 +19,7 @@ This document provides comprehensive API documentation for the RAG-as-a-Service 
    - [Chat](#chat-api)
    - [Sessions](#sessions-api)
    - [Widget](#widget-api)
+   - [Visual Grounding](#visual-grounding-api)
 4. [Data Models](#data-models)
 5. [Error Handling](#error-handling)
 6. [Quick Start Guide](#quick-start-guide)
@@ -93,19 +94,23 @@ This section describes the complete workflow from creating a project to deployin
 **Objective**: Ingest documents into the vector database.
 
 **API Calls**:
-1. `POST /api/v1/projects/{project_id}/documents/upload` - Upload files
-2. OR `POST /api/v1/projects/{project_id}/documents/confluence` - Sync from Confluence
+1. `POST /api/v1/projects/{project_id}/documents/upload` - Upload files (supports multiple files)
+2. `GET /api/v1/projects/{project_id}/documents/tasks/{task_id}` - Check upload progress
+3. OR `POST /api/v1/projects/{project_id}/documents/confluence` - Sync from Confluence
 
 **What Happens**:
-1. Document is received and stored
-2. Text extraction via Docling (PDF, DOCX, etc.)
-3. Images analyzed with GPT-4 Vision (if configured)
-4. Text chunked according to strategy
-5. Embeddings generated for each chunk
-6. Vectors stored in database
+1. Files are received and task is created (returns immediately with task ID)
+2. **Background Processing**:
+   - Text extraction via Docling (PDF, DOCX, XLSX, etc.)
+   - Images analyzed with GPT-4 Vision (if configured)
+   - Text chunked according to strategy
+   - Embeddings generated for each chunk
+   - Vectors stored in database
+3. Memory cleanup after processing
 
 **Processing Status**:
-- `pending` → `processing` → `completed` or `failed`
+- Task: `pending` → `processing` → `completed` or `failed`
+- Documents: `pending` → `processing` → `completed` or `failed`
 
 ### Phase 3: Activate Project
 
@@ -333,22 +338,118 @@ Get a specific project.
 **Response** `200 OK`:
 ```json
 {
-  "project_id": "550e8400-e29b-41d4-a716-446655440000",
-  "tenant_id": "tenant_123",
-  "name": "My RAG Project",
-  "description": "A document Q&A system",
-  "status": "active",
-  "version": 1,
-  "created_at": "2025-12-25T02:00:00Z",
-  "updated_at": "2025-12-25T03:00:00Z",
+  "project_id": "1deff4f3-3d85-4a34-a89f-696d92257981",
+  "tenant_id": "TQU3HC",
+  "name": "Advanced dynamic top-k Retrieval Test",
+  "description": "Test project for score filtering and dynamic top-k",
+  "created_at": "2025-12-27T21:24:24.019000",
+  "updated_at": "2025-12-27T21:24:24.019000",
   "config": {
-    "llm_config": { ... },
-    "retrieval_config": { ... },
-    "pipeline_config": { ... },
-    "widget_config": { ... }
+    "llm_config": {
+      "config_name": "gpt-5.1",
+      "weak_llm_config_name": "default",
+      "temperature": 0.5,
+      "max_tokens": null
+    },
+    "retrieval_config": {
+      "retrieval_method": "semantic",
+      "top_k": 20,
+      "metadata_filters": null,
+      "min_score": 0,
+      "dynamic_top_k": false,
+      "dynamic_top_k_config": {
+        "simple": 5,
+        "medium": 10,
+        "complex": 20
+      },
+      "iterative_retrieval": false,
+      "max_retrieval_passes": 3,
+      "quality_threshold": 0.75,
+      "multi_query_retrieval": false,
+      "num_query_variations": 3
+    },
+    "chunking_config": {
+      "strategy": "docling",
+      "chunk_size": 1024,
+      "chunk_overlap": 128,
+      "min_chunk_size": 100,
+      "respect_sentence_boundaries": true
+    },
+    "vector_db_config": {
+      "provider": "mongodb_atlas",
+      "config": {
+        "database": "ragaas",
+        "index_name": "vector_index"
+      },
+      "embedding_model": "text-embedding-3-large",
+      "embedding_dimension": 3072,
+      "index_name_pattern": "{tenant_id}_{project_id}",
+      "metadata": {}
+    },
+    "pipeline_config": {
+      "type": "simple_rag",
+      "steps": [
+        {
+          "name": "retrieve",
+          "type": "retrieve",
+          "config": {}
+        },
+        {
+          "name": "generate",
+          "type": "generate",
+          "config": {}
+        }
+      ],
+      "conditional_logic": null,
+      "agent_config": null,
+      "chat_history_config": {
+        "include_history": true,
+        "max_history_turns": 5
+      }
+    },
+    "widget_config": {
+      "enabled": true,
+      "title": null,
+      "welcome_message": "👋 Hello! How can I help you today?",
+      "primary_color": "#6366f1",
+      "position": "right",
+      "allowed_origins": []
+    },
+    "system_prompt": "You are a assistant. Answer based on the provided context.\nAlways cite sources when possible. Be concise and accurate.\n",
+    "user_prompt_template": "Context:\n{context}\n\nQuestion: {query}\n\nAnswer:",
+    "max_context_tokens": 4000,
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "stream_response": true
   },
-  "endpoints": [],
-  "api_keys": []
+  "status": "draft",
+  "version": 1,
+  "endpoints": [
+    {
+      "endpoint_id": "70c7c7e7-3345-4b26-b8c6-72dabc4fbf7f",
+      "name": "Default Chat",
+      "path": "/chat",
+      "enabled": true,
+      "rate_limit": null,
+      "created_at": "2025-12-27T21:24:24.019000"
+    }
+  ],
+  "api_keys": [
+    {
+      "key_id": "20eca290-ce2b-40ce-967b-8d69ff1d5d83",
+      "key_hash": "da1ce4bf0fb875fb47e68dbbf1b5f664ac15871532827b8c209f4de8cb006ab4",
+      "name": "Default API Key",
+      "scopes": [
+        "read",
+        "write",
+        "chat"
+      ],
+      "created_at": "2025-12-27T21:24:24.019000",
+      "expires_at": null,
+      "last_used_at": null,
+      "is_active": true
+    }
+  ]
 }
 ```
 
@@ -436,14 +537,16 @@ Base path: `/api/v1`
 
 #### POST `/api/v1/projects/{project_id}/documents/upload`
 
-Upload and process a document.
+Upload and process one or more documents in the background.
+
+**⚡ Background Processing**: This endpoint returns immediately with a task ID. The actual document processing happens asynchronously. Use the task status endpoint to monitor progress.
 
 **Request**: `multipart/form-data`
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `file` | file | ✅ | Document file (PDF, DOCX, TXT, MD, etc.) |
-| `custom_metadata` | string (JSON) | ❌ | Custom metadata |
+| `files` | file[] | ✅ | One or more document files (PDF, DOCX, XLSX, TXT, MD, etc.) |
+| `custom_metadata` | string (JSON) | ❌ | Custom metadata (applied to all files) |
 | `processing_config` | string (JSON) | ❌ | Processing options |
 
 **Processing Config Options**:
@@ -457,24 +560,94 @@ Upload and process a document.
 }
 ```
 
-**Example cURL**:
+**Example cURL (Single File)**:
 ```bash
 curl -X POST "http://localhost:8000/api/v1/projects/{project_id}/documents/upload" \
   -H "X-User-ID: tenant_123" \
-  -F "file=@document.pdf" \
+  -F "files=@document.pdf" \
   -F 'processing_config={"image_handling": "llm_describe"}'
 ```
 
-**Response** `201 Created`:
+**Example cURL (Multiple Files)**:
+```bash
+curl -X POST "http://localhost:8000/api/v1/projects/{project_id}/documents/upload" \
+  -H "X-User-ID: tenant_123" \
+  -F "files=@document1.pdf" \
+  -F "files=@document2.docx" \
+  -F "files=@spreadsheet.xlsx"
+```
+
+**Response** `202 Accepted`:
 ```json
 {
-  "document_id": "doc_abc123",
-  "status": "success",
-  "chunks_created": 42,
-  "vectors_stored": 42,
-  "processing_time_ms": 5432.5,
-  "errors": [],
-  "warnings": []
+  "task_id": "task_abc123def456",
+  "message": "Ingestion started for 3 file(s)",
+  "status_url": "/api/v1/projects/{project_id}/documents/tasks/task_abc123def456",
+  "total_files": 3
+}
+```
+
+---
+
+#### GET `/api/v1/projects/{project_id}/documents/tasks/{task_id}`
+
+Get the status of a background ingestion task.
+
+**Response** `200 OK` (Processing):
+```json
+{
+  "task_id": "task_abc123def456",
+  "status": "processing",
+  "total_files": 3,
+  "processed_files": 1,
+  "results": [
+    {
+      "document_id": "doc_xyz789",
+      "status": "success",
+      "chunks_created": 42,
+      "vectors_stored": 42,
+      "processing_time_ms": 5432.5,
+      "errors": [],
+      "warnings": []
+    }
+  ],
+  "created_at": "2025-12-27T00:00:00Z",
+  "completed_at": null,
+  "errors": []
+}
+```
+
+**Response** `200 OK` (Completed):
+```json
+{
+  "task_id": "task_abc123def456",
+  "status": "completed",
+  "total_files": 3,
+  "processed_files": 3,
+  "results": [
+    { "document_id": "doc_1", "status": "success", "chunks_created": 42, ... },
+    { "document_id": "doc_2", "status": "success", "chunks_created": 28, ... },
+    { "document_id": "doc_3", "status": "success", "chunks_created": 15, ... }
+  ],
+  "created_at": "2025-12-27T00:00:00Z",
+  "completed_at": "2025-12-27T00:02:30Z",
+  "errors": []
+}
+```
+
+**Task Status Values**:
+| Status | Description |
+|--------|-------------|
+| `pending` | Task created, not yet started |
+| `processing` | Files are being processed |
+| `completed` | All files processed successfully |
+| `completed_with_errors` | Completed but some files failed |
+| `failed` | Task failed completely |
+
+**Error** `404 Not Found`:
+```json
+{
+  "detail": "Task not found: {task_id}"
 }
 ```
 
@@ -660,10 +833,31 @@ Process a chat query using RAG.
       "document_id": "doc_abc123",
       "document_name": "contract.pdf",
       "chunk_id": "chunk_001",
-      "page_number": 3,
       "excerpt": "The payment terms state that...",
       "relevance_score": 0.92,
-      "position": "Page 3, Section 2.1"
+      "source_type": "pdf",
+      "source_url": null,
+      "position": "Page 3, Section 2.1",
+      "page_number": 3,
+      "bounding_box": {
+        "l": 0.1,
+        "t": 0.25,
+        "r": 0.9,
+        "b": 0.4
+      },
+      "page_image_url": "/api/v1/visual/page-highlight/abc123def?page_no=3&bbox_l=0.1&bbox_t=0.25&bbox_r=0.9&bbox_b=0.4"
+    },
+    {
+      "document_id": "doc_xyz789",
+      "document_name": "Policy Guidelines.md",
+      "chunk_id": "chunk_045",
+      "excerpt": "According to company policy...",
+      "relevance_score": 0.85,
+      "source_type": "confluence",
+      "source_url": "https://docupedia.company.com/pages/viewpage.action?pageId=12345",
+      "page_number": null,
+      "bounding_box": null,
+      "page_image_url": null
     }
   ],
   "confidence_score": 0.85,
@@ -677,6 +871,8 @@ Process a chat query using RAG.
   ]
 }
 ```
+
+> **Note**: PDF sources include `page_image_url` for visual grounding. Confluence/Docupedia sources include `source_url` for direct linking.
 
 **Error** `400 Bad Request`:
 ```json
@@ -695,15 +891,41 @@ Stream a chat response using Server-Sent Events.
 
 **Response**: `text/event-stream`
 
+**Content Event** - Text chunks of the answer:
+```json
+{"chunk_id": "c1", "type": "content", "data": "The key terms are:", "metadata": null}
 ```
-data: {"chunk_id": "c1", "type": "content", "data": "The key ", "metadata": null}
 
-data: {"chunk_id": "c2", "type": "content", "data": "terms are:", "metadata": null}
+**Source Event** - Source reference with visual grounding metadata:
+```json
+{
+  "chunk_id": "c3",
+  "type": "source",
+  "data": "{...SourceReference JSON...}",
+  "metadata": {
+    "document_id": "doc_abc123",
+    "document_name": "contract.pdf",
+    "chunk_id": "chunk_001",
+    "excerpt": "The payment terms state that...",
+    "relevance_score": 0.92,
+    "source_type": "pdf",
+    "source_url": null,
+    "page_number": 3,
+    "bounding_box": {"l": 0.1, "t": 0.25, "r": 0.9, "b": 0.4},
+    "page_image_url": "/api/v1/visual/page-highlight/abc123?page_no=3&bbox_l=0.1&bbox_t=0.25&bbox_r=0.9&bbox_b=0.4",
+    "section": null,
+    "sheet_name": null
+  }
+}
+```
 
-data: {"chunk_id": "c3", "type": "source", "data": "", "metadata": {"document_id": "doc_1", ...}}
+**Complete Event** - Final stats:
+```json
+{"chunk_id": "c4", "type": "complete", "data": "", "metadata": {"session_id": "sess_456", "total_sources": 2, "tokens_used": 250}}
+```
 
-data: {"chunk_id": "c4", "type": "complete", "data": "", "metadata": {"tokens_used": 250}}
-
+**Stream Terminator**:
+```
 data: [DONE]
 ```
 
@@ -711,28 +933,58 @@ data: [DONE]
 | Type | Description |
 |------|-------------|
 | `content` | Text chunk of the answer |
-| `source` | Source document reference |
+| `source` | Source document reference with visual grounding metadata |
 | `metadata` | Processing metadata |
-| `complete` | Final event with stats |
+| `complete` | Final event with session info and stats |
 
 **JavaScript Client Example**:
 ```javascript
-const eventSource = new EventSource('/api/v1/projects/{id}/chat/stream', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'X-User-ID': 'tenant_123' },
-  body: JSON.stringify({ query: 'What is...' })
-});
+async function streamChat(projectId, query, tenantId) {
+  const response = await fetch(`/api/v1/projects/${projectId}/chat/stream`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json', 
+      'X-User-ID': tenantId 
+    },
+    body: JSON.stringify({ query })
+  });
 
-eventSource.onmessage = (event) => {
-  if (event.data === '[DONE]') {
-    eventSource.close();
-    return;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const sources = [];
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const lines = decoder.decode(value).split('\n');
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6);
+      
+      if (data === '[DONE]') return { sources };
+      
+      const chunk = JSON.parse(data);
+      
+      if (chunk.type === 'content') {
+        // Append text to answer
+        appendToAnswer(chunk.data);
+      } else if (chunk.type === 'source') {
+        // Store source with visual grounding info
+        sources.push(chunk.metadata);
+        
+        // For PDFs, you can fetch the highlighted page image
+        if (chunk.metadata.page_image_url) {
+          displayPageHighlight(chunk.metadata.page_image_url);
+        }
+        // For Confluence, link to source
+        if (chunk.metadata.source_url) {
+          displaySourceLink(chunk.metadata.source_url);
+        }
+      }
+    }
   }
-  const chunk = JSON.parse(event.data);
-  if (chunk.type === 'content') {
-    appendToAnswer(chunk.data);
-  }
-};
+}
 ```
 
 ---
@@ -889,6 +1141,119 @@ Serve the chat widget HTML (for iframe embedding).
 
 ---
 
+### Visual Grounding API
+
+Visual grounding enables rendering PDF page images with highlighted source regions. This allows users to see exactly where in a document the retrieved content came from.
+
+> **Note**: Visual grounding is only supported for PDF documents. Other document types (DOCX, Excel, Confluence) include `source_url` links instead.
+
+Base path: `/api/v1/visual`
+
+#### GET `/api/v1/visual/page-highlight/{binary_hash}`
+
+Render a PDF page image with the source chunk region highlighted.
+
+**Path Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `binary_hash` | string | Document identifier (from chunk metadata) |
+
+**Query Parameters**:
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page_no` | int | ✅ | Page number (0-indexed) |
+| `bbox_l` | float | ✅ | Bounding box left (normalized 0-1) |
+| `bbox_t` | float | ✅ | Bounding box top (normalized 0-1) |
+| `bbox_r` | float | ✅ | Bounding box right (normalized 0-1) |
+| `bbox_b` | float | ✅ | Bounding box bottom (normalized 0-1) |
+| `highlight_color` | string | ❌ | Highlight color (default: `blue`) |
+| `line_width` | int | ❌ | Highlight border width (default: 3, max: 10) |
+
+**Response**: `image/png`
+
+Returns a PNG image of the specified page with a bounding box drawn around the source region.
+
+**Example Request**:
+```bash
+curl "http://localhost:8000/api/v1/visual/page-highlight/abc123def456?page_no=2&bbox_l=0.1&bbox_t=0.3&bbox_r=0.9&bbox_b=0.5" \
+  -H "X-User-ID: tenant_123" \
+  --output highlighted_page.png
+```
+
+**Error Responses**:
+
+`404 Not Found`:
+```json
+{
+  "detail": "Document not found: abc123def456"
+}
+```
+
+`400 Bad Request`:
+```json
+{
+  "detail": "Invalid page number: 10. Document has 5 pages."
+}
+```
+
+---
+
+#### GET `/api/v1/visual/page/{binary_hash}`
+
+Get a PDF page image without highlighting (for thumbnails or previews).
+
+**Path Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `binary_hash` | string | Document identifier |
+
+**Query Parameters**:
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page_no` | int | ✅ | Page number (0-indexed) |
+
+**Response**: `image/png`
+
+**Example**:
+```bash
+curl "http://localhost:8000/api/v1/visual/page/abc123def456?page_no=0" \
+  -H "X-User-ID: tenant_123" \
+  --output page_thumbnail.png
+```
+
+---
+
+#### Using Visual Grounding with Chat
+
+When you query the Chat API, PDF sources include `page_image_url` in the response:
+
+```json
+{
+  "query": "What are the payment terms?",
+  "answer": "According to the contract...",
+  "sources": [
+    {
+      "document_name": "contract.pdf",
+      "source_type": "pdf",
+      "page_number": 3,
+      "bounding_box": {
+        "l": 0.1,
+        "t": 0.25,
+        "r": 0.9,
+        "b": 0.45
+      },
+      "page_image_url": "/api/v1/visual/page-highlight/abc123?page_no=3&bbox_l=0.1&bbox_t=0.25&bbox_r=0.9&bbox_b=0.45",
+      "excerpt": "Payment shall be made within 30 days...",
+      "relevance_score": 0.92
+    }
+  ]
+}
+```
+
+The frontend can use `page_image_url` to fetch and display the highlighted page image.
+
+---
+
 ## Data Models
 
 ### Project Configuration
@@ -962,6 +1327,50 @@ interface ProjectConfig {
 | `processing` | Document is being processed |
 | `completed` | Processing finished successfully |
 | `failed` | Processing failed (check `processing_error`) |
+
+### Source Reference
+
+The `SourceReference` model in chat responses includes type-specific metadata for visual grounding and source linking.
+
+```typescript
+interface SourceReference {
+  // Core fields
+  document_id: string;
+  document_name: string;
+  chunk_id: string;
+  excerpt: string;
+  relevance_score: number;
+  
+  // Document type
+  source_type: "pdf" | "docx" | "excel" | "confluence" | "text";
+  
+  // Common
+  source_url?: string;        // Docupedia/Confluence link
+  position?: string;          // Human-readable position
+  
+  // PDF-specific (visual grounding)
+  page_number?: number;
+  bounding_box?: {            // Normalized 0-1
+    l: number;
+    t: number;
+    r: number;
+    b: number;
+  };
+  page_image_url?: string;    // URL to visual grounding endpoint
+  
+  // DOCX-specific
+  section?: string;
+  paragraph_index?: number;
+  
+  // Excel-specific
+  sheet_name?: string;
+  cell_range?: string;        // e.g., "A1:D10"
+  
+  // Text position
+  char_start?: number;
+  char_end?: number;
+}
+```
 
 ---
 

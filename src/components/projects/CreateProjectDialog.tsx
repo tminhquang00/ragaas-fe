@@ -38,11 +38,80 @@ interface CreateProjectDialogProps {
     loading?: boolean;
 }
 
-// Available LLM options (should come from API in a real app)
-const llmOptions = [
-    { value: 'azure-4.1', label: 'Azure GPT-4.1' },
-    { value: 'azure-4o', label: 'Azure GPT-4o' },
-    { value: 'azure-4o-mini', label: 'Azure GPT-4o Mini' },
+// Available LLM options from configuration
+const AVAILABLE_MODELS = [
+    {
+        "name": "default",
+        "provider": "azure_openai",
+        "model_name": "gpt-5-mini",
+        "temperature": 1,
+        "max_tokens": 4096,
+        "description": "Default LLM config - aliases to GPT-5 Mini"
+    },
+    {
+        "name": "gpt-4.1-mini",
+        "provider": "azure_openai",
+        "model_name": "gpt-4.1-mini",
+        "temperature": 0.7,
+        "max_tokens": 4096,
+        "description": "GPT-4.1 Mini - Fast and cost-effective"
+    },
+    {
+        "name": "gpt-4o-mini",
+        "provider": "azure_openai",
+        "model_name": "gpt-4o-mini",
+        "temperature": 0.7,
+        "max_tokens": 4096,
+        "description": "GPT-4o Mini - Multimodal capable"
+    },
+    {
+        "name": "gpt-5",
+        "provider": "azure_openai",
+        "model_name": "gpt-5",
+        "temperature": 0.7,
+        "max_tokens": 8192,
+        "description": "GPT-5 - Most capable model"
+    },
+    {
+        "name": "gpt-5-mini",
+        "provider": "azure_openai",
+        "model_name": "gpt-5-mini",
+        "temperature": 0.7,
+        "max_tokens": 4096,
+        "description": "GPT-5 Mini - Balanced performance"
+    },
+    {
+        "name": "gpt-5-nano",
+        "provider": "azure_openai",
+        "model_name": "gpt-5-nano",
+        "temperature": 0.7,
+        "max_tokens": 2048,
+        "description": "GPT-5 Nano - Lightweight and fast"
+    },
+    {
+        "name": "gpt-5.1",
+        "provider": "azure_openai",
+        "model_name": "gpt-5.1",
+        "temperature": 0.7,
+        "max_tokens": 8192,
+        "description": "GPT-5.1 - Latest model"
+    },
+    {
+        "name": "gptbot-4o",
+        "provider": "azure_openai",
+        "model_name": "gpt-4o",
+        "temperature": 0.7,
+        "max_tokens": 4096,
+        "description": "GPT-4o - Fast and capable"
+    },
+    {
+        "name": "model-router-2",
+        "provider": "azure_openai",
+        "model_name": "model-router",
+        "temperature": 0.7,
+        "max_tokens": 4096,
+        "description": "Model Router - Automatic model selection"
+    }
 ];
 
 export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
@@ -56,7 +125,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
     const [tab, setTab] = useState(0);
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [llmModel, setLlmModel] = useState('azure-4.1');
+    const [llmModel, setLlmModel] = useState('gpt-5-mini');
     const [temperature, setTemperature] = useState(0.7);
     const [topK, setTopK] = useState(5);
     const [systemPrompt, setSystemPrompt] = useState('');
@@ -108,7 +177,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
     const handleReset = () => {
         setName('');
         setDescription('');
-        setLlmModel('azure-4.1');
+        setLlmModel('gpt-5-mini');
         setTemperature(0.7);
         setTopK(5);
         setSystemPrompt('');
@@ -120,6 +189,14 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
     const handleClose = () => {
         handleReset();
         onClose();
+    };
+
+    const handleModelChange = (modelName: string) => {
+        setLlmModel(modelName);
+        const modelConfig = AVAILABLE_MODELS.find(m => m.model_name === modelName);
+        if (modelConfig) {
+            setTemperature(modelConfig.temperature);
+        }
     };
 
     return (
@@ -195,11 +272,11 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                                     <Select
                                         value={llmModel}
                                         label="LLM Model"
-                                        onChange={(e) => setLlmModel(e.target.value)}
+                                        onChange={(e) => handleModelChange(e.target.value)}
                                     >
-                                        {llmOptions.map((opt) => (
-                                            <MenuItem key={opt.value} value={opt.value}>
-                                                {opt.label}
+                                        {AVAILABLE_MODELS.map((model) => (
+                                            <MenuItem key={model.name} value={model.model_name}>
+                                                {model.description}
                                             </MenuItem>
                                         ))}
                                     </Select>
