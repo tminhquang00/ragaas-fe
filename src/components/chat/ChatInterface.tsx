@@ -19,6 +19,9 @@ import {
     ListItem,
     ListItemIcon,
     ListItemText,
+    Modal,
+    Fade,
+    Backdrop,
 } from '@mui/material';
 import {
     Send as SendIcon,
@@ -36,12 +39,14 @@ import {
     Article as DocxIcon,
     TableChart as ExcelIcon,
     Link as LinkIcon,
+    Image as ImageIcon,
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { SourceReference } from '../../types';
 import { VisualGroundingModal } from './VisualGroundingModal';
+import { JsonViewer, isJsonString } from './JsonViewer';
 
 interface Message {
     id: string;
@@ -156,6 +161,139 @@ const SourceCitation: React.FC<SourceCitationProps> = ({ source, onViewVisualGro
                 "{source.excerpt}"
             </Typography>
         </Box>
+    );
+};
+
+// Image attachment component with click-to-view modal
+const ImageAttachment: React.FC<{ file: File }> = ({ file }) => {
+    const theme = useTheme();
+    const [imageUrl, setImageUrl] = useState<string>('');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    useEffect(() => {
+        const url = URL.createObjectURL(file);
+        setImageUrl(url);
+        return () => URL.revokeObjectURL(url);
+    }, [file]);
+
+    return (
+        <>
+            <Box
+                sx={{
+                    position: 'relative',
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                        borderColor: theme.palette.primary.main,
+                        transform: 'scale(1.02)',
+                        '& .image-overlay': {
+                            opacity: 1,
+                        },
+                    },
+                }}
+                onClick={() => setIsModalOpen(true)}
+            >
+                <Box
+                    component="img"
+                    src={imageUrl}
+                    alt={file.name}
+                    sx={{
+                        width: 120,
+                        height: 80,
+                        objectFit: 'cover',
+                        display: 'block',
+                    }}
+                />
+                <Box
+                    className="image-overlay"
+                    sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: alpha(theme.palette.common.black, 0.5),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: 0,
+                        transition: 'opacity 0.2s ease-in-out',
+                    }}
+                >
+                    <ImageIcon sx={{ color: 'white', fontSize: 28 }} />
+                </Box>
+            </Box>
+
+            {/* Full-size image modal */}
+            <Modal
+                open={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                closeAfterTransition
+                slots={{ backdrop: Backdrop }}
+                slotProps={{
+                    backdrop: {
+                        timeout: 300,
+                        sx: { backgroundColor: alpha(theme.palette.common.black, 0.85) },
+                    },
+                }}
+            >
+                <Fade in={isModalOpen}>
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            maxWidth: '90vw',
+                            maxHeight: '90vh',
+                            outline: 'none',
+                        }}
+                    >
+                        <IconButton
+                            onClick={() => setIsModalOpen(false)}
+                            sx={{
+                                position: 'absolute',
+                                top: -40,
+                                right: 0,
+                                color: 'white',
+                                background: alpha(theme.palette.common.white, 0.1),
+                                '&:hover': {
+                                    background: alpha(theme.palette.common.white, 0.2),
+                                },
+                            }}
+                        >
+                            <CloseIcon />
+                        </IconButton>
+                        <Box
+                            component="img"
+                            src={imageUrl}
+                            alt={file.name}
+                            sx={{
+                                maxWidth: '90vw',
+                                maxHeight: '85vh',
+                                objectFit: 'contain',
+                                borderRadius: 2,
+                                boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.4)}`,
+                            }}
+                        />
+                        <Typography
+                            variant="caption"
+                            sx={{
+                                display: 'block',
+                                textAlign: 'center',
+                                mt: 1,
+                                color: 'rgba(255,255,255,0.7)',
+                            }}
+                        >
+                            {file.name}
+                        </Typography>
+                    </Box>
+                </Fade>
+            </Modal>
+        </>
     );
 };
 
@@ -505,21 +643,33 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             {/* Attached files for user messages */}
                             {message.attachments && message.attachments.length > 0 && (
                                 <Box sx={{ mb: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                    {message.attachments.map((file, idx) => (
-                                        <Chip
-                                            key={idx}
-                                            icon={<FileIcon />}
-                                            label={file.name}
-                                            size="small"
-                                            variant="outlined"
-                                        />
-                                    ))}
+                                    {message.attachments.map((file, idx) => {
+                                        const isImage = file.type.startsWith('image/');
+                                        if (isImage) {
+                                            return (
+                                                <ImageAttachment key={idx} file={file} />
+                                            );
+                                        }
+                                        return (
+                                            <Chip
+                                                key={idx}
+                                                icon={<FileIcon />}
+                                                label={file.name}
+                                                size="small"
+                                                variant="outlined"
+                                            />
+                                        );
+                                    })}
                                 </Box>
                             )}
 
                             {/* Message content with markdown for assistant, plain text for user */}
                             {message.role === 'assistant' ? (
-                                <MarkdownRenderer content={message.content} />
+                                isJsonString(message.content) ? (
+                                    <JsonViewer content={message.content} />
+                                ) : (
+                                    <MarkdownRenderer content={message.content} />
+                                )
                             ) : (
                                 <Typography
                                     variant="body1"
