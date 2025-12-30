@@ -1,4 +1,5 @@
 import { ConfigEditor } from '../components/projects';
+import { PipelineEditor } from '../components/pipeline';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -27,12 +28,14 @@ import {
     Archive as ArchiveIcon,
     Refresh as RefreshIcon,
     Circle as CircleIcon,
+    Save as SaveIcon,
 } from '@mui/icons-material';
 import { UploadZone, DocumentList } from '../components/documents';
 import { ChatInterface } from '../components/chat';
 import { WidgetEmbed } from '../components/widget';
 import { useAuth } from '../context';
 import { Project, Document, SourceReference, UploadTaskStatus } from '../types';
+import { PipelineConfig } from '../types/config';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -86,6 +89,10 @@ export const ProjectDetailPage: React.FC = () => {
     const [chatLoading, setChatLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string | undefined>();
     const [suggestions, setSuggestions] = useState<string[]>([]);
+
+    // Pipeline State
+    const [pendingPipelineConfig, setPendingPipelineConfig] = useState<PipelineConfig | null>(null);
+    const [pipelineDirty, setPipelineDirty] = useState(false);
 
     const fetchProject = useCallback(async () => {
         if (!apiClient || !projectId) return;
@@ -165,6 +172,23 @@ export const ProjectDetailPage: React.FC = () => {
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to update project configuration');
             throw err; // Re-throw to let the component know it failed
+        }
+    };
+
+    const handleSavePipeline = async () => {
+        if (!apiClient || !projectId || !project || !pendingPipelineConfig) return;
+
+        try {
+            const updatedConfig = {
+                ...project.config,
+                pipeline_config: pendingPipelineConfig,
+            };
+            const updated = await apiClient.updateProject(projectId, { config: updatedConfig });
+            setProject(updated);
+            setPipelineDirty(false);
+            setPendingPipelineConfig(null);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to save pipeline');
         }
     };
 
@@ -546,6 +570,7 @@ export const ProjectDetailPage: React.FC = () => {
                     <Tab label="Overview" />
                     <Tab label="Documents" />
                     <Tab label="Chat" disabled={project.status !== 'active'} />
+                    <Tab label="Pipeline" />
                     <Tab label="Widget" disabled={project.status !== 'active'} />
                     <Tab label="Settings" />
                 </Tabs>
@@ -673,8 +698,35 @@ export const ProjectDetailPage: React.FC = () => {
                 </Card>
             </TabPanel>
 
-            {/* Widget Tab */}
+            {/* Pipeline Tab */}
             <TabPanel value={tab} index={3}>
+                <Box sx={{ height: 'calc(100vh - 300px)', display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                        <Button
+                            variant="contained"
+                            startIcon={<SaveIcon />}
+                            onClick={handleSavePipeline}
+                            disabled={!pipelineDirty}
+                        >
+                            Save Pipeline
+                        </Button>
+                    </Box>
+                    <Box sx={{ flex: 1, border: '1px solid #e0e0e0', borderRadius: 1, overflow: 'hidden' }}>
+                        {project && project.config && (
+                            <PipelineEditor
+                                initialConfig={project.config.pipeline_config || { type: 'simple_rag', steps: [], chat_history_config: { include_history: true, max_history_turns: 3 } }}
+                                onConfigChange={(newConfig) => {
+                                    setPendingPipelineConfig(newConfig);
+                                    setPipelineDirty(true);
+                                }}
+                            />
+                        )}
+                    </Box>
+                </Box>
+            </TabPanel>
+
+            {/* Widget Tab */}
+            <TabPanel value={tab} index={4}>
                 {project && apiClient && (
                     <WidgetEmbed
                         projectId={projectId!}
@@ -685,7 +737,7 @@ export const ProjectDetailPage: React.FC = () => {
             </TabPanel>
 
             {/* Settings Tab */}
-            <TabPanel value={tab} index={4}>
+            <TabPanel value={tab} index={5}>
                 {project && project.config && (
                     <ConfigEditor
                         config={project.config}
