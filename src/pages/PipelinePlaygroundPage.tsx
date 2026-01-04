@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import PipelineEditor from '../components/pipeline/PipelineEditor';
-import { PipelineConfig } from '../types/config';
+import { PipelineConfig } from '../types';
 
 const MOCK_CONFIG: PipelineConfig = {
     type: 'simple_rag',

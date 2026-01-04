@@ -349,8 +349,29 @@ export class RAGaaSClient {
         return this.request(url);
     }
 
+    async searchSessions(
+        projectId: string,
+        query: string
+    ): Promise<SessionListResponse> {
+        return this.request(`/api/v1/projects/${projectId}/sessions/search?q=${encodeURIComponent(query)}`);
+    }
+
+    async createSession(projectId: string, data: { user_id?: string; title?: string; custom_fields?: Record<string, any> }): Promise<ChatSession> {
+        return this.request(`/api/v1/projects/${projectId}/sessions`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
     async getSession(projectId: string, sessionId: string): Promise<ChatSession> {
         return this.request(`/api/v1/projects/${projectId}/sessions/${sessionId}`);
+    }
+
+    async updateSession(projectId: string, sessionId: string, data: { title?: string; custom_fields?: Record<string, any> }): Promise<ChatSession> {
+        return this.request(`/api/v1/projects/${projectId}/sessions/${sessionId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
     }
 
     async getSessionMessages(
@@ -363,10 +384,33 @@ export class RAGaaSClient {
         );
     }
 
+    async addSessionMessage(projectId: string, sessionId: string, data: { role: string; content: string; metadata?: Record<string, any> }): Promise<ChatMessage> {
+        return this.request(`/api/v1/projects/${projectId}/sessions/${sessionId}/messages`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
     async deleteSession(projectId: string, sessionId: string): Promise<void> {
         return this.request(`/api/v1/projects/${projectId}/sessions/${sessionId}`, {
             method: 'DELETE',
         });
+    }
+
+    async clearSessionMessages(projectId: string, sessionId: string): Promise<void> {
+        return this.request(`/api/v1/projects/${projectId}/sessions/${sessionId}/messages`, {
+            method: 'DELETE',
+        });
+    }
+
+    async deleteSessionMessage(projectId: string, sessionId: string, messageId: string): Promise<void> {
+        return this.request(`/api/v1/projects/${projectId}/sessions/${sessionId}/messages/${messageId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async exportSession(projectId: string, sessionId: string): Promise<any> {
+        return this.request(`/api/v1/projects/${projectId}/sessions/${sessionId}/export`);
     }
 
     // ============ Widget ============

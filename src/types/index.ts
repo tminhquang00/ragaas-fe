@@ -16,14 +16,24 @@ export interface RetrievalConfig {
   chunk_overlap?: number;
 }
 
+export interface ChatHistoryConfig {
+  include_history: boolean;
+  max_history_turns: number;
+}
+
 export interface PipelineConfig {
-  type: 'simple_rag' | 'agentic' | 'routing' | 'agent' | 'custom';
+  type: 'simple_rag' | 'classify' | 'agentic' | 'routing' | 'agent' | 'custom';
   steps?: PipelineStep[];
+  conditional_logic?: Record<string, unknown>;
+  agent_config?: Record<string, unknown>;
+  chat_history_config?: ChatHistoryConfig;
 }
 
 export interface PipelineStep {
   name: string;
+  type?: 'retrieve' | 'classify' | 'generate' | 'transform' | 'filter' | 'tool_call' | 'parallel' | 'route' | 'agent';
   config?: Record<string, unknown>;
+  branches?: Record<string, PipelineStep[]>;
 }
 
 export interface WidgetConfig {
@@ -252,11 +262,28 @@ export interface ChatResponse {
 }
 
 export interface StreamingChunk {
-  chunk_id: string;
-  type: 'content' | 'source' | 'metadata' | 'complete';
+  chunk_id?: string;
+  type: 'step_start' | 'step_end' | 'agent_action' | 'content' | 'source' | 'complete' | 'error';
   data: string;
   metadata?: Record<string, unknown>;
 }
+
+// Step progress for pipeline visualization
+export interface StepProgress {
+  name: string;
+  step_type: string;
+  status: 'pending' | 'running' | 'completed' | 'error';
+  duration_ms?: number;
+}
+
+// Agent action during agent execution
+export interface AgentAction {
+  step: string;
+  action: string;
+  tool?: string;
+  input?: string;
+}
+
 
 // ============ Sessions ============
 
@@ -267,6 +294,8 @@ export interface ChatMessage {
   images?: ImageContent[];
   timestamp: string;
   tokens_used?: number;
+  cost?: number;
+  metadata?: Record<string, any>;
 }
 
 export interface ChatSession {
@@ -278,6 +307,7 @@ export interface ChatSession {
   updated_at: string;
   title?: string;
   messages: ChatMessage[];
+  custom_fields?: Record<string, any>;
 }
 
 export interface SessionListResponse {

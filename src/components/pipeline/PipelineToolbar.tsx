@@ -1,79 +1,131 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-    Description as DescriptionIcon,
+    Box,
+    Paper,
+    Typography,
+    Tooltip,
+    IconButton,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
+    useTheme,
+} from '@mui/material';
+import {
     Search as SearchIcon,
-    AutoFixHigh as MagicIcon,
-    FilterList as FilterIcon,
-    SmartToy as BotIcon,
+    AutoGraph as GenerateIcon,
+    Label as ClassifyIcon,
+    CallSplit as RouteIcon,
+    Transform as TransformIcon,
+    Merge as ParallelIcon,
+    SmartToy as AgentIcon,
+    DragIndicator as DragIcon,
+    ChevronLeft as ChevronLeftIcon,
+    ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
-import { Box, Typography, Paper, Tooltip } from '@mui/material';
+
+const STEP_TYPES = [
+    { type: 'retrieve', label: 'Retrieve', icon: <SearchIcon />, color: 'primary' },
+    { type: 'generate', label: 'Generate', icon: <GenerateIcon />, color: 'success' },
+    { type: 'classify', label: 'Classify', icon: <ClassifyIcon />, color: 'secondary' },
+    { type: 'route', label: 'Route', icon: <RouteIcon />, color: 'warning' },
+    { type: 'transform', label: 'Transform', icon: <TransformIcon />, color: 'info' },
+    { type: 'parallel', label: 'Parallel', icon: <ParallelIcon />, color: 'info' },
+    { type: 'agent', label: 'Agent', icon: <AgentIcon />, color: 'error' },
+];
 
 export const PipelineToolbar = () => {
-    const onDragStart = (event: React.DragEvent, nodeType: string, stepType: string) => {
-        event.dataTransfer.setData('application/reactflow', nodeType);
-        event.dataTransfer.setData('application/stepType', stepType);
+    const theme = useTheme();
+    const [collapsed, setCollapsed] = useState(false);
+
+    const onDragStart = (event: React.DragEvent, nodeType: string) => {
+        event.dataTransfer.setData('application/stepType', nodeType);
         event.dataTransfer.effectAllowed = 'move';
     };
 
-    const steps = [
-        { type: 'transform', label: 'Query Rewrite', icon: <MagicIcon fontSize="small" /> },
-        { type: 'retrieve', label: 'Retrieval', icon: <SearchIcon fontSize="small" /> },
-        { type: 'filter', label: 'Re-ranking', icon: <FilterIcon fontSize="small" /> },
-        { type: 'generate', label: 'Generation', icon: <BotIcon fontSize="small" /> },
-        { type: 'tool_call', label: 'Tool Call', icon: <DescriptionIcon fontSize="small" /> },
-    ];
-
     return (
-        <Box
+        <Paper
+            elevation={3}
             sx={{
-                width: 240,
+                width: collapsed ? 60 : 240,
+                transition: 'width 0.2s',
+                display: 'flex',
+                flexDirection: 'column',
                 borderRight: 1,
                 borderColor: 'divider',
                 bgcolor: 'background.paper',
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 1.5,
+                overflow: 'hidden',
+                zIndex: 2,
             }}
         >
-            <Typography variant="overline" color="text.secondary" fontWeight="bold">
-                Available Steps
-            </Typography>
-
-            {steps.map((step) => (
-                <Paper
-                    key={step.label}
-                    variant="outlined"
-                    draggable
-                    onDragStart={(event) => onDragStart(event, 'step', step.type)}
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2,
-                        px: 2,
-                        py: 1.5,
-                        cursor: 'grab',
-                        '&:hover': {
-                            bgcolor: 'action.hover',
-                            borderColor: 'primary.main',
-                        },
-                        transition: 'all 0.2s',
-                    }}
-                >
-                    <Box sx={{ color: 'text.secondary', display: 'flex' }}>
-                        {step.icon}
-                    </Box>
-                    <Typography variant="body2" fontWeight={500}>
-                        {step.label}
+            <Box
+                sx={{
+                    p: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: collapsed ? 'center' : 'space-between',
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                }}
+            >
+                {!collapsed && (
+                    <Typography variant="subtitle2" fontWeight="bold">
+                        Pipeline Steps
                     </Typography>
-                </Paper>
-            ))}
-
-            <Box sx={{ mt: 'auto', p: 1, bgcolor: 'action.selected', borderRadius: 1 }}>
-                <Typography variant="caption" color="text.secondary" align="center" display="block">
-                    Drag items to the canvas to add them to the pipeline.
-                </Typography>
+                )}
+                <IconButton onClick={() => setCollapsed(!collapsed)} size="small">
+                    {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+                </IconButton>
             </Box>
-        </Box>
+
+            <Box sx={{ overflowY: 'auto', flex: 1, p: 1 }}>
+                <List dense sx={{ p: 0 }}>
+                    {STEP_TYPES.map((step) => (
+                        <Tooltip
+                            key={step.type}
+                            title={collapsed ? step.label : ''}
+                            placement="right"
+                        >
+                            <ListItem
+                                draggable
+                                onDragStart={(event) => onDragStart(event, step.type)}
+                                sx={{
+                                    mb: 1,
+                                    border: 1,
+                                    borderColor: 'divider',
+                                    borderRadius: 1,
+                                    bgcolor: 'background.default',
+                                    cursor: 'grab',
+                                    '&:hover': {
+                                        bgcolor: 'action.hover',
+                                        borderColor: `${step.color}.main`,
+                                    },
+                                    justifyContent: collapsed ? 'center' : 'flex-start',
+                                    p: 1,
+                                }}
+                            >
+                                <ListItemIcon sx={{ minWidth: collapsed ? 'auto' : 36, color: `${step.color}.main` }}>
+                                    {step.icon}
+                                </ListItemIcon>
+                                {!collapsed && (
+                                    <>
+                                        <ListItemText primary={step.label} />
+                                        <DragIcon fontSize="small" color="disabled" />
+                                    </>
+                                )}
+                            </ListItem>
+                        </Tooltip>
+                    ))}
+                </List>
+            </Box>
+
+            {!collapsed && (
+                <Box sx={{ p: 2, bgcolor: 'background.default', borderTop: 1, borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary">
+                        Drag steps onto the canvas to add them to your pipeline.
+                    </Typography>
+                </Box>
+            )}
+        </Paper>
     );
 };

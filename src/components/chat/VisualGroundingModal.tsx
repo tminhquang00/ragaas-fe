@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -65,6 +65,15 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
 
         return null;
     }, [source, baseUrl]);
+
+    // Reset state when source changes or modal opens - prevents stale image/state
+    useEffect(() => {
+        if (open && source) {
+            setLoading(true);
+            setError(null);
+            setZoom(1);
+        }
+    }, [open, source?.document_id, source?.page_number]);
 
     if (!source) return null;
 
@@ -245,6 +254,7 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
                                 transform: `scale(${zoom})`,
                                 transformOrigin: 'top center',
                                 transition: 'transform 0.2s ease-in-out',
+                                willChange: 'transform', // GPU acceleration for smooth zoom
                                 boxShadow: theme.shadows[4],
                                 borderRadius: 1,
                                 display: loading ? 'none' : 'block',

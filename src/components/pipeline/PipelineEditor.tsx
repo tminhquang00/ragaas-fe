@@ -16,10 +16,10 @@ import '@xyflow/react/dist/style.css';
 import { Box } from '@mui/material';
 
 import { StepNode } from './StepNode';
-import { PipelineToolbar } from './PipelineToolbar';
 import { PipelinePropertyPanel } from './PipelinePropertyPanel';
-import { PipelineConfig } from '../../types/config';
-import { configToFlow, flowToConfig, PipelineNode } from '../../utils/pipelineFlowUtils';
+import { PipelineToolbar } from './PipelineToolbar';
+import { PipelineConfig } from '../../types';
+import { configToFlow, graphToConfig, PipelineNode } from '../../utils/pipelineFlowUtils';
 
 interface PipelineEditorProps {
     initialConfig: PipelineConfig;
@@ -40,8 +40,6 @@ function PipelineEditorContent({ initialConfig, onConfigChange }: PipelineEditor
     const [nodes, setNodes, onNodesChange] = useNodesState<PipelineNode>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-    // Use a ref to store the latest config to avoid dependency cycles in effects
-    const configRef = useRef(initialConfig);
     const isInitialMount = useRef(true);
 
     // Initial load
@@ -59,7 +57,8 @@ function PipelineEditorContent({ initialConfig, onConfigChange }: PipelineEditor
         if (!onConfigChange || isInitialMount.current) return;
 
         const timer = setTimeout(() => {
-            const newConfig = flowToConfig(nodes, configRef.current);
+            // Use graphToConfig which respects edges
+            const newConfig = graphToConfig(nodes, edges);
             onConfigChange(newConfig);
         }, 500);
 
@@ -72,44 +71,44 @@ function PipelineEditorContent({ initialConfig, onConfigChange }: PipelineEditor
     );
 
     // -- Drag & Drop Logic --
-    // const onDragOver = useCallback((event: React.DragEvent) => {
-    //     event.preventDefault();
-    //     event.dataTransfer.dropEffect = 'move';
-    // }, []);
+    const onDragOver = useCallback((event: React.DragEvent) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    }, []);
 
-    // const onDrop = useCallback(
-    //     (event: React.DragEvent) => {
-    //         event.preventDefault();
+    const onDrop = useCallback(
+        (event: React.DragEvent) => {
+            event.preventDefault();
 
-    //         const stepType = event.dataTransfer.getData('application/stepType');
-    //         if (typeof stepType === 'undefined' || !stepType) {
-    //             return;
-    //         }
+            const stepType = event.dataTransfer.getData('application/stepType');
+            if (typeof stepType === 'undefined' || !stepType) {
+                return;
+            }
 
-    //         const position = screenToFlowPosition({
-    //             x: event.clientX,
-    //             y: event.clientY,
-    //         });
+            const position = screenToFlowPosition({
+                x: event.clientX,
+                y: event.clientY,
+            });
 
-    //         const newIndex = nodes.length;
+            const newIndex = nodes.length;
 
-    //         const newNode: PipelineNode = {
-    //             id: `step-${Date.now()}`,
-    //             type: 'step',
-    //             position,
-    //             data: {
-    //                 label: `New ${stepType}`,
-    //                 type: stepType as any,
-    //                 config: {},
-    //                 stepIndex: newIndex
-    //             },
-    //         };
+            const newNode: PipelineNode = {
+                id: `step-${Date.now()}`,
+                type: 'step',
+                position,
+                data: {
+                    label: `New ${stepType}`,
+                    type: stepType as any,
+                    config: {},
+                    stepIndex: newIndex
+                },
+            };
 
-    //         setNodes((nds) => nds.concat(newNode));
-    //         setSelectedNode(newNode);
-    //     },
-    //     [screenToFlowPosition, nodes, setNodes]
-    // );
+            setNodes((nds) => nds.concat(newNode));
+            setSelectedNode(newNode);
+        },
+        [screenToFlowPosition, nodes, setNodes]
+    );
 
     // -- Selection Logic --
     const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
@@ -120,7 +119,7 @@ function PipelineEditorContent({ initialConfig, onConfigChange }: PipelineEditor
         setSelectedNode(null);
     }, []);
 
-    // -- Update Logic --
+    // -- Update & Delete Logic --
     const onUpdateNode = useCallback((nodeId: string, newData: any) => {
         setNodes((nds) =>
             nds.map((node) => {
@@ -132,6 +131,12 @@ function PipelineEditorContent({ initialConfig, onConfigChange }: PipelineEditor
         );
         setSelectedNode((prev) => prev && prev.id === nodeId ? { ...prev, data: newData } : prev);
     }, [setNodes]);
+
+    const onDeleteNode = useCallback((nodeId: string) => {
+        setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+        setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+        setSelectedNode(null);
+    }, [setNodes, setEdges]);
 
     return (
         <Box
@@ -157,8 +162,8 @@ function PipelineEditorContent({ initialConfig, onConfigChange }: PipelineEditor
                     onConnect={onConnect}
                     onNodeClick={onNodeClick}
                     onPaneClick={onPaneClick}
-                    // onDragOver={onDragOver}
-                    // onDrop={onDrop}
+                    onDragOver={onDragOver}
+                    onDrop={onDrop}
                     nodeTypes={nodeTypes}
                     fitView
                 >
@@ -170,6 +175,7 @@ function PipelineEditorContent({ initialConfig, onConfigChange }: PipelineEditor
             <PipelinePropertyPanel
                 selectedNode={selectedNode}
                 onUpdateNode={onUpdateNode}
+                onDeleteNode={onDeleteNode}
             />
         </Box>
     );

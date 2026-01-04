@@ -36,11 +36,14 @@ import {
     AutoAwesome as LogoIcon,
     Edit as EditIcon,
     Check as CheckIcon,
+    ChevronLeft as ChevronLeftIcon,
+    ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 
 const DRAWER_WIDTH = 280;
+const DRAWER_COLLAPSED_WIDTH = 72;
 
 interface NavItem {
     label: string;
@@ -64,6 +67,7 @@ export const MainLayout: React.FC = () => {
     const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
 
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [editingTenant, setEditingTenant] = useState(false);
     const [tempTenantId, setTempTenantId] = useState(tenantId);
@@ -97,10 +101,11 @@ export const MainLayout: React.FC = () => {
             {/* Logo */}
             <Box
                 sx={{
-                    p: 3,
+                    p: sidebarCollapsed ? 1.5 : 3,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 2,
+                    justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                 }}
             >
                 <Box
@@ -113,21 +118,24 @@ export const MainLayout: React.FC = () => {
                         alignItems: 'center',
                         justifyContent: 'center',
                         boxShadow: `0 8px 25px ${alpha(muiTheme.palette.primary.main, 0.4)}`,
+                        flexShrink: 0,
                     }}
                 >
                     <LogoIcon sx={{ color: 'white', fontSize: 28 }} />
                 </Box>
-                <Box>
-                    <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-                        RAGaaS
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                        AI-Powered Knowledge
-                    </Typography>
-                </Box>
+                {!sidebarCollapsed && (
+                    <Box>
+                        <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+                            RAGaaS
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            AI-Powered Knowledge
+                        </Typography>
+                    </Box>
+                )}
             </Box>
 
-            <Divider sx={{ mx: 2, opacity: 0.5 }} />
+            <Divider sx={{ mx: sidebarCollapsed ? 1 : 2, opacity: 0.5 }} />
 
             {/* Navigation */}
             <List sx={{ px: 1, py: 2, flex: 1 }}>
@@ -136,102 +144,149 @@ export const MainLayout: React.FC = () => {
                         (item.path !== '/' && location.pathname.startsWith(item.path));
 
                     return (
-                        <ListItemButton
+                        <Tooltip
                             key={item.path}
-                            onClick={() => handleNavClick(item.path)}
-                            selected={isActive}
-                            sx={{
-                                mb: 0.5,
-                                borderRadius: 2,
-                                '&.Mui-selected': {
-                                    background: `linear-gradient(135deg, ${alpha(muiTheme.palette.primary.main, 0.15)} 0%, ${alpha(muiTheme.palette.secondary.main, 0.1)} 100%)`,
-                                },
-                            }}
+                            title={sidebarCollapsed ? item.label : ''}
+                            placement="right"
+                            arrow
                         >
-                            <ListItemIcon
+                            <ListItemButton
+                                onClick={() => handleNavClick(item.path)}
+                                selected={isActive}
                                 sx={{
-                                    color: isActive ? muiTheme.palette.primary.main : 'inherit',
-                                    minWidth: 40,
+                                    mb: 0.5,
+                                    borderRadius: 2,
+                                    justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                                    px: sidebarCollapsed ? 1 : 2,
+                                    '&.Mui-selected': {
+                                        background: `linear-gradient(135deg, ${alpha(muiTheme.palette.primary.main, 0.15)} 0%, ${alpha(muiTheme.palette.secondary.main, 0.1)} 100%)`,
+                                    },
                                 }}
                             >
-                                {item.badge ? (
-                                    <Badge badgeContent={item.badge} color="secondary">
-                                        {item.icon}
-                                    </Badge>
-                                ) : (
-                                    item.icon
+                                <ListItemIcon
+                                    sx={{
+                                        color: isActive ? muiTheme.palette.primary.main : 'inherit',
+                                        minWidth: sidebarCollapsed ? 'auto' : 40,
+                                        justifyContent: 'center',
+                                    }}
+                                >
+                                    {item.badge ? (
+                                        <Badge badgeContent={item.badge} color="secondary">
+                                            {item.icon}
+                                        </Badge>
+                                    ) : (
+                                        item.icon
+                                    )}
+                                </ListItemIcon>
+                                {!sidebarCollapsed && (
+                                    <ListItemText
+                                        primary={item.label}
+                                        primaryTypographyProps={{
+                                            fontWeight: isActive ? 600 : 400,
+                                        }}
+                                    />
                                 )}
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={item.label}
-                                primaryTypographyProps={{
-                                    fontWeight: isActive ? 600 : 400,
-                                }}
-                            />
-                        </ListItemButton>
+                            </ListItemButton>
+                        </Tooltip>
                     );
                 })}
             </List>
 
-            {/* Tenant ID Section */}
-            <Box sx={{ p: 2 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                    Tenant ID
-                </Typography>
-                {editingTenant ? (
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <TextField
-                            size="small"
-                            fullWidth
-                            value={tempTenantId}
-                            onChange={(e) => setTempTenantId(e.target.value)}
-                            autoFocus
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <IconButton size="small" onClick={handleTenantSave}>
-                                            <CheckIcon fontSize="small" />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
+            {/* Tenant ID Section - Hidden when collapsed */}
+            {!sidebarCollapsed && (
+                <Box sx={{ p: 2 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                        Tenant ID
+                    </Typography>
+                    {editingTenant ? (
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                            <TextField
+                                size="small"
+                                fullWidth
+                                value={tempTenantId}
+                                onChange={(e) => setTempTenantId(e.target.value)}
+                                autoFocus
+                                InputProps={{
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={handleTenantSave}>
+                                                <CheckIcon fontSize="small" />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                        </Box>
+                    ) : (
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                p: 1,
+                                borderRadius: 1,
+                                background: alpha(muiTheme.palette.primary.main, 0.1),
                             }}
-                        />
-                    </Box>
-                ) : (
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                            p: 1,
-                            borderRadius: 1,
-                            background: alpha(muiTheme.palette.primary.main, 0.1),
-                        }}
-                    >
-                        <Typography variant="body2" sx={{ flex: 1, fontFamily: 'monospace' }} noWrap>
-                            {tenantId}
-                        </Typography>
-                        <IconButton size="small" onClick={() => setEditingTenant(true)}>
-                            <EditIcon fontSize="small" />
-                        </IconButton>
-                    </Box>
-                )}
-            </Box>
+                        >
+                            <Typography variant="body2" sx={{ flex: 1, fontFamily: 'monospace' }} noWrap>
+                                {tenantId}
+                            </Typography>
+                            <IconButton size="small" onClick={() => setEditingTenant(true)}>
+                                <EditIcon fontSize="small" />
+                            </IconButton>
+                        </Box>
+                    )}
+                </Box>
+            )}
 
-            <Divider sx={{ mx: 2, opacity: 0.5 }} />
+            <Divider sx={{ mx: sidebarCollapsed ? 1 : 2, opacity: 0.5 }} />
 
             {/* Theme Toggle */}
-            <Box sx={{ p: 2 }}>
-                <ListItemButton
-                    onClick={toggleTheme}
-                    sx={{ borderRadius: 2 }}
-                >
-                    <ListItemIcon sx={{ minWidth: 40 }}>
-                        {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
-                    </ListItemIcon>
-                    <ListItemText primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'} />
-                </ListItemButton>
+            <Box sx={{ p: sidebarCollapsed ? 1 : 2 }}>
+                <Tooltip title={sidebarCollapsed ? (mode === 'dark' ? 'Light Mode' : 'Dark Mode') : ''} placement="right" arrow>
+                    <ListItemButton
+                        onClick={toggleTheme}
+                        sx={{
+                            borderRadius: 2,
+                            justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                            px: sidebarCollapsed ? 1 : 2,
+                        }}
+                    >
+                        <ListItemIcon sx={{ minWidth: sidebarCollapsed ? 'auto' : 40, justifyContent: 'center' }}>
+                            {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+                        </ListItemIcon>
+                        {!sidebarCollapsed && (
+                            <ListItemText primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'} />
+                        )}
+                    </ListItemButton>
+                </Tooltip>
             </Box>
+
+            {/* Collapse Toggle Button - Desktop only */}
+            {!isMobile && (
+                <>
+                    <Divider sx={{ mx: sidebarCollapsed ? 1 : 2, opacity: 0.5 }} />
+                    <Box sx={{ p: sidebarCollapsed ? 1 : 2 }}>
+                        <Tooltip title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} placement="right" arrow>
+                            <ListItemButton
+                                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                                sx={{
+                                    borderRadius: 2,
+                                    justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                                    px: sidebarCollapsed ? 1 : 2,
+                                }}
+                            >
+                                <ListItemIcon sx={{ minWidth: sidebarCollapsed ? 'auto' : 40, justifyContent: 'center' }}>
+                                    {sidebarCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+                                </ListItemIcon>
+                                {!sidebarCollapsed && (
+                                    <ListItemText primary="Collapse" />
+                                )}
+                            </ListItemButton>
+                        </Tooltip>
+                    </Box>
+                </>
+            )}
         </Box>
     );
 
@@ -241,8 +296,9 @@ export const MainLayout: React.FC = () => {
             <AppBar
                 position="fixed"
                 sx={{
-                    width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-                    ml: { md: `${DRAWER_WIDTH}px` },
+                    width: { md: `calc(100% - ${sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH}px)` },
+                    ml: { md: `${sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH}px` },
+                    transition: 'width 0.2s ease-in-out, margin-left 0.2s ease-in-out',
                 }}
             >
                 <Toolbar>
@@ -309,7 +365,11 @@ export const MainLayout: React.FC = () => {
             {/* Sidebar */}
             <Box
                 component="nav"
-                sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}
+                sx={{
+                    width: { md: sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH },
+                    flexShrink: { md: 0 },
+                    transition: 'width 0.2s ease-in-out',
+                }}
             >
                 {/* Mobile Drawer */}
                 <Drawer
@@ -330,7 +390,11 @@ export const MainLayout: React.FC = () => {
                     variant="permanent"
                     sx={{
                         display: { xs: 'none', md: 'block' },
-                        '& .MuiDrawer-paper': { width: DRAWER_WIDTH },
+                        '& .MuiDrawer-paper': {
+                            width: sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH,
+                            transition: 'width 0.2s ease-in-out',
+                            overflowX: 'hidden',
+                        },
                     }}
                     open
                 >
@@ -344,9 +408,10 @@ export const MainLayout: React.FC = () => {
                 sx={{
                     flexGrow: 1,
                     p: 3,
-                    width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+                    width: { md: `calc(100% - ${sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH}px)` },
                     mt: 8,
                     minHeight: 'calc(100vh - 64px)',
+                    transition: 'width 0.2s ease-in-out',
                 }}
             >
                 <Outlet />

@@ -15,10 +15,6 @@ import {
     useTheme,
     alpha,
     InputAdornment,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
     Modal,
     Fade,
     Backdrop,
@@ -41,12 +37,17 @@ import {
     Link as LinkIcon,
     Image as ImageIcon,
 } from '@mui/icons-material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import PendingIcon from '@mui/icons-material/Pending';
+import BuildIcon from '@mui/icons-material/Build';
 import { useDropzone } from 'react-dropzone';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { SourceReference } from '../../types';
+import { SourceReference, StepProgress, AgentAction, ChatSession } from '../../types';
 import { VisualGroundingModal } from './VisualGroundingModal';
 import { JsonViewer, isJsonString } from './JsonViewer';
+import { ChatSessionList } from './ChatSessionList';
 
 interface Message {
     id: string;
@@ -67,7 +68,23 @@ interface ChatInterfaceProps {
     suggestions?: string[];
     sessionId?: string;
     apiBaseUrl?: string;
+    isStreaming?: boolean; // Controls scroll behavior: instant during streaming, smooth otherwise
+    steps?: StepProgress[]; // Pipeline step progress
+    agentAction?: AgentAction | null; // Current agent action
+
+    // Session Management
+    sessions?: ChatSession[];
+    onSelectSession?: (sessionId: string) => void;
+    onCreateSession?: () => void;
+    onDeleteSession?: (sessionId: string) => void;
+    onUpdateSession?: (sessionId: string, title: string) => Promise<void>;
+    onSearch?: (query: string) => void;
 }
+
+// ... (skipping to render)
+
+// Find ChatSessionList render
+// ... (removed misplaced JSX)
 
 interface SourceCitationProps {
     source: SourceReference;
@@ -89,7 +106,8 @@ const getSourceTypeIcon = (sourceType?: string) => {
     }
 };
 
-const SourceCitation: React.FC<SourceCitationProps> = ({ source, onViewVisualGrounding }) => {
+// Memoized source citation component - prevents re-renders when parent updates
+const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onViewVisualGrounding }) => {
     const theme = useTheme();
     const hasVisualGrounding = source.source_type === 'pdf' && (
         !!source.page_image_url ||
@@ -162,10 +180,10 @@ const SourceCitation: React.FC<SourceCitationProps> = ({ source, onViewVisualGro
             </Typography>
         </Box>
     );
-};
+});
 
-// Image attachment component with click-to-view modal
-const ImageAttachment: React.FC<{ file: File }> = ({ file }) => {
+// Memoized image attachment component with click-to-view modal
+const ImageAttachment: React.FC<{ file: File }> = React.memo(({ file }) => {
     const theme = useTheme();
     const [imageUrl, setImageUrl] = useState<string>('');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -295,10 +313,10 @@ const ImageAttachment: React.FC<{ file: File }> = ({ file }) => {
             </Modal>
         </>
     );
-};
+});
 
-// Markdown renderer component with custom styling
-const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
+// Memoized markdown renderer - prevents re-parsing on parent re-renders
+const MarkdownRenderer: React.FC<{ content: string }> = React.memo(({ content }) => {
     const theme = useTheme();
 
     return (
@@ -435,7 +453,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
             {content}
         </ReactMarkdown>
     );
-};
+});
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     projectId: _projectId,
@@ -446,10 +464,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     suggestions = [],
     sessionId,
     apiBaseUrl = '',
+    isStreaming = false,
+    steps = [],
+    agentAction = null,
+    sessions = [],
+    onSelectSession,
+    onCreateSession,
+    onDeleteSession,
+    onUpdateSession,
+    onSearch,
 }) => {
     const theme = useTheme();
     const [input, setInput] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -466,13 +494,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         setIsVisualGroundingOpen(false);
     };
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
+    // Use instant scroll during streaming to avoid animation queue-up, smooth otherwise
+    const scrollToBottom = useCallback(() => {
+        messagesEndRef.current?.scrollIntoView({
+            behavior: isStreaming ? 'instant' : 'smooth'
+        });
+    }, [isStreaming]);
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages, streamingContent]);
+    }, [messages, streamingContent, scrollToBottom]);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         setAttachedFiles(prev => [...prev, ...acceptedFiles]);
@@ -526,359 +557,495 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     return (
         <Box
-            {...getRootProps()}
             sx={{
                 height: '100%',
                 display: 'flex',
-                flexDirection: 'column',
                 maxHeight: 'calc(100vh - 200px)',
                 position: 'relative',
+                flexDirection: 'row',
+                overflow: 'hidden',
+                borderRadius: 1,
+                border: `1px solid ${theme.palette.divider}`,
             }}
         >
-            <input {...getInputProps()} />
-
-            {/* Drag overlay */}
-            {isDragActive && (
-                <Box
-                    sx={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: alpha(theme.palette.primary.main, 0.1),
-                        border: `2px dashed ${theme.palette.primary.main}`,
-                        borderRadius: 2,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 10,
-                        backdropFilter: 'blur(4px)',
-                    }}
-                >
-                    <UploadIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
-                    <Typography variant="h6" color="primary">
-                        Drop files to attach
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        PDF, Word, TXT, Markdown, or Images
-                    </Typography>
-                </Box>
-            )}
-
-            {/* Messages Area */}
             <Box
+                {...getRootProps()}
                 sx={{
                     flex: 1,
-                    overflowY: 'auto',
-                    p: 2,
+                    height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 2,
+                    position: 'relative',
+                    overflow: 'hidden',
                 }}
             >
-                {messages.length === 0 && !streamingContent && (
+                <input {...getInputProps()} />
+
+                {/* Drag overlay */}
+                {isDragActive && (
                     <Box
                         sx={{
-                            flex: 1,
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: alpha(theme.palette.primary.main, 0.1),
+                            border: `2px dashed ${theme.palette.primary.main}`,
+                            borderRadius: 2,
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            gap: 2,
-                            opacity: 0.7,
+                            zIndex: 10,
+                            backdropFilter: 'blur(4px)',
                         }}
                     >
-                        <BotIcon sx={{ fontSize: 64, color: 'primary.main' }} />
-                        <Typography variant="h6" color="text.secondary">
-                            Ask me anything about your documents
+                        <UploadIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+                        <Typography variant="h6" color="primary">
+                            Drop files to attach
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                            I'll search through your knowledge base to find answers
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 2 }}>
-                            💡 Tip: Drag and drop files to include them in your question
+                            PDF, Word, TXT, Markdown, or Images
                         </Typography>
                     </Box>
                 )}
 
-                {messages.map((message) => (
-                    <Box
-                        key={message.id}
-                        sx={{
-                            display: 'flex',
-                            gap: 2,
-                            alignItems: 'flex-start',
-                            flexDirection: message.role === 'user' ? 'row-reverse' : 'row',
-                        }}
-                    >
-                        <Avatar
+                {/* Messages Area */}
+                <Box
+                    sx={{
+                        flex: 1,
+                        overflowY: 'auto',
+                        p: 2,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                    }}
+                >
+                    {messages.length === 0 && !streamingContent && (
+                        <Box
                             sx={{
-                                width: 36,
-                                height: 36,
-                                background:
-                                    message.role === 'user'
-                                        ? `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`
-                                        : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                                flex: 1,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 2,
+                                opacity: 0.7,
                             }}
                         >
-                            {message.role === 'user' ? <PersonIcon /> : <BotIcon />}
-                        </Avatar>
-
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 2,
-                                maxWidth: '75%',
-                                background:
-                                    message.role === 'user'
-                                        ? alpha(theme.palette.secondary.main, 0.1)
-                                        : alpha(theme.palette.background.paper, 0.8),
-                                borderRadius: 2,
-                                borderTopRightRadius: message.role === 'user' ? 0 : 16,
-                                borderTopLeftRadius: message.role === 'assistant' ? 0 : 16,
-                            }}
-                        >
-                            {/* Attached files for user messages */}
-                            {message.attachments && message.attachments.length > 0 && (
-                                <Box sx={{ mb: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                    {message.attachments.map((file, idx) => {
-                                        const isImage = file.type.startsWith('image/');
-                                        if (isImage) {
-                                            return (
-                                                <ImageAttachment key={idx} file={file} />
-                                            );
-                                        }
-                                        return (
-                                            <Chip
-                                                key={idx}
-                                                icon={<FileIcon />}
-                                                label={file.name}
-                                                size="small"
-                                                variant="outlined"
-                                            />
-                                        );
-                                    })}
-                                </Box>
-                            )}
-
-                            {/* Message content with markdown for assistant, plain text for user */}
-                            {message.role === 'assistant' ? (
-                                isJsonString(message.content) ? (
-                                    <JsonViewer content={message.content} />
-                                ) : (
-                                    <MarkdownRenderer content={message.content} />
-                                )
-                            ) : (
-                                <Typography
-                                    variant="body1"
-                                    sx={{
-                                        whiteSpace: 'pre-wrap',
-                                        wordBreak: 'break-word',
-                                    }}
-                                >
-                                    {message.content}
-                                </Typography>
-                            )}
-
-                            {/* Sources */}
-                            {message.sources && message.sources.length > 0 && (
-                                <Accordion
-                                    sx={{
-                                        mt: 2,
-                                        background: 'transparent',
-                                        boxShadow: 'none',
-                                        '&:before': { display: 'none' },
-                                    }}
-                                >
-                                    <AccordionSummary
-                                        expandIcon={<ExpandMoreIcon />}
-                                        sx={{ px: 0, minHeight: 'auto' }}
-                                    >
-                                        <Typography variant="body2" color="primary" fontWeight={500}>
-                                            📄 {message.sources.length} Source{message.sources.length > 1 ? 's' : ''}
-                                        </Typography>
-                                    </AccordionSummary>
-                                    <AccordionDetails sx={{ px: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                        {message.sources.map((source, idx) => (
-                                            <SourceCitation
-                                                key={idx}
-                                                source={source}
-                                                onViewVisualGrounding={handleOpenVisualGrounding}
-                                            />
-                                        ))}
-                                    </AccordionDetails>
-                                </Accordion>
-                            )}
-                        </Paper>
-                    </Box>
-                ))}
-
-                {/* Streaming Response */}
-                {streamingContent && (
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                        <Avatar
-                            sx={{
-                                width: 36,
-                                height: 36,
-                                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                            }}
-                        >
-                            <BotIcon />
-                        </Avatar>
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 2,
-                                maxWidth: '75%',
-                                background: alpha(theme.palette.background.paper, 0.8),
-                                borderRadius: 2,
-                                borderTopLeftRadius: 0,
-                            }}
-                        >
-                            <MarkdownRenderer content={streamingContent} />
-                            <Box
-                                component="span"
-                                sx={{
-                                    display: 'inline-block',
-                                    width: 8,
-                                    height: 16,
-                                    background: theme.palette.primary.main,
-                                    ml: 0.5,
-                                    animation: 'blink 1s infinite',
-                                    '@keyframes blink': {
-                                        '0%, 100%': { opacity: 1 },
-                                        '50%': { opacity: 0 },
-                                    },
-                                }}
-                            />
-                        </Paper>
-                    </Box>
-                )}
-
-                {/* Loading indicator */}
-                {isLoading && !streamingContent && (
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                        <Avatar
-                            sx={{
-                                width: 36,
-                                height: 36,
-                                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                            }}
-                        >
-                            <BotIcon />
-                        </Avatar>
-                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                            <CircularProgress size={16} />
+                            <BotIcon sx={{ fontSize: 64, color: 'primary.main' }} />
+                            <Typography variant="h6" color="text.secondary">
+                                Ask me anything about your documents
+                            </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Thinking...
+                                I'll search through your knowledge base to find answers
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 2 }}>
+                                💡 Tip: Drag and drop files to include them in your question
                             </Typography>
                         </Box>
-                    </Box>
-                )}
+                    )}
 
-                <div ref={messagesEndRef} />
-            </Box>
-
-            {/* Suggestions */}
-            {suggestions.length > 0 && messages.length > 0 && (
-                <Box sx={{ px: 2, pb: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {suggestions.map((suggestion, idx) => (
-                        <Chip
-                            key={idx}
-                            label={suggestion}
-                            size="small"
-                            icon={<SuggestIcon />}
-                            onClick={() => handleSuggestionClick(suggestion)}
-                            sx={{ cursor: 'pointer' }}
-                            variant="outlined"
-                        />
-                    ))}
-                </Box>
-            )}
-
-            {/* Attached files preview */}
-            {attachedFiles.length > 0 && (
-                <Box sx={{ px: 2, pb: 1 }}>
-                    <List dense sx={{ py: 0 }}>
-                        {attachedFiles.map((file, index) => (
-                            <ListItem
-                                key={`${file.name}-${index}`}
+                    {messages.map((message) => (
+                        <Box
+                            key={message.id}
+                            sx={{
+                                display: 'flex',
+                                gap: 2,
+                                alignItems: 'flex-start',
+                                flexDirection: message.role === 'user' ? 'row-reverse' : 'row',
+                            }}
+                        >
+                            <Avatar
                                 sx={{
-                                    py: 0.5,
-                                    px: 1,
-                                    mb: 0.5,
-                                    borderRadius: 1,
-                                    background: alpha(theme.palette.primary.main, 0.1),
+                                    width: 36,
+                                    height: 36,
+                                    background:
+                                        message.role === 'user'
+                                            ? `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`
+                                            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
                                 }}
-                                secondaryAction={
-                                    <IconButton edge="end" size="small" onClick={() => removeFile(index)}>
-                                        <CloseIcon fontSize="small" />
-                                    </IconButton>
-                                }
                             >
-                                <ListItemIcon sx={{ minWidth: 36 }}>
-                                    <FileIcon color="primary" />
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={file.name}
-                                    secondary={formatFileSize(file.size)}
-                                    primaryTypographyProps={{ variant: 'body2', noWrap: true }}
-                                    secondaryTypographyProps={{ variant: 'caption' }}
+                                {message.role === 'user' ? <PersonIcon /> : <BotIcon />}
+                            </Avatar>
+
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 2,
+                                    maxWidth: '75%',
+                                    background:
+                                        message.role === 'user'
+                                            ? alpha(theme.palette.secondary.main, 0.1)
+                                            : alpha(theme.palette.background.paper, 0.8),
+                                    borderRadius: 2,
+                                    borderTopRightRadius: message.role === 'user' ? 0 : 16,
+                                    borderTopLeftRadius: message.role === 'assistant' ? 0 : 16,
+                                }}
+                            >
+                                {/* Attached files for user messages */}
+                                {message.attachments && message.attachments.length > 0 && (
+                                    <Box sx={{ mb: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                        {message.attachments.map((file, idx) => {
+                                            const isImage = file.type.startsWith('image/');
+                                            if (isImage) {
+                                                return (
+                                                    <ImageAttachment key={idx} file={file} />
+                                                );
+                                            }
+                                            return (
+                                                <Chip
+                                                    key={idx}
+                                                    icon={<FileIcon />}
+                                                    label={file.name}
+                                                    size="small"
+                                                    variant="outlined"
+                                                />
+                                            );
+                                        })}
+                                    </Box>
+                                )}
+
+                                {/* Message content with markdown for assistant, plain text for user */}
+                                {message.role === 'assistant' ? (
+                                    isJsonString(message.content) ? (
+                                        <JsonViewer content={message.content} />
+                                    ) : (
+                                        <MarkdownRenderer content={message.content} />
+                                    )
+                                ) : (
+                                    <Typography
+                                        variant="body1"
+                                        sx={{
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                        }}
+                                    >
+                                        {message.content}
+                                    </Typography>
+                                )}
+
+                                {/* Sources */}
+                                {message.sources && message.sources.length > 0 && (
+                                    <Accordion
+                                        sx={{
+                                            mt: 2,
+                                            background: 'transparent',
+                                            boxShadow: 'none',
+                                            '&:before': { display: 'none' },
+                                        }}
+                                    >
+                                        <AccordionSummary
+                                            expandIcon={<ExpandMoreIcon />}
+                                            sx={{ px: 0, minHeight: 'auto' }}
+                                        >
+                                            <Typography variant="body2" color="primary" fontWeight={500}>
+                                                📄 {message.sources.length} Source{message.sources.length > 1 ? 's' : ''}
+                                            </Typography>
+                                        </AccordionSummary>
+                                        <AccordionDetails sx={{ px: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                            {message.sources.map((source, idx) => (
+                                                <SourceCitation
+                                                    key={idx}
+                                                    source={source}
+                                                    onViewVisualGrounding={handleOpenVisualGrounding}
+                                                />
+                                            ))}
+                                        </AccordionDetails>
+                                    </Accordion>
+                                )}
+                            </Paper>
+                        </Box>
+                    ))}
+
+                    {/* Pipeline Progress */}
+                    {(isLoading || steps.length > 0) && (
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                            <Avatar
+                                sx={{
+                                    width: 36,
+                                    height: 36,
+                                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                                }}
+                            >
+                                <BotIcon />
+                            </Avatar>
+                            <Box sx={{ flex: 1, maxWidth: '75%' }}>
+                                {/* Step Progress */}
+                                {steps.length > 0 && (
+                                    <Paper
+                                        elevation={0}
+                                        sx={{
+                                            p: 1.5,
+                                            mb: 1,
+                                            background: alpha(theme.palette.background.paper, 0.6),
+                                            borderRadius: 2,
+                                            border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                                        }}
+                                    >
+                                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                                            Pipeline Progress
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                            {steps.map((step, idx) => (
+                                                <Box
+                                                    key={`${step.name}-${idx}`}
+                                                    sx={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 1,
+                                                        py: 0.25,
+                                                    }}
+                                                >
+                                                    {step.status === 'completed' && (
+                                                        <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                                                    )}
+                                                    {step.status === 'running' && (
+                                                        <CircularProgress size={14} thickness={4} />
+                                                    )}
+                                                    {step.status === 'error' && (
+                                                        <ErrorIcon sx={{ fontSize: 16, color: 'error.main' }} />
+                                                    )}
+                                                    {step.status === 'pending' && (
+                                                        <PendingIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                                                    )}
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            color: step.status === 'pending' ? 'text.disabled' : 'text.primary',
+                                                            flex: 1,
+                                                        }}
+                                                    >
+                                                        {step.name}
+                                                    </Typography>
+                                                    {step.duration_ms !== undefined && (
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {step.duration_ms.toFixed(0)}ms
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            ))}
+                                        </Box>
+                                    </Paper>
+                                )}
+
+                                {/* Agent Action Indicator */}
+                                {agentAction && (
+                                    <Paper
+                                        elevation={0}
+                                        sx={{
+                                            p: 1.5,
+                                            mb: 1,
+                                            background: alpha(theme.palette.info.main, 0.08),
+                                            borderRadius: 2,
+                                            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                                        }}
+                                    >
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <BuildIcon sx={{ fontSize: 16, color: 'info.main' }} />
+                                            <Typography variant="body2" fontWeight={500} color="info.main">
+                                                {agentAction.action === 'tool_call' ? 'Calling: ' : 'Agent: '}
+                                                {agentAction.tool || agentAction.action}
+                                            </Typography>
+                                        </Box>
+                                        {agentAction.input && (
+                                            <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                                sx={{
+                                                    display: 'block',
+                                                    mt: 0.5,
+                                                    pl: 3,
+                                                    fontStyle: 'italic',
+                                                    maxWidth: 300,
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap',
+                                                }}
+                                            >
+                                                {agentAction.input}
+                                            </Typography>
+                                        )}
+                                    </Paper>
+                                )}
+
+                                {/* Streaming content or general loading */}
+                                {streamingContent ? (
+                                    <Paper
+                                        elevation={0}
+                                        sx={{
+                                            p: 2,
+                                            background: alpha(theme.palette.background.paper, 0.8),
+                                            borderRadius: 2,
+                                            borderTopLeftRadius: 0,
+                                        }}
+                                    >
+                                        <MarkdownRenderer content={streamingContent} />
+                                        <Box
+                                            component="span"
+                                            sx={{
+                                                display: 'inline-block',
+                                                width: 8,
+                                                height: 16,
+                                                background: theme.palette.primary.main,
+                                                ml: 0.5,
+                                                animation: 'blink 1s infinite',
+                                                '@keyframes blink': {
+                                                    '0%, 100%': { opacity: 1 },
+                                                    '50%': { opacity: 0 },
+                                                },
+                                            }}
+                                        />
+                                    </Paper>
+                                ) : isLoading && steps.length === 0 && !agentAction ? (
+                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                        <CircularProgress size={16} />
+                                        <Typography variant="body2" color="text.secondary">
+                                            Thinking...
+                                        </Typography>
+                                    </Box>
+                                ) : null}
+                            </Box>
+                        </Box>
+                    )}
+
+                    <div ref={messagesEndRef} />
+                </Box>
+
+                {/* Input Area */}
+                <Paper
+                    elevation={0}
+                    sx={{
+                        p: 2,
+                        borderTop: `1px solid ${theme.palette.divider}`,
+                        background: alpha(theme.palette.background.paper, 0.8),
+                        backdropFilter: 'blur(8px)',
+                    }}
+                >
+                    {attachedFiles.length > 0 && (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+                            {attachedFiles.map((file, idx) => (
+                                <Chip
+                                    key={idx}
+                                    label={`${file.name} (${formatFileSize(file.size)})`}
+                                    onDelete={() => removeFile(idx)}
+                                    size="small"
+                                    variant="outlined"
                                 />
-                            </ListItem>
-                        ))}
-                    </List>
+                            ))}
+                        </Box>
+                    )}
+
+                    {suggestions.length > 0 && messages.length > 0 && !isLoading && (
+                        <Box sx={{ display: 'flex', gap: 1, mb: 1.5, overflowX: 'auto', pb: 0.5 }}>
+                            {suggestions.map((suggestion, idx) => (
+                                <Chip
+                                    key={idx}
+                                    icon={<SuggestIcon fontSize="small" />}
+                                    label={suggestion}
+                                    onClick={() => handleSuggestionClick(suggestion)}
+                                    variant="outlined"
+                                    clickable
+                                    color="primary"
+                                    sx={{
+                                        borderColor: alpha(theme.palette.primary.main, 0.5),
+                                        '&:hover': {
+                                            borderColor: theme.palette.primary.main,
+                                            backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                                        },
+                                    }}
+                                />
+                            ))}
+                        </Box>
+                    )}
+
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <IconButton
+                            color="primary"
+                            onClick={open}
+                            disabled={isLoading}
+                        >
+                            <AttachIcon />
+                        </IconButton>
+                        <TextField
+                            fullWidth
+                            variant="outlined"
+                            placeholder="Type a message..."
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={handleKeyPress}
+                            disabled={isLoading}
+                            inputRef={inputRef}
+                            size="small"
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: 3,
+                                    backgroundColor: theme.palette.background.paper,
+                                },
+                            }}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            color="primary"
+                                            onClick={handleSend}
+                                            disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
+                                        >
+                                            <SendIcon />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                            }}
+                        />
+                    </Box>
+                </Paper>
+            </Box>
+
+            {/* Session Sidebar */}
+            {sessions.length > 0 && (
+                <Box
+                    sx={{
+                        width: isSidebarOpen ? 300 : 0,
+                        transition: 'width 0.3s ease',
+                        borderLeft: isSidebarOpen ? `1px solid ${theme.palette.divider}` : 'none',
+                        position: 'relative',
+                        bgcolor: 'background.paper',
+                    }}
+                >
+                    <IconButton
+                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                        size="small"
+                        sx={{
+                            position: 'absolute',
+                            left: -12,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            zIndex: 10,
+                            bgcolor: 'background.paper',
+                            boxShadow: 1,
+                            border: `1px solid ${theme.palette.divider}`,
+                            width: 24,
+                            height: 24,
+                            '&:hover': { bgcolor: 'action.hover' },
+                        }}
+                    >
+                        {isSidebarOpen ? <ExpandMoreIcon sx={{ transform: 'rotate(-90deg)', fontSize: 16 }} /> : <ExpandMoreIcon sx={{ transform: 'rotate(90deg)', fontSize: 16 }} />}
+                    </IconButton>
+
+                    {isSidebarOpen && onSelectSession && onCreateSession && onDeleteSession && onUpdateSession && (
+                        <ChatSessionList
+                            sessions={sessions}
+                            currentSessionId={sessionId}
+                            onSelectSession={onSelectSession}
+                            onCreateSession={onCreateSession}
+                            onDeleteSession={onDeleteSession}
+                            onUpdateSession={onUpdateSession}
+                            onSearch={onSearch}
+                        />
+                    )}
                 </Box>
             )}
-
-            {/* Input Area */}
-            <Box
-                sx={{
-                    p: 2,
-                    borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-                    background: alpha(theme.palette.background.paper, 0.5),
-                }}
-            >
-                <TextField
-                    fullWidth
-                    multiline
-                    maxRows={4}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder={attachedFiles.length > 0 ? "Add a message about the files..." : "Ask a question..."}
-                    inputRef={inputRef}
-                    disabled={isLoading}
-                    InputProps={{
-                        endAdornment: (
-                            <InputAdornment position="end">
-                                <Tooltip title="Attach files">
-                                    <IconButton size="small" onClick={open}>
-                                        <AttachIcon color={attachedFiles.length > 0 ? 'primary' : 'inherit'} />
-                                    </IconButton>
-                                </Tooltip>
-                                <IconButton
-                                    color="primary"
-                                    onClick={handleSend}
-                                    disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
-                                >
-                                    {isLoading ? <CircularProgress size={24} /> : <SendIcon />}
-                                </IconButton>
-                            </InputAdornment>
-                        ),
-                    }}
-                    sx={{
-                        '& .MuiOutlinedInput-root': {
-                            borderRadius: 3,
-                        },
-                    }}
-                />
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, textAlign: 'center' }}>
-                    Drop files here or click 📎 to attach • Supports PDF, Word, TXT, MD, Images
-                </Typography>
-            </Box>
 
             {/* Visual Grounding Modal */}
             <VisualGroundingModal

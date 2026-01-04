@@ -34,15 +34,13 @@ import { UploadZone, DocumentList } from '../components/documents';
 import { ChatInterface } from '../components/chat';
 import { WidgetEmbed } from '../components/widget';
 import { useAuth } from '../context';
-import { Project, Document, SourceReference, UploadTaskStatus } from '../types';
-import { PipelineConfig } from '../types/config';
+import { Project, Document, SourceReference, UploadTaskStatus, PipelineConfig, StepProgress, AgentAction, ChatSession } from '../types';
 
 interface TabPanelProps {
     children?: React.ReactNode;
     index: number;
     value: number;
 }
-
 const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
     <Box role="tabpanel" hidden={value !== index} sx={{ pt: 3 }}>
         {value === index && children}
@@ -88,7 +86,16 @@ export const ProjectDetailPage: React.FC = () => {
     const [streamingContent, setStreamingContent] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string | undefined>();
+    const [sessions, setSessions] = useState<ChatSession[]>([]);
+    // const [sessionsLoading, setSessionsLoading] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [isStreaming, setIsStreaming] = useState(false);
+    const [steps, setSteps] = useState<StepProgress[]>([]);
+    const [agentAction, setAgentAction] = useState<AgentAction | null>(null);
+
+    // Refs for throttling streaming updates
+    const streamingBufferRef = useRef('');
+    const rafIdRef = useRef<number | null>(null);
 
     // Pipeline State
     const [pendingPipelineConfig, setPendingPipelineConfig] = useState<PipelineConfig | null>(null);
@@ -119,10 +126,69 @@ export const ProjectDetailPage: React.FC = () => {
         }
     }, [apiClient, projectId]);
 
+    const fetchSessions = useCallback(async () => {
+        if (!apiClient || !projectId) return;
+        try {
+            // setSessionsLoading(true);
+            const data = await apiClient.getSessions(projectId);
+            setSessions(data.sessions);
+        } catch (err) {
+            console.error('Failed to load sessions:', err);
+        } finally {
+            // setSessionsLoading(false);
+        }
+    }, [apiClient, projectId]);
+
     useEffect(() => {
         fetchProject();
         fetchDocuments();
     }, [fetchProject, fetchDocuments]);
+
+    // Fetch sessions when chat tab is active
+    useEffect(() => {
+        if (tab === 2) {
+            fetchSessions();
+        }
+    }, [tab, fetchSessions]);
+
+    // Load messages when sessionId changes
+    useEffect(() => {
+        const loadSessionMessages = async () => {
+            if (!sessionId) {
+                setMessages([]);
+                return;
+            }
+
+            if (!apiClient || !projectId) return;
+
+            try {
+                setChatLoading(true);
+                const msgs = await apiClient.getSessionMessages(projectId, sessionId);
+
+                // Convert backend messages to frontend format
+                const chatMsgs: ChatMessage[] = msgs.messages.map(m => ({
+                    id: m.message_id,
+                    role: m.role as 'user' | 'assistant',
+                    content: m.content,
+                    timestamp: new Date(m.timestamp),
+                    // Note: Basic message retrieval might not include full source details 
+                    // dependent on backend implementation. Assuming basic content for now.
+                    sources: m.metadata?.sources as SourceReference[] | undefined,
+                }));
+                setMessages(chatMsgs);
+            } catch (err) {
+                console.error('Failed to load session messages:', err);
+                // Fallback to empty if failed
+                setMessages([]);
+            } finally {
+                setChatLoading(false);
+            }
+        };
+
+        if (tab === 2) {
+            loadSessionMessages();
+        }
+    }, [sessionId, apiClient, projectId, tab]);
 
     // Poll for document status
     useEffect(() => {
@@ -299,10 +365,60 @@ export const ProjectDetailPage: React.FC = () => {
         }
     };
 
+    const handleCreateSession = useCallback(() => {
+        setSessionId(undefined); // Clears current session, backend creates new one on first message
+        setMessages([]);
+        setSteps([]);
+        setSuggestions([]);
+    }, []);
+
+    const handleSelectSession = useCallback((sid: string) => {
+        setSessionId(sid);
+    }, []);
+
+    const handleDeleteSession = useCallback(async (sid: string) => {
+        if (!apiClient || !projectId) return;
+        try {
+            await apiClient.deleteSession(projectId, sid);
+            if (sessionId === sid) {
+                handleCreateSession();
+            }
+            fetchSessions();
+        } catch (err) {
+            console.error('Failed to delete session:', err);
+        }
+    }, [apiClient, projectId, sessionId, handleCreateSession, fetchSessions]);
+
+    const handleUpdateSession = useCallback(async (sid: string, title: string) => {
+        if (!apiClient || !projectId) return;
+        try {
+            await apiClient.updateSession(projectId, sid, { title });
+            fetchSessions();
+        } catch (err) {
+            console.error('Failed to update session:', err);
+        }
+    }, [apiClient, projectId, fetchSessions]);
+
+    const handleSearchSessions = useCallback(async (query: string) => {
+        if (!apiClient || !projectId) return;
+        if (!query.trim()) {
+            fetchSessions();
+            return;
+        }
+
+        try {
+            const result = await apiClient.searchSessions(projectId, query);
+            setSessions(result.sessions);
+        } catch (err) {
+            console.error('Failed to search sessions:', err);
+        }
+    }, [apiClient, projectId, fetchSessions]);
+
+
     const handleSendMessage = async (query: string, sid?: string, files?: File[]) => {
         if (!apiClient || !projectId) return;
 
-        // Add user message
+        // ... (userMessage creation)
         const userMessage: ChatMessage = {
             id: Date.now().toString(),
             role: 'user',
@@ -314,9 +430,11 @@ export const ProjectDetailPage: React.FC = () => {
         setChatLoading(true);
         setStreamingContent('');
         setSuggestions([]);
+        setSteps([]);
+        setAgentAction(null);
 
         try {
-            // Process files and images
+            // ... (file processing)
             const processedFiles: { filename: string; data: string; mime_type?: string }[] = [];
             const processedImages: { data: string; mime_type: string }[] = [];
 
@@ -326,7 +444,6 @@ export const ProjectDetailPage: React.FC = () => {
                         const reader = new FileReader();
                         reader.onload = () => {
                             const result = reader.result as string;
-                            // Remove data URL prefix (e.g., "data:image/png;base64,")
                             const base64 = result.split(',')[1];
                             resolve(base64);
                         };
@@ -334,7 +451,6 @@ export const ProjectDetailPage: React.FC = () => {
                         reader.readAsDataURL(file);
                     });
 
-                    // Check if file is an image
                     if (file.type.startsWith('image/')) {
                         processedImages.push({
                             data: base64Data,
@@ -352,7 +468,8 @@ export const ProjectDetailPage: React.FC = () => {
 
             let fullContent = '';
             const sources: SourceReference[] = [];
-            let newSessionId = sid;
+            // Use current sessionId if not explicitly provided
+            let newSessionId = sid || sessionId;
 
             const chatRequest: {
                 query: string;
@@ -361,7 +478,7 @@ export const ProjectDetailPage: React.FC = () => {
                 images?: { data: string; mime_type: string }[];
             } = {
                 query,
-                session_id: sid,
+                session_id: newSessionId,
             };
 
             if (processedFiles.length > 0) {
@@ -372,34 +489,53 @@ export const ProjectDetailPage: React.FC = () => {
                 chatRequest.images = processedImages;
             }
 
+            // ... (raf setup)
+            const scheduleUpdate = () => {
+                if (rafIdRef.current === null) {
+                    rafIdRef.current = requestAnimationFrame(() => {
+                        setStreamingContent(streamingBufferRef.current);
+                        rafIdRef.current = null;
+                    });
+                }
+            };
+
+
+            setIsStreaming(true);
+            streamingBufferRef.current = '';
+
             for await (const chunk of apiClient.streamChat(projectId, chatRequest)) {
+                // Check for error chunk type - cast to any to handle potential type mismatches
+                if ((chunk as any).type === 'error') {
+                    const errorMsg = typeof chunk.data === 'string' ? chunk.data : (chunk.data as any)?.message || 'Unknown error';
+                    throw new Error(errorMsg);
+                }
+
+                // Handle different chunk types
                 switch (chunk.type) {
                     case 'content':
                         fullContent += chunk.data;
-                        setStreamingContent(fullContent);
+                        streamingBufferRef.current = fullContent;
+                        scheduleUpdate();
                         break;
                     case 'source':
-                        // Source data is in chunk.data as a JSON string - parse it first
+                        // ... (source parsing unchanged)
                         let sourceData: Record<string, unknown> | null = null;
-
-                        // Always try to parse from chunk.data first (contains full source reference)
                         if (chunk.data) {
                             try {
                                 sourceData = typeof chunk.data === 'string'
                                     ? JSON.parse(chunk.data)
                                     : chunk.data as Record<string, unknown>;
                             } catch (e) {
-                                console.warn('Failed to parse source data:', chunk.data, e);
+                                // Removed console.warn as per instruction
                             }
                         }
-
-                        // Fallback to metadata only if data parsing failed and metadata has more than just document_id
-                        if (!sourceData && chunk.metadata && Object.keys(chunk.metadata).length > 1) {
+                        // Fallback to metadata if data parsing failed or was empty, 
+                        // but only if metadata looks like a source (has document_id)
+                        if (!sourceData && chunk.metadata && chunk.metadata.document_id) {
                             sourceData = chunk.metadata as Record<string, unknown>;
                         }
 
                         if (sourceData) {
-                            console.log('Parsed source:', sourceData);
                             const sourceRef: SourceReference = {
                                 document_id: String(sourceData.document_id || ''),
                                 document_name: String(sourceData.document_name || sourceData.source_doc_name || 'Unknown'),
@@ -407,14 +543,12 @@ export const ProjectDetailPage: React.FC = () => {
                                 excerpt: String(sourceData.excerpt || sourceData.content || ''),
                                 relevance_score: Number(sourceData.relevance_score || sourceData.score || 0),
                                 position: sourceData.position as string | undefined,
-                                // Visual grounding fields
                                 source_type: (sourceData.source_type as SourceReference['source_type']) || undefined,
                                 page_number: sourceData.page_number !== undefined && sourceData.page_number !== null
                                     ? Number(sourceData.page_number) : undefined,
                                 bounding_box: sourceData.bounding_box as SourceReference['bounding_box'],
                                 page_image_url: sourceData.page_image_url as string | undefined,
                                 source_url: sourceData.source_url as string | undefined,
-                                // Document-specific fields
                                 section: sourceData.section as string | undefined,
                                 sheet_name: sourceData.sheet_name as string | undefined,
                                 cell_range: sourceData.cell_range as string | undefined,
@@ -430,11 +564,61 @@ export const ProjectDetailPage: React.FC = () => {
                         if (chunk.metadata?.next_suggestions) {
                             setSuggestions(chunk.metadata.next_suggestions as string[]);
                         }
+                        setAgentAction(null);
+                        break;
+                    case 'step_start':
+                        // ...
+                        const stepData = chunk.data ? JSON.parse(chunk.data) : chunk.metadata;
+                        if (stepData) {
+                            setSteps(prev => [...prev, {
+                                name: stepData.name || 'Unknown step',
+                                step_type: stepData.step_type || 'unknown',
+                                status: 'running',
+                            }]);
+                        }
+                        break;
+                    case 'step_end':
+                        // ...
+                        const endData = chunk.data ? JSON.parse(chunk.data) : chunk.metadata;
+                        if (endData) {
+                            setSteps(prev => prev.map(s =>
+                                s.name === endData.name
+                                    ? { ...s, status: endData.status === 'error' ? 'error' : 'completed', duration_ms: endData.duration_ms }
+                                    : s
+                            ));
+                        }
+                        break;
+                    case 'agent_action':
+                        // ...
+                        const actionData = chunk.data ? JSON.parse(chunk.data) : chunk.metadata;
+                        if (actionData) {
+                            setAgentAction({
+                                step: actionData.step || '',
+                                action: actionData.action || '',
+                                tool: actionData.tool,
+                                input: actionData.input,
+                            });
+                        }
+                        break;
+                    case 'error':
+                        // ...
+                        const errorData = chunk.data ? JSON.parse(chunk.data) : chunk.metadata;
+                        const errorMessage = errorData?.message || errorData?.error || 'An error occurred';
+                        setError(errorMessage);
+                        setSteps(prev => prev.map(s =>
+                            s.status === 'running' ? { ...s, status: 'error' } : s
+                        ));
                         break;
                 }
             }
 
-            // Add assistant message
+            // ... (finalize)
+            if (rafIdRef.current !== null) {
+                cancelAnimationFrame(rafIdRef.current);
+                rafIdRef.current = null;
+            }
+            setIsStreaming(false);
+
             const assistantMessage: ChatMessage = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
@@ -444,8 +628,25 @@ export const ProjectDetailPage: React.FC = () => {
             };
             setMessages((prev) => [...prev, assistantMessage]);
             setStreamingContent('');
-            setSessionId(newSessionId);
+
+            // Only update session ID if it changed
+            if (newSessionId && newSessionId !== sessionId) {
+                setSessionId(newSessionId);
+                fetchSessions(); // Refresh list to show new session
+            }
+            // Also refresh sessions if we just added a message to an existing session, 
+            // to update the timestamp/summary if needed? 
+            // Usually mostly needed on creation.
+
+            setSteps([]);
+            setAgentAction(null);
         } catch (err) {
+            // ... (error handling)
+            setIsStreaming(false);
+            if (rafIdRef.current !== null) {
+                cancelAnimationFrame(rafIdRef.current);
+                rafIdRef.current = null;
+            }
             setError(err instanceof Error ? err.message : 'Chat failed');
         } finally {
             setChatLoading(false);
@@ -694,6 +895,15 @@ export const ProjectDetailPage: React.FC = () => {
                         suggestions={suggestions}
                         sessionId={sessionId}
                         apiBaseUrl={import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}
+                        isStreaming={isStreaming}
+                        steps={steps}
+                        agentAction={agentAction}
+                        sessions={sessions}
+                        onSelectSession={handleSelectSession}
+                        onCreateSession={handleCreateSession}
+                        onDeleteSession={handleDeleteSession}
+                        onUpdateSession={handleUpdateSession}
+                        onSearch={handleSearchSessions}
                     />
                 </Card>
             </TabPanel>
@@ -745,6 +955,6 @@ export const ProjectDetailPage: React.FC = () => {
                     />
                 )}
             </TabPanel>
-        </Box>
+        </Box >
     );
 };

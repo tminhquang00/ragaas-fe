@@ -1,6 +1,6 @@
-import { Edge, Node, Position } from '@xyflow/react';
+import { Edge, Node, Position, MarkerType } from '@xyflow/react';
 import dagre from 'dagre';
-import { PipelineConfig, PipelineStep } from '../types/config';
+import { PipelineConfig, PipelineStep } from '../types';
 
 // Define the Node Data type
 export type PipelineNodeData = {
@@ -15,67 +15,86 @@ export type PipelineNodeData = {
 export type PipelineNode = Node<PipelineNodeData>;
 
 const nodeWidth = 250;
-const nodeHeight = 200; // Increased height to account for larger node content
+const nodeHeight = 100;
 
 /**
- * Converts a linear PipelineConfig into Nodes and Edges for React Flow.
+ * Converts a recursive PipelineConfig into Nodes and Edges for React Flow.
  */
 export const configToFlow = (config: PipelineConfig) => {
     const nodes: PipelineNode[] = [];
     const edges: Edge[] = [];
 
-    // Create Start Node
+    let nodeIdCounter = 0;
+    const generateId = () => `node-${nodeIdCounter++}`;
+
+    // Helper to recursively process steps
+    const processSteps = (steps: PipelineStep[], parentNodeId: string | null, sourceHandle?: string): string | null => {
+        if (!steps || steps.length === 0) return null;
+
+        let previousNodeId = parentNodeId;
+
+        // If it's a branch (parentNodeId is set), we don't start from 'previousNodeId' for the first node,
+        // we connect parent -> first node.
+
+        let lastNodeId = null;
+
+        for (let i = 0; i < steps.length; i++) {
+            const step = steps[i];
+            const nodeId = generateId();
+            lastNodeId = nodeId;
+
+            nodes.push({
+                id: nodeId,
+                type: 'step',
+                data: {
+                    label: step.name,
+                    type: step.type,
+                    config: step.config,
+                    stepIndex: i
+                },
+                position: { x: 0, y: 0 },
+            });
+
+            // Connect to previous
+            if (previousNodeId) {
+                edges.push({
+                    id: `e-${previousNodeId}-${nodeId}`,
+                    source: previousNodeId,
+                    target: nodeId,
+                    sourceHandle: i === 0 ? sourceHandle : undefined, // Only use handle for first connection in branch
+                    type: 'smoothstep',
+                    markerEnd: { type: MarkerType.ArrowClosed },
+                    animated: true,
+                });
+            }
+
+            previousNodeId = nodeId;
+
+            // Handle Branches (Route/Parallel)
+            if (step.branches) {
+                Object.entries(step.branches).forEach(([branchKey, branchSteps]) => {
+                    // Process branch
+                    // The parent is the current node (previousNodeId)
+                    // We need to use handles for Route nodes usually
+                    processSteps(branchSteps, nodeId, branchKey);
+                });
+            }
+        }
+
+        return lastNodeId;
+    };
+
+    // Start Node
+    const startNodeId = 'start';
     nodes.push({
-        id: 'start',
-        type: 'input', // or custom 'start'
+        id: startNodeId,
+        type: 'input',
         data: { label: 'Start', type: 'transform' as any, config: {}, stepIndex: -1 },
         position: { x: 0, y: 0 },
     });
 
-    let previousNodeId = 'start';
-
-    config.steps.forEach((step, index) => {
-        const nodeId = `step-${index}`;
-
-        nodes.push({
-            id: nodeId,
-            type: 'step', // Custom node type we will create
-            data: {
-                label: step.name,
-                type: step.type,
-                config: step.config,
-                stepIndex: index
-            },
-            position: { x: 0, y: 0 }, // Position will be calculated by layout
-        });
-
-        edges.push({
-            id: `e-${previousNodeId}-${nodeId}`,
-            source: previousNodeId,
-            target: nodeId,
-            type: 'smoothstep',
-            animated: true,
-        });
-
-        previousNodeId = nodeId;
-    });
-
-    // Create End Node
-    const endNodeId = 'end';
-    nodes.push({
-        id: endNodeId,
-        type: 'output', // or custom 'end'
-        data: { label: 'End', type: 'transform' as any, config: {}, stepIndex: -99 },
-        position: { x: 0, y: 0 },
-    });
-
-    edges.push({
-        id: `e-${previousNodeId}-${endNodeId}`,
-        source: previousNodeId,
-        target: endNodeId,
-        type: 'smoothstep',
-        animated: true,
-    });
+    // Process Root Steps
+    processSteps(config.steps, startNodeId);
 
     return getLayoutedElements(nodes, edges);
 };
@@ -89,8 +108,8 @@ export const getLayoutedElements = (nodes: PipelineNode[], edges: Edge[]) => {
 
     dagreGraph.setGraph({
         rankdir: 'TB',
-        ranksep: 100, // Increased vertical separation
-        nodesep: 80   // Increased horizontal separation
+        ranksep: 100,
+        nodesep: 80
     });
 
     nodes.forEach((node) => {
@@ -121,31 +140,95 @@ export const getLayoutedElements = (nodes: PipelineNode[], edges: Edge[]) => {
 };
 
 /**
- * Converts React Flow Nodes back to PipelineConfig steps.
- * Note: This currently assumes a linear flow based on stepIndex or connection order.
- * A more robust implementation would traverse the graph.
+ * Real implementation with Edges
  */
-export const flowToConfig = (nodes: PipelineNode[], currentConfig: PipelineConfig): PipelineConfig => {
-    // Filter out start/end nodes and sort by stepIndex to reconstruct the array
-    // This is a naive implementation assuming we just modified properties, not structure.
-    // For structural changes, we'd need to traverse edges.
+export const graphToConfig = (nodes: PipelineNode[], edges: Edge[]): PipelineConfig => {
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const edgesBySource = new Map<string, Edge[]>();
 
-    // Topological sort or traversal would be better for true graph editing.
-    // For this MVP, let's assume valid linear sequence reconstruction.
+    edges.forEach(edge => {
+        if (!edgesBySource.has(edge.source)) {
+            edgesBySource.set(edge.source, []);
+        }
+        edgesBySource.get(edge.source)?.push(edge);
+    });
 
-    const stepNodes = nodes.filter(n => n.id.startsWith('step-'));
+    // Re-implementing a proper recursive builder
 
-    // We strive to respect the visual order (y position) if structure changed
-    stepNodes.sort((a, b) => a.position.y - b.position.y);
+    // 1. Find the first node after 'start'
+    const startNode = nodes.find(n => n.type === 'input' || n.id === 'start');
+    if (!startNode) return { steps: [] };
 
-    const newSteps: PipelineStep[] = stepNodes.map(node => ({
-        name: node.data.label,
-        type: node.data.type,
-        config: node.data.config
-    }));
+    const outgoing = edgesBySource.get(startNode.id) || [];
+    if (outgoing.length === 0) return { steps: [] };
 
+    // Usually 'start' has one output connecting to the first real step.
+    const firstStepId = outgoing[0].target;
+
+    const buildChain = (startId: string): PipelineStep[] => {
+        const chain: PipelineStep[] = [];
+        let currId: string | undefined = startId;
+
+        const visited = new Set<string>();
+
+        while (currId && !visited.has(currId)) {
+            visited.add(currId);
+            const node = nodeMap.get(currId);
+            if (!node) break;
+
+            if (node.type === 'output' || node.id === 'end') break;
+
+            const step: PipelineStep = {
+                name: node.data.label,
+                type: node.data.type,
+                config: node.data.config,
+            };
+
+            // Check for branches
+            // If this node is 'route' or 'parallel', we look for outgoing edges with sourceHandles
+            const outEdges = edgesBySource.get(currId) || [];
+
+            // Sort edges to ensure determinism?
+
+            if (['route', 'parallel'].includes(step.type)) {
+                const branches: Record<string, PipelineStep[]> = {};
+                let hasBranches = false;
+
+                outEdges.forEach(edge => {
+                    if (edge.sourceHandle) {
+                        hasBranches = true;
+                        // Recursively build that branch
+                        branches[edge.sourceHandle] = buildChain(edge.target);
+                    } else {
+                        // Main continuation? Route nodes usually don't have a "main" continuation that isn't a branch
+                        // Unless it's a mixed mode. Let's assume all outputs from Route are branches if configured.
+                    }
+                });
+
+                if (hasBranches) {
+                    step.branches = branches;
+                    // Route nodes usually act as terminal for that linear segment in terms of visualization.
+                    chain.push(step);
+                    break; // Stop linear chaining here, as control flow moves into branches.
+                }
+            }
+
+            chain.push(step);
+
+            const nextEdge = outEdges.find((e: Edge) => !e.sourceHandle);
+            if (nextEdge) {
+                currId = nextEdge.target;
+            } else {
+                currId = undefined;
+            }
+        }
+
+        return chain;
+    };
+
+    // We need to preserve the pipeline type from the current config or guess it
     return {
-        ...currentConfig,
-        steps: newSteps
+        type: 'custom', // Default to custom if rebuilding from graph
+        steps: buildChain(firstStepId)
     };
 };
