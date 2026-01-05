@@ -44,7 +44,7 @@ import BuildIcon from '@mui/icons-material/Build';
 import { useDropzone } from 'react-dropzone';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { SourceReference, StepProgress, AgentAction, ChatSession } from '../../types';
+import { SourceReference, StepProgress, AgentAction, ChatSession, ImageContent } from '../../types';
 import { VisualGroundingModal } from './VisualGroundingModal';
 import { JsonViewer, isJsonString } from './JsonViewer';
 import { ChatSessionList } from './ChatSessionList';
@@ -56,6 +56,7 @@ interface Message {
     sources?: SourceReference[];
     timestamp: Date;
     attachments?: File[];
+    images?: ImageContent[];
     isStreaming?: boolean;
 }
 
@@ -308,6 +309,127 @@ const ImageAttachment: React.FC<{ file: File }> = React.memo(({ file }) => {
                         >
                             {file.name}
                         </Typography>
+                    </Box>
+                </Fade>
+            </Modal>
+        </>
+    );
+});
+
+// Memoized base64 image component
+const Base64ImageAttachment: React.FC<{ image: ImageContent }> = React.memo(({ image }) => {
+    const theme = useTheme();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Construct data URL if data is present, otherwise use url if available
+    const imageUrl = image.data
+        ? `data:${image.mime_type};base64,${image.data}`
+        : image.url || '';
+
+    if (!imageUrl) return null;
+
+    return (
+        <>
+            <Box
+                sx={{
+                    position: 'relative',
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                        borderColor: theme.palette.primary.main,
+                        transform: 'scale(1.02)',
+                        '& .image-overlay': {
+                            opacity: 1,
+                        },
+                    },
+                }}
+                onClick={() => setIsModalOpen(true)}
+            >
+                <Box
+                    component="img"
+                    src={imageUrl}
+                    alt="Attached image"
+                    sx={{
+                        width: 120,
+                        height: 80,
+                        objectFit: 'cover',
+                        display: 'block',
+                    }}
+                />
+                <Box
+                    className="image-overlay"
+                    sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: alpha(theme.palette.common.black, 0.5),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: 0,
+                        transition: 'opacity 0.2s ease-in-out',
+                    }}
+                >
+                    <ImageIcon sx={{ color: 'white', fontSize: 28 }} />
+                </Box>
+            </Box>
+
+            <Modal
+                open={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                closeAfterTransition
+                slots={{ backdrop: Backdrop }}
+                slotProps={{
+                    backdrop: {
+                        timeout: 300,
+                        sx: { backgroundColor: alpha(theme.palette.common.black, 0.85) },
+                    },
+                }}
+            >
+                <Fade in={isModalOpen}>
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            maxWidth: '90vw',
+                            maxHeight: '90vh',
+                            outline: 'none',
+                        }}
+                    >
+                        <IconButton
+                            onClick={() => setIsModalOpen(false)}
+                            sx={{
+                                position: 'absolute',
+                                top: -40,
+                                right: 0,
+                                color: 'white',
+                                background: alpha(theme.palette.common.white, 0.1),
+                                '&:hover': {
+                                    background: alpha(theme.palette.common.white, 0.2),
+                                },
+                            }}
+                        >
+                            <CloseIcon />
+                        </IconButton>
+                        <Box
+                            component="img"
+                            src={imageUrl}
+                            alt="Full size attachment"
+                            sx={{
+                                maxWidth: '90vw',
+                                maxHeight: '85vh',
+                                objectFit: 'contain',
+                                borderRadius: 2,
+                                boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.4)}`,
+                            }}
+                        />
                     </Box>
                 </Fade>
             </Modal>
@@ -684,10 +806,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     borderTopLeftRadius: message.role === 'assistant' ? 0 : 16,
                                 }}
                             >
-                                {/* Attached files for user messages */}
-                                {message.attachments && message.attachments.length > 0 && (
+                                {/* Attached files and images for user messages */}
+                                {((message.attachments && message.attachments.length > 0) || (message.images && message.images.length > 0)) && (
                                     <Box sx={{ mb: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                        {message.attachments.map((file, idx) => {
+                                        {/* Render Base64 Images from History/State */}
+                                        {message.images?.map((image, idx) => (
+                                            <Base64ImageAttachment key={`bs64-${idx}`} image={image} />
+                                        ))}
+
+                                        {/* Render File Attachments */}
+                                        {message.attachments?.map((file, idx) => {
                                             const isImage = file.type.startsWith('image/');
                                             if (isImage) {
                                                 return (
