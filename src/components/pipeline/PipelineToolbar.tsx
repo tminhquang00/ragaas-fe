@@ -9,7 +9,6 @@ import {
     ListItem,
     ListItemIcon,
     ListItemText,
-    useTheme,
 } from '@mui/material';
 import {
     Search as SearchIcon,
@@ -35,7 +34,6 @@ const STEP_TYPES = [
 ];
 
 export const PipelineToolbar = () => {
-    const theme = useTheme();
     const [collapsed, setCollapsed] = useState(false);
 
     const onDragStart = (event: React.DragEvent, nodeType: string) => {

@@ -33,7 +33,6 @@ import {
     Logout as LogoutIcon,
     Person as PersonIcon,
     Brightness4 as ThemeIcon,
-    AutoAwesome as LogoIcon,
     Edit as EditIcon,
     Check as CheckIcon,
     ChevronLeft as ChevronLeftIcon,
@@ -109,24 +108,22 @@ export const MainLayout: React.FC = () => {
                 }}
             >
                 <Box
+                    component="img"
+                    src={sidebarCollapsed ? "/bosch-icon.png" : "/bosch-logo.png"}
+                    alt="Bosch"
                     sx={{
-                        width: 48,
                         height: 48,
-                        borderRadius: 2,
-                        background: `linear-gradient(135deg, ${muiTheme.palette.primary.main} 0%, ${muiTheme.palette.secondary.main} 100%)`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: `0 8px 25px ${alpha(muiTheme.palette.primary.main, 0.4)}`,
+                        width: sidebarCollapsed ? 48 : 'auto',
+                        maxWidth: sidebarCollapsed ? 48 : 180,
+                        objectFit: 'contain',
                         flexShrink: 0,
+                        transition: 'all 0.2s ease-in-out',
                     }}
-                >
-                    <LogoIcon sx={{ color: 'white', fontSize: 28 }} />
-                </Box>
+                />
                 {!sidebarCollapsed && (
                     <Box>
                         <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-                            RAGaaS
+                            Bosch RAGaaS
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                             AI-Powered Knowledge
@@ -412,9 +409,30 @@ export const MainLayout: React.FC = () => {
                     mt: 8,
                     minHeight: 'calc(100vh - 64px)',
                     transition: 'width 0.2s ease-in-out',
+                    display: 'flex',
+                    flexDirection: 'column',
                 }}
             >
-                <Outlet />
+                <Box sx={{ flex: 1 }}>
+                    <Outlet />
+                </Box>
+                
+                {/* Footer */}
+                <Box
+                    component="footer"
+                    sx={{
+                        py: 2,
+                        px: 1,
+                        mt: 4,
+                        borderTop: 1,
+                        borderColor: 'divider',
+                        textAlign: 'center',
+                    }}
+                >
+                    <Typography variant="body2" color="text.secondary">
+                        © 2026 Bosch Global Software Vietnam - SX Department. All rights reserved.
+                    </Typography>
+                </Box>
             </Box>
         </Box>
     );

@@ -49,7 +49,7 @@ export const configToFlow = (config: PipelineConfig) => {
                 data: {
                     label: step.name,
                     type: step.type,
-                    config: step.config,
+                    config: step.config || {},
                     stepIndex: i
                 },
                 position: { x: 0, y: 0 },
@@ -94,7 +94,7 @@ export const configToFlow = (config: PipelineConfig) => {
     });
 
     // Process Root Steps
-    processSteps(config.steps, startNodeId);
+    processSteps(config.steps || [], startNodeId);
 
     return getLayoutedElements(nodes, edges);
 };
@@ -157,10 +157,10 @@ export const graphToConfig = (nodes: PipelineNode[], edges: Edge[]): PipelineCon
 
     // 1. Find the first node after 'start'
     const startNode = nodes.find(n => n.type === 'input' || n.id === 'start');
-    if (!startNode) return { steps: [] };
+    if (!startNode) return { type: 'simple_rag' as const, steps: [], chat_history_config: { include_history: true, max_history_turns: 3 } };
 
     const outgoing = edgesBySource.get(startNode.id) || [];
-    if (outgoing.length === 0) return { steps: [] };
+    if (outgoing.length === 0) return { type: 'simple_rag' as const, steps: [], chat_history_config: { include_history: true, max_history_turns: 3 } };
 
     // Usually 'start' has one output connecting to the first real step.
     const firstStepId = outgoing[0].target;
@@ -186,15 +186,15 @@ export const graphToConfig = (nodes: PipelineNode[], edges: Edge[]): PipelineCon
 
             // Check for branches
             // If this node is 'route' or 'parallel', we look for outgoing edges with sourceHandles
-            const outEdges = edgesBySource.get(currId) || [];
+            const outEdges: Edge[] = edgesBySource.get(currId) || [];
 
             // Sort edges to ensure determinism?
 
-            if (['route', 'parallel'].includes(step.type)) {
+            if (['route', 'parallel'].includes(step.type || '')) {
                 const branches: Record<string, PipelineStep[]> = {};
                 let hasBranches = false;
 
-                outEdges.forEach(edge => {
+                outEdges.forEach((edge: Edge) => {
                     if (edge.sourceHandle) {
                         hasBranches = true;
                         // Recursively build that branch
@@ -215,7 +215,7 @@ export const graphToConfig = (nodes: PipelineNode[], edges: Edge[]): PipelineCon
 
             chain.push(step);
 
-            const nextEdge = outEdges.find((e: Edge) => !e.sourceHandle);
+            const nextEdge: Edge | undefined = outEdges.find((e: Edge) => !e.sourceHandle);
             if (nextEdge) {
                 currId = nextEdge.target;
             } else {
