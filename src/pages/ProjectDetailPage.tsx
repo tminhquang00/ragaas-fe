@@ -54,6 +54,7 @@ interface ChatMessage {
     sources?: SourceReference[];
     timestamp: Date;
     attachments?: File[];
+    images?: { data?: string; url?: string; mime_type: string }[];
 }
 
 interface UploadFile {
@@ -174,6 +175,7 @@ export const ProjectDetailPage: React.FC = () => {
                     // Note: Basic message retrieval might not include full source details 
                     // dependent on backend implementation. Assuming basic content for now.
                     sources: m.metadata?.sources as SourceReference[] | undefined,
+                    images: m.images,
                 }));
                 setMessages(chatMsgs);
             } catch (err) {
