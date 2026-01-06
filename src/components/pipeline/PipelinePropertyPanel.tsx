@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PipelineNode } from '../../utils/pipelineFlowUtils';
 import {
     Typography,
     Box,
     Chip,
     IconButton,
-    Collapse,
     Tooltip,
     Paper,
     TextField,
@@ -13,13 +12,9 @@ import {
     MenuItem,
     FormControl,
     InputLabel,
-    Button,
     Divider
 } from '@mui/material';
 import {
-    ExpandMore as ExpandMoreIcon,
-    ExpandLess as ExpandLessIcon,
-    ContentCopy as CopyIcon,
     Settings as SettingsIcon,
     ChevronRight as ChevronRightIcon,
     ChevronLeft as ChevronLeftIcon,
@@ -214,7 +209,7 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
         );
     }
 
-    const schema = getConfigSchema(selectedNode.data.type);
+    const schema = getConfigSchema(selectedNode.data.type || 'transform');
 
     return (
         <Paper
@@ -258,7 +253,7 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
                         <Chip
                             label={selectedNode.data.type}
                             size="small"
-                            color={getStepTypeColor(selectedNode.data.type)}
+                            color={getStepTypeColor(selectedNode.data.type || 'transform')}
                             sx={{
                                 textTransform: 'uppercase',
                                 fontWeight: 700,

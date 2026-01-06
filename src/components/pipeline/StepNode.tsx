@@ -42,8 +42,8 @@ const typeColors: Record<string, "default" | "primary" | "secondary" | "error" |
 
 export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
     const { label, type, config } = data;
-    const icon = typeIcons[type] || <SettingsIcon fontSize="small" />;
-    const color = typeColors[type] || 'default';
+    const icon = typeIcons[type || 'default'] || <SettingsIcon fontSize="small" />;
+    const color = typeColors[type || 'default'] || 'default';
 
     // Helper to format config for display
     const renderConfigPreview = () => {
