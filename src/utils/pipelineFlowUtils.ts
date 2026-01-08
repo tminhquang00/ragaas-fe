@@ -8,6 +8,7 @@ export type PipelineNodeData = {
     type: PipelineStep['type'];
     config: Record<string, any>;
     stepIndex: number; // Important to map back to the array
+    branchKeys?: string[]; // For route/parallel steps
     [key: string]: any;
 };
 
@@ -43,6 +44,11 @@ export const configToFlow = (config: PipelineConfig) => {
             const nodeId = generateId();
             lastNodeId = nodeId;
 
+            // For route/parallel steps, extract branch keys for dynamic handle rendering
+            // Branches can be in step.branches OR step.config.branches (API structure)
+            const stepBranches = step.branches || (step.config?.branches as Record<string, PipelineStep[]> | undefined);
+            const branchKeys = stepBranches ? Object.keys(stepBranches) : [];
+
             nodes.push({
                 id: nodeId,
                 type: 'step',
@@ -50,7 +56,8 @@ export const configToFlow = (config: PipelineConfig) => {
                     label: step.name,
                     type: step.type,
                     config: step.config || {},
-                    stepIndex: i
+                    stepIndex: i,
+                    branchKeys, // Pass branch keys for dynamic handle rendering
                 },
                 position: { x: 0, y: 0 },
             });
@@ -70,13 +77,13 @@ export const configToFlow = (config: PipelineConfig) => {
 
             previousNodeId = nodeId;
 
-            // Handle Branches (Route/Parallel)
-            if (step.branches) {
-                Object.entries(step.branches).forEach(([branchKey, branchSteps]) => {
+            // Handle Branches (Route/Parallel) - check both step.branches and step.config.branches
+            if (stepBranches) {
+                Object.entries(stepBranches).forEach(([branchKey, branchSteps]) => {
                     // Process branch
                     // The parent is the current node (previousNodeId)
                     // We need to use handles for Route nodes usually
-                    processSteps(branchSteps, nodeId, branchKey);
+                    processSteps(branchSteps as PipelineStep[], nodeId, branchKey);
                 });
             }
         }
@@ -206,7 +213,11 @@ export const graphToConfig = (nodes: PipelineNode[], edges: Edge[]): PipelineCon
                 });
 
                 if (hasBranches) {
-                    step.branches = branches;
+                    // For route/parallel steps, store branches in step.config.branches (API format)
+                    step.config = {
+                        ...step.config,
+                        branches,
+                    };
                     // Route nodes usually act as terminal for that linear segment in terms of visualization.
                     chain.push(step);
                     break; // Stop linear chaining here, as control flow moves into branches.
