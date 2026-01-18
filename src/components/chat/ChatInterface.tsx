@@ -639,8 +639,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             'application/pdf': ['.pdf'],
             'application/msword': ['.doc'],
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+            'application/vnd.ms-excel': ['.xls'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+            'application/vnd.ms-powerpoint': ['.ppt'],
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
             'text/plain': ['.txt'],
+            'text/csv': ['.csv'],
             'text/markdown': ['.md'],
+            'text/html': ['.html', '.htm'],
+            'application/rtf': ['.rtf'],
             'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
         },
     });
@@ -728,7 +735,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             Drop files to attach
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                            PDF, Word, TXT, Markdown, or Images
+                            PDF, Word, Excel, PowerPoint, CSV, TXT, Markdown, HTML, RTF, or Images
                         </Typography>
                     </Box>
                 )}
