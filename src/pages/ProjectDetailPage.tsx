@@ -55,6 +55,10 @@ interface ChatMessage {
     timestamp: Date;
     attachments?: File[];
     images?: { data?: string; url?: string; mime_type: string }[];
+    metadata?: {
+        uploaded_files?: { filename: string; mime_type: string }[];
+        [key: string]: any;
+    };
 }
 
 interface UploadFile {
@@ -176,6 +180,8 @@ export const ProjectDetailPage: React.FC = () => {
                     // dependent on backend implementation. Assuming basic content for now.
                     sources: m.metadata?.sources as SourceReference[] | undefined,
                     images: m.images,
+                    // Pass through metadata to display uploaded files in chat history
+                    metadata: m.metadata,
                 }));
                 setMessages(chatMsgs);
             } catch (err) {

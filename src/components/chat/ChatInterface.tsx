@@ -49,6 +49,12 @@ import { VisualGroundingModal } from './VisualGroundingModal';
 import { JsonViewer, isJsonString } from './JsonViewer';
 import { ChatSessionList } from './ChatSessionList';
 
+// Represents a file that was uploaded in chat history (from backend)
+interface UploadedFileInfo {
+    filename: string;
+    mime_type: string;
+}
+
 interface Message {
     id: string;
     role: 'user' | 'assistant';
@@ -58,6 +64,10 @@ interface Message {
     attachments?: File[];
     images?: ImageContent[];
     isStreaming?: boolean;
+    metadata?: {
+        uploaded_files?: UploadedFileInfo[];
+        [key: string]: any;
+    };
 }
 
 interface ChatInterfaceProps {
@@ -105,6 +115,23 @@ const getSourceTypeIcon = (sourceType?: string) => {
         default:
             return <DocIcon fontSize="small" color="primary" />;
     }
+};
+
+// Helper to get icon based on mime type for uploaded files from chat history
+const getFileIconByMimeType = (mimeType: string) => {
+    if (mimeType === 'application/pdf') {
+        return <PdfIcon fontSize="small" color="error" />;
+    }
+    if (mimeType.includes('word') || mimeType.includes('document')) {
+        return <DocxIcon fontSize="small" color="primary" />;
+    }
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
+        return <ExcelIcon fontSize="small" color="success" />;
+    }
+    if (mimeType.startsWith('image/')) {
+        return <ImageIcon fontSize="small" color="info" />;
+    }
+    return <FileIcon fontSize="small" color="action" />;
 };
 
 // Memoized source citation component - prevents re-renders when parent updates
@@ -814,33 +841,51 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 }}
                             >
                                 {/* Attached files and images for user messages */}
-                                {((message.attachments && message.attachments.length > 0) || (message.images && message.images.length > 0)) && (
-                                    <Box sx={{ mb: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                        {/* Render Base64 Images from History/State */}
-                                        {message.images?.map((image, idx) => (
-                                            <Base64ImageAttachment key={`bs64-${idx}`} image={image} />
-                                        ))}
+                                {((message.attachments && message.attachments.length > 0) ||
+                                    (message.images && message.images.length > 0) ||
+                                    (message.metadata?.uploaded_files && message.metadata.uploaded_files.length > 0)) && (
+                                        <Box sx={{ mb: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                            {/* Render Base64 Images from History/State */}
+                                            {message.images?.map((image, idx) => (
+                                                <Base64ImageAttachment key={`bs64-${idx}`} image={image} />
+                                            ))}
 
-                                        {/* Render File Attachments */}
-                                        {message.attachments?.map((file, idx) => {
-                                            const isImage = file.type.startsWith('image/');
-                                            if (isImage) {
+                                            {/* Render File Attachments (from current session - File objects) */}
+                                            {message.attachments?.map((file, idx) => {
+                                                const isImage = file.type.startsWith('image/');
+                                                if (isImage) {
+                                                    return (
+                                                        <ImageAttachment key={idx} file={file} />
+                                                    );
+                                                }
                                                 return (
-                                                    <ImageAttachment key={idx} file={file} />
+                                                    <Chip
+                                                        key={idx}
+                                                        icon={<FileIcon />}
+                                                        label={file.name}
+                                                        size="small"
+                                                        variant="outlined"
+                                                    />
                                                 );
-                                            }
-                                            return (
+                                            })}
+
+                                            {/* Render Uploaded Files from Chat History (from backend metadata) */}
+                                            {message.metadata?.uploaded_files?.map((file, idx) => (
                                                 <Chip
-                                                    key={idx}
-                                                    icon={<FileIcon />}
-                                                    label={file.name}
+                                                    key={`history-file-${idx}`}
+                                                    icon={getFileIconByMimeType(file.mime_type)}
+                                                    label={file.filename}
                                                     size="small"
                                                     variant="outlined"
+                                                    sx={{
+                                                        '& .MuiChip-icon': {
+                                                            marginLeft: '8px',
+                                                        },
+                                                    }}
                                                 />
-                                            );
-                                        })}
-                                    </Box>
-                                )}
+                                            ))}
+                                        </Box>
+                                    )}
 
                                 {/* Message content with markdown for assistant, plain text for user */}
                                 {message.role === 'assistant' ? (
