@@ -48,8 +48,8 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ message = 'Loading
                     sx={{
                         width: 80,
                         height: 80,
-                        borderRadius: 3,
-                        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                        borderRadius: 0,
+                        background: theme.palette.primary.main,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',

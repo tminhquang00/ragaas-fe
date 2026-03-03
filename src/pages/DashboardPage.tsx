@@ -53,8 +53,8 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, onClick 
                         sx={{
                             width: 48,
                             height: 48,
-                            borderRadius: 2,
-                            background: `linear-gradient(135deg, ${color} 0%, ${alpha(color, 0.7)} 100%)`,
+                            borderRadius: 0,
+                            background: color,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -131,7 +131,7 @@ export const DashboardPage: React.FC = () => {
                     <Card
                         sx={{
                             cursor: 'pointer',
-                            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                            background: alpha(theme.palette.primary.main, 0.08),
                             border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                             '&:hover': {
                                 border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,

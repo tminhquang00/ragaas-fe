@@ -119,7 +119,7 @@ const JsonNode: React.FC<JsonNodeProps> = ({ keyName, value, depth, maxDepth, is
                     '&:hover': {
                         background: alpha(theme.palette.primary.main, 0.05),
                     },
-                    borderRadius: 0.5,
+                    borderRadius: 0,
                     py: 0.1,
                 }}
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -205,7 +205,7 @@ export const JsonViewer: React.FC<JsonViewerProps> = ({ content, maxDepth = 3 })
     return (
         <Box
             sx={{
-                borderRadius: 1.5,
+                borderRadius: 0,
                 border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                 background: alpha(theme.palette.background.default, 0.6),
                 overflow: 'hidden',
@@ -258,7 +258,7 @@ export const JsonViewer: React.FC<JsonViewerProps> = ({ content, maxDepth = 3 })
                     },
                     '&::-webkit-scrollbar-thumb': {
                         background: alpha(theme.palette.primary.main, 0.3),
-                        borderRadius: 3,
+                        borderRadius: 0,
                     },
                 }}
             >

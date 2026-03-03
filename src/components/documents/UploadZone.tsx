@@ -107,7 +107,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                             ? theme.palette.primary.main
                             : alpha(theme.palette.primary.main, 0.3)
                         }`,
-                    borderRadius: 2,
+                    borderRadius: 0,
                     p: 4,
                     textAlign: 'center',
                     cursor: disabled ? 'not-allowed' : 'pointer',
@@ -119,7 +119,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                     '&:hover': !disabled
                         ? {
                             borderColor: theme.palette.primary.main,
-                            background: alpha(theme.palette.primary.main, 0.05),
+                            background: alpha(theme.palette.divider, 0.02),
                         }
                         : {},
                 }}
@@ -158,7 +158,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                             key={`${uploadFile.file.name}-${index}`}
                             sx={{
                                 background: alpha(theme.palette.background.paper, 0.5),
-                                borderRadius: 1,
+                                borderRadius: 0,
                                 mb: 1,
                             }}
                             secondaryAction={
@@ -183,7 +183,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
                                             <LinearProgress
                                                 variant="determinate"
                                                 value={uploadFile.progress || 0}
-                                                sx={{ mt: 0.5, height: 4, borderRadius: 2 }}
+                                                sx={{ mt: 0.5, height: 4, borderRadius: 0, }}
                                             />
                                         )}
                                         {uploadFile.error && (

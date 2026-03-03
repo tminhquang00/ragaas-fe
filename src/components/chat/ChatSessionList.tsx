@@ -180,7 +180,7 @@ export const ChatSessionList: React.FC<ChatSessionListProps> = ({
                                     selected={session.session_id === currentSessionId}
                                     onClick={() => onSelectSession(session.session_id)}
                                     sx={{
-                                        borderRadius: 1,
+                                        borderRadius: 0,
                                         '&.Mui-selected': {
                                             backgroundColor: alpha(theme.palette.primary.main, 0.1),
                                             '&:hover': {

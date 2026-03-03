@@ -91,7 +91,7 @@ export const PipelineToolbar = () => {
                                     mb: 1,
                                     border: 1,
                                     borderColor: 'divider',
-                                    borderRadius: 1,
+                                    borderRadius: 0,
                                     bgcolor: 'background.default',
                                     cursor: 'grab',
                                     '&:hover': {

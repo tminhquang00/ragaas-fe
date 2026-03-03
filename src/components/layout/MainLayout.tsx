@@ -289,10 +289,24 @@ export const MainLayout: React.FC = () => {
 
     return (
         <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+            {/* Bosch Supergraphic — signature multi-color brand bar */}
+            <Box
+                sx={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '4px',
+                    zIndex: (theme) => theme.zIndex.appBar + 1,
+                    background: 'linear-gradient(to right, #E20015 0%, #E20015 12.5%, #B20058 12.5%, #B20058 25%, #005691 25%, #005691 37.5%, #008ECF 37.5%, #008ECF 50%, #00A8B0 50%, #00A8B0 62.5%, #78BE20 62.5%, #78BE20 75%, #B2D235 75%, #B2D235 87.5%, #FFC000 87.5%, #FFC000 100%)',
+                }}
+            />
+
             {/* App Bar */}
             <AppBar
                 position="fixed"
                 sx={{
+                    top: '4px',
                     width: { md: `calc(100% - ${sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH}px)` },
                     ml: { md: `${sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH}px` },
                     transition: 'width 0.2s ease-in-out, margin-left 0.2s ease-in-out',
@@ -391,6 +405,8 @@ export const MainLayout: React.FC = () => {
                             width: sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH,
                             transition: 'width 0.2s ease-in-out',
                             overflowX: 'hidden',
+                            top: '4px',
+                            height: 'calc(100% - 4px)',
                         },
                     }}
                     open
@@ -406,8 +422,8 @@ export const MainLayout: React.FC = () => {
                     flexGrow: 1,
                     p: 3,
                     width: { md: `calc(100% - ${sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH}px)` },
-                    mt: 8,
-                    minHeight: 'calc(100vh - 64px)',
+                    mt: '68px',
+                    minHeight: 'calc(100vh - 68px)',
                     transition: 'width 0.2s ease-in-out',
                     display: 'flex',
                     flexDirection: 'column',
@@ -416,7 +432,7 @@ export const MainLayout: React.FC = () => {
                 <Box sx={{ flex: 1 }}>
                     <Outlet />
                 </Box>
-                
+
                 {/* Footer */}
                 <Box
                     component="footer"

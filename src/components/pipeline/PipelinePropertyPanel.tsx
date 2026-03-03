@@ -258,7 +258,7 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
                                 textTransform: 'uppercase',
                                 fontWeight: 700,
                                 fontSize: 10,
-                                borderRadius: 1
+                                borderRadius: 0,
                             }}
                         />
                         <Box sx={{ flex: 1 }} />

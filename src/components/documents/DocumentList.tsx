@@ -106,7 +106,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                     p: 6,
                     textAlign: 'center',
                     background: alpha(theme.palette.background.paper, 0.5),
-                    borderRadius: 2,
+                    borderRadius: 0,
                     border: `1px dashed ${alpha(theme.palette.divider, 0.5)}`,
                 }}
             >

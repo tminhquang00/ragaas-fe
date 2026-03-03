@@ -39,14 +39,10 @@ interface WidgetEmbedProps {
 
 // Color presets for the widget
 const colorPresets = [
-    { name: 'Indigo', value: '#6366f1' },
-    { name: 'Blue', value: '#3b82f6' },
-    { name: 'Purple', value: '#8b5cf6' },
-    { name: 'Pink', value: '#ec4899' },
-    { name: 'Green', value: '#10b981' },
-    { name: 'Orange', value: '#f59e0b' },
-    { name: 'Red', value: '#ef4444' },
-    { name: 'Teal', value: '#14b8a6' },
+    { name: 'Accent Blue', value: '#007bc0' },
+    { name: 'Emerald', value: '#00884a' },
+    { name: 'Purple', value: '#9e2896' },
+    { name: 'Turquoise', value: '#18837e' },
 ];
 
 export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
@@ -62,7 +58,7 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
         enabled: true,
         title: projectName,
         welcome_message: `Hi! I'm here to help you with ${projectName}. Ask me anything!`,
-        primary_color: '#6366f1',
+        primary_color: '#007bc0',
         position: 'right',
     });
     const [_embedCode, setEmbedCode] = useState<WidgetEmbedCode | null>(null);
@@ -184,7 +180,7 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                 component="pre"
                                 sx={{
                                     p: 2,
-                                    borderRadius: 1,
+                                    borderRadius: 0,
                                     background: alpha(theme.palette.background.default, 0.8),
                                     border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                                     overflow: 'auto',
@@ -217,7 +213,7 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                 component="pre"
                                 sx={{
                                     p: 2,
-                                    borderRadius: 1,
+                                    borderRadius: 0,
                                     background: alpha(theme.palette.background.default, 0.8),
                                     border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                                     overflow: 'auto',
@@ -295,7 +291,7 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                                     sx={{
                                                         width: 36,
                                                         height: 36,
-                                                        borderRadius: 1,
+                                                        borderRadius: 0,
                                                         background: color.value,
                                                         cursor: 'pointer',
                                                         border: config.primary_color === color.value
@@ -317,7 +313,7 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                             value={config.primary_color}
                                             onChange={(e) => setConfig({ ...config, primary_color: e.target.value })}
                                             sx={{ width: 100 }}
-                                            placeholder="#6366f1"
+                                            placeholder="#007bc0"
                                         />
                                     </Box>
                                 </Box>
@@ -337,7 +333,7 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                 sx={{
                                     mt: 2,
                                     p: 2,
-                                    borderRadius: 2,
+                                    borderRadius: 0,
                                     background: alpha(theme.palette.background.default, 0.5),
                                     minHeight: 350,
                                     position: 'relative',
@@ -350,7 +346,7 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                 <Box
                                     sx={{
                                         width: 320,
-                                        borderRadius: 3,
+                                        borderRadius: 0,
                                         overflow: 'hidden',
                                         boxShadow: `0 8px 32px ${alpha(config.primary_color, 0.3)}`,
                                         background: theme.palette.background.paper,
@@ -377,7 +373,7 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                         <Box
                                             sx={{
                                                 p: 1.5,
-                                                borderRadius: 2,
+                                                borderRadius: 0,
                                                 borderTopLeftRadius: 4,
                                                 background: alpha(config.primary_color, 0.1),
                                                 maxWidth: '85%',
@@ -394,7 +390,7 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                         <Box
                                             sx={{
                                                 p: 1.5,
-                                                borderRadius: 3,
+                                                borderRadius: 0,
                                                 background: alpha(theme.palette.background.default, 0.5),
                                                 display: 'flex',
                                                 alignItems: 'center',

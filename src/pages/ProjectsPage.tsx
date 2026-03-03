@@ -206,7 +206,7 @@ export const ProjectsPage: React.FC = () => {
                         textAlign: 'center',
                         py: 8,
                         px: 4,
-                        borderRadius: 2,
+                        borderRadius: 0,
                         border: `1px dashed ${theme.palette.divider}`,
                     }}
                 >

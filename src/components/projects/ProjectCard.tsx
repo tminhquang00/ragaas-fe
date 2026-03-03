@@ -132,7 +132,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onMenuClick }
                         <LinearProgress
                             variant="determinate"
                             value={30}
-                            sx={{ height: 4, borderRadius: 2 }}
+                            sx={{ height: 4, borderRadius: 0, }}
                         />
                     )}
                 </Box>

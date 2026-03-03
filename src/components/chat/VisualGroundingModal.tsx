@@ -256,7 +256,7 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
                                 transition: 'transform 0.2s ease-in-out',
                                 willChange: 'transform', // GPU acceleration for smooth zoom
                                 boxShadow: theme.shadows[4],
-                                borderRadius: 1,
+                                borderRadius: 0,
                                 display: loading ? 'none' : 'block',
                             }}
                         />

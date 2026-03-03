@@ -77,8 +77,8 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
                         sx={{
                             width: 48,
                             height: 48,
-                            borderRadius: 2,
-                            background: `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.warning.dark} 100%)`,
+                            borderRadius: 0,
+                            background: theme.palette.warning.main,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',

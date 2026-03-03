@@ -146,7 +146,7 @@ function PipelineEditorContent({ initialConfig, onConfigChange }: PipelineEditor
                 height: 600,
                 border: 1,
                 borderColor: 'divider',
-                borderRadius: 1,
+                borderRadius: 0,
                 bgcolor: 'background.default',
                 overflow: 'hidden'
             }}

@@ -146,13 +146,13 @@ const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onVi
         <Box
             sx={{
                 p: 1.5,
-                borderRadius: 1,
+                borderRadius: 0,
                 background: alpha(theme.palette.background.default, 0.5),
                 border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
                 cursor: hasVisualGrounding ? 'pointer' : 'default',
                 transition: 'all 0.2s ease-in-out',
                 '&:hover': hasVisualGrounding ? {
-                    background: alpha(theme.palette.primary.main, 0.05),
+                    background: alpha(theme.palette.divider, 0.02),
                     borderColor: theme.palette.primary.main,
                 } : {},
             }}
@@ -227,7 +227,7 @@ const ImageAttachment: React.FC<{ file: File }> = React.memo(({ file }) => {
             <Box
                 sx={{
                     position: 'relative',
-                    borderRadius: 1,
+                    borderRadius: 0,
                     overflow: 'hidden',
                     border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                     cursor: 'pointer',
@@ -321,7 +321,7 @@ const ImageAttachment: React.FC<{ file: File }> = React.memo(({ file }) => {
                                 maxWidth: '90vw',
                                 maxHeight: '85vh',
                                 objectFit: 'contain',
-                                borderRadius: 2,
+                                borderRadius: 0,
                                 boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.4)}`,
                             }}
                         />
@@ -360,7 +360,7 @@ const Base64ImageAttachment: React.FC<{ image: ImageContent }> = React.memo(({ i
             <Box
                 sx={{
                     position: 'relative',
-                    borderRadius: 1,
+                    borderRadius: 0,
                     overflow: 'hidden',
                     border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                     cursor: 'pointer',
@@ -453,7 +453,7 @@ const Base64ImageAttachment: React.FC<{ image: ImageContent }> = React.memo(({ i
                                 maxWidth: '90vw',
                                 maxHeight: '85vh',
                                 objectFit: 'contain',
-                                borderRadius: 2,
+                                borderRadius: 0,
                                 boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.4)}`,
                             }}
                         />
@@ -516,8 +516,8 @@ const MarkdownRenderer: React.FC<{ content: string }> = React.memo(({ content })
                             sx={{
                                 px: 0.75,
                                 py: 0.25,
-                                borderRadius: 0.5,
-                                background: alpha(theme.palette.primary.main, 0.15),
+                                borderRadius: 0,
+                                background: alpha(theme.palette.divider, 0.05),
                                 fontFamily: 'monospace',
                                 fontSize: '0.9em',
                             }}
@@ -530,7 +530,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = React.memo(({ content })
                             sx={{
                                 p: 2,
                                 my: 1,
-                                borderRadius: 1,
+                                borderRadius: 0,
                                 background: alpha(theme.palette.background.default, 0.8),
                                 border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                                 overflow: 'auto',
@@ -554,7 +554,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = React.memo(({ content })
                             py: 0.5,
                             my: 1,
                             borderLeft: `3px solid ${theme.palette.primary.main}`,
-                            background: alpha(theme.palette.primary.main, 0.05),
+                            background: alpha(theme.palette.divider, 0.02),
                             fontStyle: 'italic',
                         }}
                     >
@@ -589,7 +589,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = React.memo(({ content })
                                 textAlign: 'left',
                             },
                             '& th': {
-                                background: alpha(theme.palette.primary.main, 0.1),
+                                background: alpha(theme.palette.divider, 0.05),
                                 fontWeight: 600,
                             },
                         }}
@@ -720,7 +720,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 position: 'relative',
                 flexDirection: 'row',
                 overflow: 'hidden',
-                borderRadius: 1,
+                borderRadius: 0,
                 border: `1px solid ${theme.palette.divider}`,
             }}
         >
@@ -746,9 +746,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             left: 0,
                             right: 0,
                             bottom: 0,
-                            background: alpha(theme.palette.primary.main, 0.1),
+                            background: alpha(theme.palette.divider, 0.05),
                             border: `2px dashed ${theme.palette.primary.main}`,
-                            borderRadius: 2,
+                            borderRadius: 0,
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
@@ -819,8 +819,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     height: 36,
                                     background:
                                         message.role === 'user'
-                                            ? `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`
-                                            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                                            ? theme.palette.secondary.main
+                                            : theme.palette.primary.main,
                                 }}
                             >
                                 {message.role === 'user' ? <PersonIcon /> : <BotIcon />}
@@ -835,7 +835,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         message.role === 'user'
                                             ? alpha(theme.palette.secondary.main, 0.1)
                                             : alpha(theme.palette.background.paper, 0.8),
-                                    borderRadius: 2,
+                                    borderRadius: 0,
                                     borderTopRightRadius: message.role === 'user' ? 0 : 16,
                                     borderTopLeftRadius: message.role === 'assistant' ? 0 : 16,
                                 }}
@@ -946,7 +946,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 sx={{
                                     width: 36,
                                     height: 36,
-                                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                                    background: theme.palette.primary.main,
                                 }}
                             >
                                 <BotIcon />
@@ -960,7 +960,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                             p: 1.5,
                                             mb: 1,
                                             background: alpha(theme.palette.background.paper, 0.6),
-                                            borderRadius: 2,
+                                            borderRadius: 0,
                                             border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                                         }}
                                     >
@@ -1018,7 +1018,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                             p: 1.5,
                                             mb: 1,
                                             background: alpha(theme.palette.info.main, 0.08),
-                                            borderRadius: 2,
+                                            borderRadius: 0,
                                             border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
                                         }}
                                     >
@@ -1057,7 +1057,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         sx={{
                                             p: 2,
                                             background: alpha(theme.palette.background.paper, 0.8),
-                                            borderRadius: 2,
+                                            borderRadius: 0,
                                             borderTopLeftRadius: 0,
                                         }}
                                     >
@@ -1100,7 +1100,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         p: 2,
                         borderTop: `1px solid ${theme.palette.divider}`,
                         background: alpha(theme.palette.background.paper, 0.8),
-                        backdropFilter: 'blur(8px)',
+                        backdropFilter: 'none',
                     }}
                 >
                     {attachedFiles.length > 0 && (
@@ -1160,7 +1160,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             size="small"
                             sx={{
                                 '& .MuiOutlinedInput-root': {
-                                    borderRadius: 3,
+                                    borderRadius: 0,
                                     backgroundColor: theme.palette.background.paper,
                                 },
                             }}

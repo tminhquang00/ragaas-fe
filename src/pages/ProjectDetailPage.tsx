@@ -855,7 +855,7 @@ export const ProjectDetailPage: React.FC = () => {
             <TabPanel value={tab} index={1}>
                 {/* Task Progress Display */}
                 {uploadTaskStatus && ['pending', 'processing'].includes(uploadTaskStatus.status) && (
-                    <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: 1, borderColor: 'divider' }}>
+                    <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 0, border: 1, borderColor: 'divider' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                             <Typography variant="subtitle2" color="primary">
                                 Processing Documents
@@ -870,7 +870,7 @@ export const ProjectDetailPage: React.FC = () => {
                         <LinearProgress
                             variant="determinate"
                             value={(uploadTaskStatus.processed_files / uploadTaskStatus.total_files) * 100}
-                            sx={{ height: 8, borderRadius: 4 }}
+                            sx={{ height: 8, borderRadius: 0, }}
                         />
                     </Box>
                 )}
@@ -929,7 +929,7 @@ export const ProjectDetailPage: React.FC = () => {
                             Save Pipeline
                         </Button>
                     </Box>
-                    <Box sx={{ flex: 1, border: '1px solid #e0e0e0', borderRadius: 1, overflow: 'hidden' }}>
+                    <Box sx={{ flex: 1, border: '1px solid #e0e0e0', borderRadius: 0, overflow: 'hidden' }}>
                         {project && project.config && (
                             <PipelineEditor
                                 initialConfig={project.config.pipeline_config || { type: 'simple_rag', steps: [], chat_history_config: { include_history: true, max_history_turns: 3 } }}

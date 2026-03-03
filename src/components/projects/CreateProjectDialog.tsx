@@ -341,7 +341,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                             <Box
                                 sx={{
                                     border: `2px dashed ${alpha(theme.palette.primary.main, 0.3)}`,
-                                    borderRadius: 2,
+                                    borderRadius: 0,
                                     p: 4,
                                     textAlign: 'center',
                                     cursor: 'pointer',

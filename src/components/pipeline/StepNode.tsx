@@ -108,7 +108,7 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
             variant="outlined"
             sx={{
                 width: hasBranches ? Math.max(200, branchKeys.length * 80) : 200,
-                borderRadius: 2,
+                borderRadius: 0,
                 boxShadow: selected ? `0 0 0 2px #1976d2` : 1, // Highlight when selected
                 borderColor: selected ? 'primary.main' : 'divider',
                 bgcolor: 'background.paper',
