@@ -22,11 +22,11 @@ import {
 import { ProjectCard, CreateProjectDialog } from '../components/projects';
 import { ApiKeyModal } from '../components/common';
 import { useAuth } from '../context';
-import { Project, CreateProjectRequest } from '../types';
+import { Project, CreateProjectRequest, getUserRole } from '../types';
 
 export const ProjectsPage: React.FC = () => {
     const theme = useTheme();
-    const { apiClient } = useAuth();
+    const { apiClient, tenantId } = useAuth();
 
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
@@ -135,6 +135,13 @@ export const ProjectsPage: React.FC = () => {
     const handleDelete = async () => {
         if (!apiClient || !selectedProject) return;
 
+        const role = getUserRole(selectedProject, tenantId);
+        if (role !== 'owner') {
+            setError('Only the project owner can delete this project.');
+            handleMenuClose();
+            return;
+        }
+
         if (!window.confirm(`Are you sure you want to delete "${selectedProject.name}"?`)) {
             handleMenuClose();
             return;
@@ -225,13 +232,55 @@ export const ProjectsPage: React.FC = () => {
                     </Button>
                 </Box>
             ) : (
-                <Grid container spacing={3}>
-                    {filteredProjects.map((project) => (
-                        <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={project.project_id}>
-                            <ProjectCard project={project} onMenuClick={handleMenuClick} />
-                        </Grid>
-                    ))}
-                </Grid>
+                (() => {
+                    const myProjects = filteredProjects.filter(
+                        (p) => p.owner_id === tenantId || p.tenant_id === tenantId
+                    );
+                    const sharedProjects = filteredProjects.filter(
+                        (p) =>
+                            p.owner_id !== tenantId &&
+                            p.tenant_id !== tenantId &&
+                            (p.visibility === 'public' || p.members?.some((m) => m.user_id === tenantId))
+                    );
+                    return (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {/* My Projects */}
+                            <Box>
+                                {sharedProjects.length > 0 && (
+                                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }} color="text.secondary">
+                                        My Projects
+                                    </Typography>
+                                )}
+                                {myProjects.length === 0 && sharedProjects.length > 0 ? (
+                                    <Typography variant="body2" color="text.secondary">No owned projects.</Typography>
+                                ) : (
+                                    <Grid container spacing={3}>
+                                        {myProjects.map((project) => (
+                                            <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={project.project_id}>
+                                                <ProjectCard project={project} currentUserId={tenantId} onMenuClick={handleMenuClick} />
+                                            </Grid>
+                                        ))}
+                                    </Grid>
+                                )}
+                            </Box>
+                            {/* Shared with me */}
+                            {sharedProjects.length > 0 && (
+                                <Box>
+                                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }} color="text.secondary">
+                                        Shared with me
+                                    </Typography>
+                                    <Grid container spacing={3}>
+                                        {sharedProjects.map((project) => (
+                                            <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={project.project_id}>
+                                                <ProjectCard project={project} currentUserId={tenantId} onMenuClick={handleMenuClick} />
+                                            </Grid>
+                                        ))}
+                                    </Grid>
+                                </Box>
+                            )}
+                        </Box>
+                    );
+                })()
             )}
 
             {/* Context Menu */}

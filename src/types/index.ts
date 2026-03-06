@@ -58,6 +58,9 @@ export type ProjectStatus = 'draft' | 'active' | 'archived';
 export interface Project {
   project_id: string;
   tenant_id: string;
+  owner_id: string | null;
+  members: ProjectMember[];
+  visibility: 'private' | 'public';
   name: string;
   description?: string;
   status: ProjectStatus;
@@ -201,7 +204,73 @@ export interface BoundingBox {
   b: number;  // bottom (0-1)
 }
 
-export type SourceType = 'pdf' | 'docx' | 'excel' | 'confluence' | 'text';
+export type SourceType = 'pdf' | 'docx' | 'excel' | 'confluence' | 'text' | 'sharepoint';
+
+// ============ SharePoint ============
+
+export interface SharePointFileNode {
+  name: string;
+  type: 'file' | 'folder';
+  id?: string;
+  size?: number;
+  lastModified?: string;
+  quickXorHash?: string;
+  mimeType?: string;
+  children?: SharePointFileNode[];
+}
+
+export interface SharePointTokens {
+  access_token: string;
+  refresh_token?: string;
+}
+
+export interface SharePointListFilesRequest {
+  sharepoint_url: string;
+  folder_path?: string;
+  deep_level?: number;
+  supported_extensions?: string[];
+}
+
+export interface SharePointListFilesResponse {
+  tree: SharePointFileNode;
+  tokens: SharePointTokens;
+}
+
+export interface SharePointIngestRequest {
+  sharepoint_url: string;
+  file_ids: string[];
+  sharepoint_paths?: string[];
+  custom_metadata?: Record<string, unknown>;
+  processing_config?: Partial<ProcessingConfig>;
+}
+
+export interface SharePointIngestResponse {
+  task_id: string;
+  message: string;
+  status_url: string;
+  total_files: number;
+  tokens: SharePointTokens;
+}
+
+export interface SharePointCheckStatusRequest {
+  sharepoint_url: string;
+  file_ids: string[];
+  stored_hashes: Record<string, string>;
+}
+
+export interface SharePointFileStatus {
+  file_id: string;
+  filename: string | null;
+  current_hash: string | null;
+  stored_hash: string;
+  changed: boolean;
+  exists: boolean;
+}
+
+export interface SharePointCheckStatusResponse {
+  files: SharePointFileStatus[];
+  tokens: SharePointTokens;
+}
 
 // ============ Chat ============
 
@@ -340,5 +409,74 @@ export interface AsyncState<T> {
   state: LoadingState;
   data?: T;
   error?: string;
+}
+
+// ============ Multi-User Sharing ============
+
+export type ProjectRole = 'owner' | 'editor' | 'viewer';
+
+export interface ProjectMember {
+  user_id: string;
+  role: ProjectRole;
+  added_at: string;
+  added_by: string | null;
+}
+
+export interface ShareProjectRequest {
+  user_id: string;
+  role: 'editor' | 'viewer';
+}
+
+export interface SetVisibilityRequest {
+  visibility: 'private' | 'public';
+}
+
+export interface ProjectMemberResponse {
+  user_id: string;
+  role: ProjectRole;
+  added_at: string;
+  added_by: string | null;
+}
+
+export interface MigrationResult {
+  migration: string;
+  status: 'completed' | 'no_action_needed' | 'partial' | 'error';
+  projects_found: number;
+  projects_updated: number;
+  projects_remaining: number;
+  index_created: boolean;
+  message: string;
+  executed_at: string;
+  executed_by: string;
+}
+
+export interface MigrationDryRunResult {
+  migration: string;
+  projects_needing_migration: number;
+  total_projects: number;
+  message: string;
+}
+
+/** Returns the calling user's role on a project (handles both new and legacy projects). */
+export function getUserRole(project: Project, userId: string): ProjectRole | null {
+  if (project.owner_id === userId || project.tenant_id === userId) {
+    return 'owner';
+  }
+  const member = project.members?.find((m) => m.user_id === userId);
+  if (member?.role) return member.role;
+  if (project.visibility === 'public') return 'viewer';
+  return null;
+}
+
+/** Returns true when the user's role is >= the required role in the hierarchy. */
+export function hasPermission(
+  project: Project,
+  userId: string,
+  requiredRole: ProjectRole
+): boolean {
+  const hierarchy: Record<ProjectRole, number> = { viewer: 1, editor: 2, owner: 3 };
+  const role = getUserRole(project, userId);
+  if (!role) return false;
+  return hierarchy[role] >= hierarchy[requiredRole];
 }
 

@@ -17,12 +17,15 @@ import {
     Description as DocIcon,
     Chat as ChatIcon,
     Circle as CircleIcon,
+    Public as PublicIcon,
 } from '@mui/icons-material';
-import { Project, ProjectStatus } from '../../types';
+import { Project, ProjectStatus, getUserRole } from '../../types';
 import { useNavigate } from 'react-router-dom';
+import { RoleBadge } from '../sharing';
 
 interface ProjectCardProps {
     project: Project;
+    currentUserId?: string;
     onMenuClick?: (event: React.MouseEvent<HTMLElement>, project: Project) => void;
 }
 
@@ -32,10 +35,11 @@ const statusConfig: Record<ProjectStatus, { color: 'default' | 'success' | 'warn
     archived: { color: 'default', label: 'Archived' },
 };
 
-export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onMenuClick }) => {
+export const ProjectCard: React.FC<ProjectCardProps> = ({ project, currentUserId, onMenuClick }) => {
     const theme = useTheme();
     const navigate = useNavigate();
     const { color, label } = statusConfig[project.status];
+    const userRole = currentUserId ? getUserRole(project, currentUserId) : null;
 
     const handleClick = () => {
         navigate(`/projects/${project.project_id}`);
@@ -59,17 +63,35 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onMenuClick }
             <CardContent sx={{ flex: 1, pb: 1 }}>
                 {/* Header */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                    <Chip
-                        size="small"
-                        label={label}
-                        color={color}
-                        icon={<CircleIcon sx={{ fontSize: '8px !important' }} />}
-                        sx={{
-                            '& .MuiChip-icon': {
-                                ml: 1,
-                            },
-                        }}
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Chip
+                            size="small"
+                            label={label}
+                            color={color}
+                            icon={<CircleIcon sx={{ fontSize: '8px !important' }} />}
+                            sx={{
+                                '& .MuiChip-icon': {
+                                    ml: 1,
+                                },
+                            }}
+                        />
+                        {userRole && <RoleBadge role={userRole} />}
+                        {project.visibility === 'public' && (
+                            <Chip
+                                size="small"
+                                icon={<PublicIcon sx={{ fontSize: '12px !important' }} />}
+                                label="Public"
+                                sx={{
+                                    bgcolor: '#d1fae5',
+                                    color: '#065f46',
+                                    fontWeight: 600,
+                                    fontSize: '0.65rem',
+                                    height: 20,
+                                    '& .MuiChip-icon': { color: '#059669', ml: 0.5 },
+                                }}
+                            />
+                        )}
+                    </Box>
                     <IconButton
                         size="small"
                         onClick={(e) => {

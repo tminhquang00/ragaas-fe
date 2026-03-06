@@ -16,11 +16,14 @@ import {
     CardContent,
     Grid,
     useTheme,
-
     Breadcrumbs,
     Link,
     Tooltip,
     LinearProgress,
+    ToggleButton,
+    ToggleButtonGroup,
+    Switch,
+    FormControlLabel,
 } from '@mui/material';
 import {
     ArrowBack as BackIcon,
@@ -29,12 +32,18 @@ import {
     Refresh as RefreshIcon,
     Circle as CircleIcon,
     Save as SaveIcon,
+    FolderOpen as LocalUploadIcon,
+    Share as SharePointIcon,
+    Public as PublicIcon,
+    Lock as LockIcon,
 } from '@mui/icons-material';
 import { UploadZone, DocumentList } from '../components/documents';
+import { SharePointBrowser } from '../components/sharepoint';
 import { ChatInterface } from '../components/chat';
 import { WidgetEmbed } from '../components/widget';
+import { MembersPanel, RoleBadge } from '../components/sharing';
 import { useAuth } from '../context';
-import { Project, Document, SourceReference, UploadTaskStatus, PipelineConfig, StepProgress, AgentAction, ChatSession } from '../types';
+import { Project, Document, SourceReference, UploadTaskStatus, PipelineConfig, StepProgress, AgentAction, ChatSession, getUserRole, hasPermission } from '../types';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -72,7 +81,7 @@ export const ProjectDetailPage: React.FC = () => {
     useTheme();
     const { projectId } = useParams<{ projectId: string }>();
     const navigate = useNavigate();
-    const { apiClient } = useAuth();
+    const { apiClient, tenantId } = useAuth();
 
     const [project, setProject] = useState<Project | null>(null);
     const [documents, setDocuments] = useState<Document[]>([]);
@@ -85,6 +94,9 @@ export const ProjectDetailPage: React.FC = () => {
     const [uploadTaskId, setUploadTaskId] = useState<string | null>(null);
     const [uploadTaskStatus, setUploadTaskStatus] = useState<UploadTaskStatus | null>(null);
     const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Documents source tab: 'local' | 'sharepoint'
+    const [sourceTab, setSourceTab] = useState<'local' | 'sharepoint'>('local');
 
     // Chat state
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -114,11 +126,16 @@ export const ProjectDetailPage: React.FC = () => {
             const proj = await apiClient.getProject(projectId);
             setProject(proj);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load project');
+            const msg = err instanceof Error ? err.message : 'Failed to load project';
+            if (msg.includes('do not have access') || msg.includes('403')) {
+                navigate('/projects');
+                return;
+            }
+            setError(msg);
         } finally {
             setLoading(false);
         }
-    }, [apiClient, projectId]);
+    }, [apiClient, projectId, navigate]);
 
     const fetchDocuments = useCallback(async () => {
         if (!apiClient || !projectId) return;
@@ -690,6 +707,10 @@ export const ProjectDetailPage: React.FC = () => {
         archived: 'default',
     }[project.status] as 'warning' | 'success' | 'default';
 
+    const userRole = getUserRole(project, tenantId);
+    const isOwner = userRole === 'owner';
+    const isEditorOrAbove = hasPermission(project, tenantId, 'editor');
+
     return (
         <Box>
             {/* Breadcrumbs */}
@@ -725,6 +746,7 @@ export const ProjectDetailPage: React.FC = () => {
                                 color={statusColor}
                                 icon={<CircleIcon sx={{ fontSize: '8px !important' }} />}
                             />
+                            {userRole && <RoleBadge role={userRole} />}
                         </Box>
                         <Typography variant="body1" color="text.secondary">
                             {project.description || 'No description'}
@@ -738,7 +760,7 @@ export const ProjectDetailPage: React.FC = () => {
                             <RefreshIcon />
                         </IconButton>
                     </Tooltip>
-                    {project.status === 'draft' && (
+                    {project.status === 'draft' && isEditorOrAbove && (
                         <Button
                             variant="contained"
                             startIcon={<ActivateIcon />}
@@ -747,7 +769,7 @@ export const ProjectDetailPage: React.FC = () => {
                             Activate
                         </Button>
                     )}
-                    {project.status === 'active' && (
+                    {project.status === 'active' && isEditorOrAbove && (
                         <Button
                             variant="outlined"
                             startIcon={<ArchiveIcon />}
@@ -782,6 +804,7 @@ export const ProjectDetailPage: React.FC = () => {
                     <Tab label="Pipeline" />
                     <Tab label="Widget" disabled={project.status !== 'active'} />
                     <Tab label="Settings" />
+                    <Tab label="Members" />
                 </Tabs>
             </Box>
 
@@ -853,40 +876,80 @@ export const ProjectDetailPage: React.FC = () => {
 
             {/* Documents Tab */}
             <TabPanel value={tab} index={1}>
-                {/* Task Progress Display */}
-                {uploadTaskStatus && ['pending', 'processing'].includes(uploadTaskStatus.status) && (
-                    <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 0, border: 1, borderColor: 'divider' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                            <Typography variant="subtitle2" color="primary">
-                                Processing Documents
-                            </Typography>
-                            <Chip
-                                size="small"
-                                label={`${uploadTaskStatus.processed_files}/${uploadTaskStatus.total_files} files`}
-                                color="primary"
-                                variant="outlined"
+                {/* Source toggle */}
+                <Box sx={{ mb: 3 }}>
+                    <ToggleButtonGroup
+                        value={sourceTab}
+                        exclusive
+                        onChange={(_e, val) => { if (val) setSourceTab(val); }}
+                        size="small"
+                        aria-label="Document source"
+                    >
+                        <ToggleButton value="local" aria-label="Local Upload">
+                            <LocalUploadIcon fontSize="small" sx={{ mr: 0.75 }} />
+                            Local Upload
+                        </ToggleButton>
+                        <ToggleButton value="sharepoint" aria-label="SharePoint">
+                            <SharePointIcon fontSize="small" sx={{ mr: 0.75 }} />
+                            SharePoint
+                        </ToggleButton>
+                    </ToggleButtonGroup>
+                </Box>
+
+                {sourceTab === 'local' && (
+                    <>
+                        {/* Task Progress Display (local uploads) */}
+                        {uploadTaskStatus && ['pending', 'processing'].includes(uploadTaskStatus.status) && (
+                            <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 0, border: 1, borderColor: 'divider' }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                    <Typography variant="subtitle2" color="primary">
+                                        Processing Documents
+                                    </Typography>
+                                    <Chip
+                                        size="small"
+                                        label={`${uploadTaskStatus.processed_files}/${uploadTaskStatus.total_files} files`}
+                                        color="primary"
+                                        variant="outlined"
+                                    />
+                                </Box>
+                                <LinearProgress
+                                    variant="determinate"
+                                    value={(uploadTaskStatus.processed_files / uploadTaskStatus.total_files) * 100}
+                                    sx={{ height: 8, borderRadius: 0 }}
+                                />
+                            </Box>
+                        )}
+                        {isEditorOrAbove && (
+                            <UploadZone
+                                files={uploadFiles}
+                                onFilesAdded={handleFilesAdded}
+                                onFileRemove={handleFileRemove}
                             />
-                        </Box>
-                        <LinearProgress
-                            variant="determinate"
-                            value={(uploadTaskStatus.processed_files / uploadTaskStatus.total_files) * 100}
-                            sx={{ height: 8, borderRadius: 0, }}
-                        />
-                    </Box>
+                        )}
+                    </>
                 )}
 
-                <UploadZone
-                    files={uploadFiles}
-                    onFilesAdded={handleFilesAdded}
-                    onFileRemove={handleFileRemove}
-                />
+                {sourceTab === 'sharepoint' && apiClient && (
+                    <SharePointBrowser
+                        projectId={projectId!}
+                        apiClient={apiClient}
+                        documents={documents}
+                        onIngestionStarted={(taskId) => {
+                            setUploadTaskId(taskId);
+                            setUploadTaskStatus(null);
+                        }}
+                        uploadTaskStatus={uploadTaskStatus}
+                    />
+                )}
+
+                {/* Uploaded Documents list — always visible regardless of source tab */}
                 <Box sx={{ mt: 4 }}>
                     <Typography variant="h6" fontWeight={600} gutterBottom>
                         Uploaded Documents
                     </Typography>
                     <DocumentList
                         documents={documents}
-                        onDelete={handleDocumentDelete}
+                        onDelete={isEditorOrAbove ? handleDocumentDelete : undefined}
                     />
                 </Box>
             </TabPanel>
@@ -920,14 +983,16 @@ export const ProjectDetailPage: React.FC = () => {
             <TabPanel value={tab} index={3}>
                 <Box sx={{ height: 'calc(100vh - 300px)', display: 'flex', flexDirection: 'column' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                        <Button
-                            variant="contained"
-                            startIcon={<SaveIcon />}
-                            onClick={handleSavePipeline}
-                            disabled={!pipelineDirty}
-                        >
-                            Save Pipeline
-                        </Button>
+                        {isEditorOrAbove && (
+                            <Button
+                                variant="contained"
+                                startIcon={<SaveIcon />}
+                                onClick={handleSavePipeline}
+                                disabled={!pipelineDirty}
+                            >
+                                Save Pipeline
+                            </Button>
+                        )}
                     </Box>
                     <Box sx={{ flex: 1, border: '1px solid #e0e0e0', borderRadius: 0, overflow: 'hidden' }}>
                         {project && project.config && (
@@ -959,8 +1024,73 @@ export const ProjectDetailPage: React.FC = () => {
                 {project && project.config && (
                     <ConfigEditor
                         config={project.config}
-                        onSave={handleUpdateProjectConfig}
+                        onSave={isEditorOrAbove ? handleUpdateProjectConfig : async () => { setError('Insufficient permissions. Required role: editor'); }}
                     />
+                )}
+            </TabPanel>
+
+            {/* Members Tab */}
+            <TabPanel value={tab} index={6}>
+                {apiClient && (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {/* Visibility Toggle — owner only */}
+                        <Card variant="outlined">
+                            <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                    {project.visibility === 'public'
+                                        ? <PublicIcon sx={{ color: '#059669' }} />
+                                        : <LockIcon sx={{ color: 'text.secondary' }} />
+                                    }
+                                    <Box>
+                                        <Typography variant="subtitle1" fontWeight={600}>
+                                            {project.visibility === 'public' ? 'Public project' : 'Private project'}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {project.visibility === 'public'
+                                                ? 'Any authenticated user can view and chat with this project.'
+                                                : 'Only the owner and explicitly added members can access this project.'}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                                <Tooltip title={isOwner ? '' : 'Only the project owner can change visibility'}>
+                                    <span>
+                                        <FormControlLabel
+                                            control={
+                                                <Switch
+                                                    checked={project.visibility === 'public'}
+                                                    disabled={!isOwner}
+                                                    onChange={async (e) => {
+                                                        const newVisibility = e.target.checked ? 'public' : 'private';
+                                                        try {
+                                                            const updated = await apiClient.setVisibility(projectId!, newVisibility);
+                                                            setProject(updated);
+                                                        } catch (err) {
+                                                            setError(err instanceof Error ? err.message : 'Failed to update visibility');
+                                                        }
+                                                    }}
+                                                    color="success"
+                                                />
+                                            }
+                                            label="Make public"
+                                            labelPlacement="start"
+                                        />
+                                    </span>
+                                </Tooltip>
+                            </CardContent>
+                        </Card>
+
+                        <MembersPanel
+                            projectId={projectId!}
+                            isOwner={isOwner}
+                            onShare={async (userId, role) => {
+                                await apiClient.shareProject(projectId!, { user_id: userId, role });
+                            }}
+                            onRevoke={async (userId) => {
+                                await apiClient.revokeMember(projectId!, userId);
+                            }}
+                            fetchMembers={(pid) => apiClient.listMembers(pid)}
+                        />
+                    </Box>
                 )}
             </TabPanel>
         </Box >

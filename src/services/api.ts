@@ -20,6 +20,17 @@ import {
     BatchUploadResponse,
     UploadTaskStatus,
     BoundingBox,
+    SharePointListFilesRequest,
+    SharePointListFilesResponse,
+    SharePointIngestRequest,
+    SharePointIngestResponse,
+    SharePointCheckStatusRequest,
+    SharePointCheckStatusResponse,
+    ProjectMemberResponse,
+    ShareProjectRequest,
+    SetVisibilityRequest,
+    MigrationResult,
+    MigrationDryRunResult,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -27,6 +38,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 export class RAGaaSClient {
     private baseUrl: string;
     private tenantId: string;
+    private accessToken: string | null = null;
 
     constructor(tenantId: string, baseUrl: string = API_BASE_URL) {
         this.baseUrl = baseUrl;
@@ -37,15 +49,24 @@ export class RAGaaSClient {
         this.tenantId = tenantId;
     }
 
+    setAccessToken(token: string | null) {
+        this.accessToken = token;
+    }
+
     private async request<T>(
         endpoint: string,
         options: RequestInit = {}
     ): Promise<T> {
+        const authHeaders: Record<string, string> = this.accessToken
+            ? { Authorization: `Bearer ${this.accessToken}` }
+            : {};
+
         const response = await fetch(`${this.baseUrl}${endpoint}`, {
             ...options,
             headers: {
                 'Content-Type': 'application/json',
                 'X-User-ID': this.tenantId,
+                ...authHeaders,
                 ...options.headers,
             },
         });
@@ -158,6 +179,43 @@ export class RAGaaSClient {
         });
     }
 
+    // ============ Project Sharing ============
+
+    async shareProject(
+        projectId: string,
+        request: ShareProjectRequest
+    ): Promise<ProjectMemberResponse> {
+        return this.request(`/api/v1/projects/${projectId}/members`, {
+            method: 'POST',
+            body: JSON.stringify(request),
+        });
+    }
+
+    async listMembers(projectId: string): Promise<ProjectMemberResponse[]> {
+        return this.request(`/api/v1/projects/${projectId}/members`);
+    }
+
+    async revokeMember(projectId: string, targetUserId: string): Promise<void> {
+        return this.request(`/api/v1/projects/${projectId}/members/${encodeURIComponent(targetUserId)}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async setVisibility(projectId: string, visibility: SetVisibilityRequest['visibility']): Promise<Project> {
+        return this.request<Project>(`/api/v1/projects/${projectId}/visibility`, {
+            method: 'PATCH',
+            body: JSON.stringify({ visibility } satisfies SetVisibilityRequest),
+        });
+    }
+
+    async checkMigration(): Promise<MigrationDryRunResult> {
+        return this.request('/api/v1/admin/migrations/backfill-owners');
+    }
+
+    async runMigration(): Promise<MigrationResult> {
+        return this.request('/api/v1/admin/migrations/backfill-owners', { method: 'POST' });
+    }
+
     // ============ Documents ============
 
     /**
@@ -238,6 +296,69 @@ export class RAGaaSClient {
         return this.request(`/api/v1/projects/${projectId}/documents/confluence`, {
             method: 'POST',
             body: JSON.stringify(request),
+        });
+    }
+
+    // ============ SharePoint ============
+
+    /**
+     * Browse the SharePoint document library tree.
+     * Tokens from the response are returned so the caller can persist them
+     * and pass them into the next SharePoint call (token rotation).
+     */
+    async listSharePointFiles(
+        projectId: string,
+        request: SharePointListFilesRequest,
+        spAccessToken: string,
+        spRefreshToken?: string
+    ): Promise<SharePointListFilesResponse> {
+        return this.request(`/api/v1/projects/${projectId}/sharepoint/list-files`, {
+            method: 'POST',
+            body: JSON.stringify(request),
+            headers: {
+                sharepointaccesstoken: spAccessToken,
+                sprefreshtoken: spRefreshToken ?? '',
+            },
+        });
+    }
+
+    /**
+     * Ingest selected SharePoint files into the RAG pipeline.
+     * Returns a task_id (202 Accepted). Monitor progress with getUploadTaskStatus.
+     */
+    async ingestSharePoint(
+        projectId: string,
+        request: SharePointIngestRequest,
+        spAccessToken: string,
+        spRefreshToken?: string
+    ): Promise<SharePointIngestResponse> {
+        return this.request(`/api/v1/projects/${projectId}/sharepoint/ingest`, {
+            method: 'POST',
+            body: JSON.stringify(request),
+            headers: {
+                sharepointaccesstoken: spAccessToken,
+                sprefreshtoken: spRefreshToken ?? '',
+            },
+        });
+    }
+
+    /**
+     * Check whether SharePoint files have changed since last ingestion
+     * by comparing quickXorHash values — without re-downloading.
+     */
+    async checkSharePointStatus(
+        projectId: string,
+        request: SharePointCheckStatusRequest,
+        spAccessToken: string,
+        spRefreshToken?: string
+    ): Promise<SharePointCheckStatusResponse> {
+        return this.request(`/api/v1/projects/${projectId}/sharepoint/check-status`, {
+            method: 'POST',
+            body: JSON.stringify(request),
+            headers: {
+                sharepointaccesstoken: spAccessToken,
+                sprefreshtoken: spRefreshToken ?? '',
+            },
         });
     }
 
