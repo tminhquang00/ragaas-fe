@@ -1,0 +1,1 @@
+export { DocupediaIngest } from './DocupediaIngest';

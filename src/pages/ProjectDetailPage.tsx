@@ -34,11 +34,13 @@ import {
     Save as SaveIcon,
     FolderOpen as LocalUploadIcon,
     Share as SharePointIcon,
+    Article as DocupediaIcon,
     Public as PublicIcon,
     Lock as LockIcon,
 } from '@mui/icons-material';
 import { UploadZone, DocumentList } from '../components/documents';
 import { SharePointBrowser } from '../components/sharepoint';
+import { DocupediaIngest } from '../components/docupedia';
 import { ChatInterface } from '../components/chat';
 import { WidgetEmbed } from '../components/widget';
 import { MembersPanel, RoleBadge } from '../components/sharing';
@@ -95,8 +97,8 @@ export const ProjectDetailPage: React.FC = () => {
     const [uploadTaskStatus, setUploadTaskStatus] = useState<UploadTaskStatus | null>(null);
     const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    // Documents source tab: 'local' | 'sharepoint'
-    const [sourceTab, setSourceTab] = useState<'local' | 'sharepoint'>('local');
+    // Documents source tab: 'local' | 'sharepoint' | 'docupedia'
+    const [sourceTab, setSourceTab] = useState<'local' | 'sharepoint' | 'docupedia'>('local');
 
     // Chat state
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -893,6 +895,10 @@ export const ProjectDetailPage: React.FC = () => {
                             <SharePointIcon fontSize="small" sx={{ mr: 0.75 }} />
                             SharePoint
                         </ToggleButton>
+                        <ToggleButton value="docupedia" aria-label="Docupedia">
+                            <DocupediaIcon fontSize="small" sx={{ mr: 0.75 }} />
+                            Docupedia
+                        </ToggleButton>
                     </ToggleButtonGroup>
                 </Box>
 
@@ -934,6 +940,18 @@ export const ProjectDetailPage: React.FC = () => {
                         projectId={projectId!}
                         apiClient={apiClient}
                         documents={documents}
+                        onIngestionStarted={(taskId) => {
+                            setUploadTaskId(taskId);
+                            setUploadTaskStatus(null);
+                        }}
+                        uploadTaskStatus={uploadTaskStatus}
+                    />
+                )}
+
+                {sourceTab === 'docupedia' && apiClient && (
+                    <DocupediaIngest
+                        projectId={projectId!}
+                        apiClient={apiClient}
                         onIngestionStarted={(taskId) => {
                             setUploadTaskId(taskId);
                             setUploadTaskStatus(null);

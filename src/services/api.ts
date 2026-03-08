@@ -8,6 +8,7 @@ import {
     DocumentListResponse,
     DocumentChunk,
     ConfluenceSyncRequest,
+    ConfluenceIngestResponse,
     ChatRequest,
     ChatResponse,
     StreamingChunk,
@@ -292,7 +293,7 @@ export class RAGaaSClient {
     async syncConfluence(
         projectId: string,
         request: ConfluenceSyncRequest
-    ): Promise<{ pages_ingested: number; documents: unknown[] }> {
+    ): Promise<ConfluenceIngestResponse> {
         return this.request(`/api/v1/projects/${projectId}/documents/confluence`, {
             method: 'POST',
             body: JSON.stringify(request),

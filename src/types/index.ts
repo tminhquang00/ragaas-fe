@@ -163,6 +163,13 @@ export interface ConfluenceSyncRequest {
   image_prompt?: string;
 }
 
+export interface ConfluenceIngestResponse {
+  task_id: string;
+  message: string;
+  status_url: string;
+  total_pages: number;
+}
+
 // ============ Batch Upload ============
 
 export interface BatchUploadResponse {
@@ -307,14 +314,30 @@ export interface SourceReference {
   position?: string;
   // Visual grounding fields
   source_type?: SourceType;
-  bounding_box?: BoundingBox;
-  page_image_url?: string;
+  // PDF visual grounding (legacy — normalized 0-1)
+  bounding_box?: BoundingBox | null;
+  page_image_url?: string | null;  // Pre-built URL for first page — use in <img src={...} />
+  page_image_urls?: Record<number, string> | null;  // Per-page URLs — use when navigating pages
   source_url?: string;
+  binary_hash?: string | null;
+
+  // Structured visual grounding (new batch processor)
+  bounding_box_points?: {        // Union bbox of chunk text in PDF points
+      l: number;
+      t: number;
+      r: number;
+      b: number;
+      coord_origin: "BOTTOMLEFT" | "TOPLEFT";
+      coord_system: "points";
+  } | null;
+  elements_detail?: ElementDetail[] | null;
+  headings?: string[] | null;
+  page_range?: [number, number] | null;
+  hash_unique_id?: string | null;
   // Document-specific fields
   section?: string;
   sheet_name?: string;
   cell_range?: string;
-  binary_hash?: string;
 }
 
 export interface ChatResponse {
@@ -387,6 +410,27 @@ export interface SessionListResponse {
 }
 
 // ============ Widget ============
+
+export interface ElementCoordinate {
+    page_no: number;
+    bbox: {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+        coord_origin: 'BOTTOMLEFT' | 'TOPLEFT';
+        original_unit: 'points' | 'EMU';
+    };
+    charspan?: [number, number] | null;
+}
+
+export interface ElementDetail {
+    type: string;
+    coordinates: ElementCoordinate[];
+    content?: string;
+    base64?: string;
+    self_ref?: string;
+}
 
 export interface WidgetEmbedCode {
   iframe_url: string;

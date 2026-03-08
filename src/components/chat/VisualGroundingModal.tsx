@@ -17,6 +17,8 @@ import {
     ZoomIn as ZoomInIcon,
     ZoomOut as ZoomOutIcon,
     RestartAlt as ResetIcon,
+    NavigateBefore as PrevIcon,
+    NavigateNext as NextIcon,
 } from '@mui/icons-material';
 import { getApiClient } from '../../services/api';
 import { SourceReference } from '../../types';
@@ -39,32 +41,72 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [zoom, setZoom] = useState(1);
 
+    // Multipage state
+    // Store as 1-indexed to match PDF and API page parameter conventions.
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    
+    // Determine the valid page ranges
+    const minPage = source?.page_range?.[0] ?? (source?.page_number !== undefined ? source.page_number + 1 : 1);
+    const maxPage = source?.page_range?.[1] ?? (source?.page_number !== undefined ? source.page_number + 1 : 1);
+    const hasMultiplePages = minPage < maxPage;
+
+    // Build image URL using Priority sequence defined in Backend-docs
     const imageUrl = React.useMemo(() => {
         if (!source) return null;
 
+        // 0. Use the backend-provided per-page URL if it perfectly matches
+        if (source.page_image_urls?.[currentPage]) {
+            const url = source.page_image_urls[currentPage];
+            return url.startsWith('http') ? url : `${baseUrl}${url}`;
+        }
+
+        // 1. Primary path: hash_unique_id (most accurate — loads full elements_detail from DB)
+        if (source.hash_unique_id && source.binary_hash) {
+            return `${baseUrl}/api/v1/page-multi-highlight/${source.binary_hash}?page_no=${currentPage}&hash_unique_id=${source.hash_unique_id}`;
+        }
+
+        // 2. New batch processor bounding_box_points
+        if (source.bounding_box_points && source.binary_hash) {
+            const params = new URLSearchParams({
+                page_no: currentPage.toString(),
+                bbox_l: source.bounding_box_points.l.toString(),
+                bbox_t: source.bounding_box_points.t.toString(),
+                bbox_r: source.bounding_box_points.r.toString(),
+                bbox_b: source.bounding_box_points.b.toString(),
+                coord_system: source.bounding_box_points.coord_system,
+                coord_origin: source.bounding_box_points.coord_origin
+            });
+            return `${baseUrl}/api/v1/page-highlight/${source.binary_hash}?${params.toString()}`;
+        }
+
+        // 3. elements_detail with coordinates
+        if (source.binary_hash && source.elements_detail?.length) {
+            return `${baseUrl}/api/v1/page-multi-highlight/${source.binary_hash}?page_no=${currentPage}`;
+        }
+
+        // 4. Legacy normalized bounding_box
+        if (source.binary_hash && source.bounding_box) {
+            return getApiClient().buildVisualGroundingUrl(
+                source.binary_hash,
+                currentPage,
+                source.bounding_box
+            );
+        }
+
+        // 5. Fallback first-page page_image_url
         if (source.page_image_url) {
             return source.page_image_url.startsWith('http')
                 ? source.page_image_url
                 : `${baseUrl}${source.page_image_url}`;
         }
 
-        if (source.binary_hash && source.page_number !== undefined && source.bounding_box) {
-            try {
-                // binary_hash is used for retrieving the page image
-                // And page_number is 0-indexed (based on the UI display), so we add 1 for the API
-                return getApiClient().buildVisualGroundingUrl(
-                    source.binary_hash,
-                    source.page_number + 1,
-                    source.bounding_box
-                );
-            } catch (error) {
-                console.error('Failed to build visual grounding URL:', error);
-                return null;
-            }
+        // 6. Plain page image baseline fallback
+        if (source.binary_hash && source.page_number !== undefined) {
+            return `${baseUrl}/api/v1/page/${source.binary_hash}?page_no=${currentPage}`;
         }
 
-        return null;
-    }, [source, baseUrl]);
+        return null; // 7. null - no grounding
+    }, [source, baseUrl, currentPage]);
 
     // Reset state when source changes or modal opens - prevents stale image/state
     useEffect(() => {
@@ -72,8 +114,17 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
             setLoading(true);
             setError(null);
             setZoom(1);
+            // Re-initialize to the min start page
+            setCurrentPage(source?.page_range?.[0] ?? (source?.page_number !== undefined ? source.page_number + 1 : 1));
         }
-    }, [open, source?.document_id, source?.page_number]);
+    }, [open, source?.document_id, source?.page_number, source?.chunk_id]);
+
+    // Clear loading state if imageUrl is null (e.g., failed to build URL)
+    useEffect(() => {
+        if (open && source && !imageUrl) {
+            setLoading(false);
+        }
+    }, [open, source, imageUrl]);
 
     if (!source) return null;
 
@@ -131,13 +182,37 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
                     <Typography variant="h6" fontWeight={600}>
                         {source.document_name}
                     </Typography>
-                    {source.page_number !== undefined && (
-                        <Chip
-                            size="small"
-                            label={`Page ${source.page_number + 1}`}
-                            color="primary"
-                            variant="outlined"
-                        />
+                    {hasMultiplePages ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', ml: 1, p: 0.5, borderRadius: 1, background: alpha(theme.palette.divider, 0.05), border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                            <IconButton 
+                                size="small" 
+                                onClick={() => setCurrentPage(p => Math.max(minPage, p - 1))}
+                                disabled={currentPage <= minPage}
+                                sx={{ p: 0.5 }}
+                            >
+                                <PrevIcon fontSize="small" />
+                            </IconButton>
+                            <Typography variant="caption" sx={{ px: 1, minWidth: 60, textAlign: 'center', fontWeight: 500 }}>
+                                Page {currentPage}
+                            </Typography>
+                            <IconButton 
+                                size="small" 
+                                onClick={() => setCurrentPage(p => Math.min(maxPage, p + 1))}
+                                disabled={currentPage >= maxPage}
+                                sx={{ p: 0.5 }}
+                            >
+                                <NextIcon fontSize="small" />
+                            </IconButton>
+                        </Box>
+                    ) : (
+                        source.page_number !== undefined && (
+                            <Chip
+                                size="small"
+                                label={`Page ${source.page_number + 1}`}
+                                color="primary"
+                                variant="outlined"
+                            />
+                        )
                     )}
                     {source.source_type && (
                         <Chip
@@ -245,7 +320,7 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
                         <Box
                             component="img"
                             src={imageUrl}
-                            alt={`Page ${(source.page_number ?? 0) + 1} of ${source.document_name}`}
+                            alt={`Page ${currentPage} of ${source.document_name}`}
                             onLoad={handleImageLoad}
                             onError={handleImageError}
                             sx={{

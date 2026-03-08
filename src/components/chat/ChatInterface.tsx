@@ -137,9 +137,15 @@ const getFileIconByMimeType = (mimeType: string) => {
 // Memoized source citation component - prevents re-renders when parent updates
 const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onViewVisualGrounding }) => {
     const theme = useTheme();
+    const hasStructuredGrounding = (source.elements_detail && source.elements_detail.length > 0) || false;
+    const hasBoundingBoxPoints = source.bounding_box_points != null;
+    const hasLegacyGrounding = source.bounding_box != null;
     const hasVisualGrounding = source.source_type === 'pdf' && (
+        hasStructuredGrounding || 
+        hasBoundingBoxPoints ||
+        hasLegacyGrounding || 
         !!source.page_image_url ||
-        (!!source.binary_hash && source.page_number !== undefined && !!source.bounding_box)
+        (!!source.binary_hash && source.page_number !== undefined)
     );
 
     return (
@@ -163,7 +169,21 @@ const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onVi
                 <Typography variant="body2" fontWeight={500}>
                     {source.document_name}
                 </Typography>
-                {source.page_number !== undefined && (
+                {source.headings && source.headings.length > 0 && (
+                    <Typography variant="body2" color="text.secondary" sx={{ display: 'block', width: '100%', mb: 0.5, fontSize: '0.75rem' }}>
+                        {source.headings.join(' > ')}
+                    </Typography>
+                )}
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                {source.page_range && source.page_range.length === 2 ? (
+                    <Chip
+                        size="small"
+                        label={`Pages ${source.page_range[0]}-${source.page_range[1]}`}
+                        variant="outlined"
+                        sx={{ height: 18, fontSize: '0.65rem' }}
+                    />
+                ) : source.page_number !== undefined && (
                     <Chip
                         size="small"
                         label={`Page ${source.page_number + 1}`}
