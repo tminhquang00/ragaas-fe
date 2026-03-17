@@ -32,6 +32,12 @@ import {
     SetVisibilityRequest,
     MigrationResult,
     MigrationDryRunResult,
+    DatabaseConnectionCreate,
+    DatabaseConnectionResponse,
+    ConnectionTestRequest,
+    ConnectionTestResult,
+    IntrospectResponse,
+    AuditLogResponse,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -545,6 +551,58 @@ export class RAGaaSClient {
         let url = `/api/v1/projects/${projectId}/widget/embed-code`;
         if (baseUrl) url += `?base_url=${encodeURIComponent(baseUrl)}`;
         return this.request(url);
+    }
+
+    // ============ SQL Agent ============
+
+    async getDatabaseConnection(projectId: string): Promise<DatabaseConnectionResponse> {
+        return this.request(`/api/v1/projects/${projectId}/database-connection`);
+    }
+
+    async saveDatabaseConnection(
+        projectId: string,
+        data: DatabaseConnectionCreate
+    ): Promise<DatabaseConnectionResponse> {
+        return this.request(`/api/v1/projects/${projectId}/database-connection`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteDatabaseConnection(projectId: string): Promise<void> {
+        return this.request(`/api/v1/projects/${projectId}/database-connection`, {
+            method: 'DELETE',
+        });
+    }
+
+    async testDatabaseConnection(
+        projectId: string,
+        data: ConnectionTestRequest
+    ): Promise<ConnectionTestResult> {
+        return this.request(`/api/v1/projects/${projectId}/database-connection/test`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async introspectSchema(projectId: string): Promise<IntrospectResponse> {
+        return this.request(`/api/v1/projects/${projectId}/database-connection/introspect`, {
+            method: 'POST',
+        });
+    }
+
+    async getQueryAuditLog(
+        projectId: string,
+        params?: { session_id?: string; limit?: number; offset?: number }
+    ): Promise<AuditLogResponse> {
+        const query = new URLSearchParams();
+        if (params?.session_id) query.set('session_id', params.session_id);
+        if (params?.limit != null) query.set('limit', String(params.limit));
+        if (params?.offset != null) query.set('offset', String(params.offset));
+        const qs = query.toString();
+        return this.request(
+            `/api/v1/projects/${projectId}/database-connection/audit-log${qs ? `?${qs}` : ''}`
+        );
     }
 
     // ============ Health ============

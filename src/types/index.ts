@@ -501,6 +501,8 @@ export interface MigrationDryRunResult {
   message: string;
 }
 
+
+
 /** Returns the calling user's role on a project (handles both new and legacy projects). */
 export function getUserRole(project: Project, userId: string): ProjectRole | null {
   if (project.owner_id === userId || project.tenant_id === userId) {
@@ -524,3 +526,88 @@ export function hasPermission(
   return hierarchy[role] >= hierarchy[requiredRole];
 }
 
+// ============ SQL Agent ============
+
+export type DatabaseType = 'postgresql' | 'mysql' | 'sqlserver' | 'sqlite';
+export type ConnectionStatus = 'connected' | 'disconnected' | 'error' | 'pending';
+
+export interface DatabaseConnectionCreate {
+  database_type: DatabaseType;
+  connection_string: string;
+  display_name?: string;
+  include_tables?: string[] | null;
+  exclude_tables?: string[] | null;
+  max_result_rows?: number;       // 1-5000, default 500
+  query_timeout_seconds?: number; // 5-120, default 30
+}
+
+export interface DatabaseConnectionResponse {
+  enabled: boolean;
+  database_type: DatabaseType;
+  display_name: string;
+  status: ConnectionStatus;
+  include_tables: string[] | null;
+  exclude_tables: string[] | null;
+  max_result_rows: number;
+  query_timeout_seconds: number;
+  schema_introspected_at: string | null;
+  table_count: number | null;
+}
+
+export interface ConnectionTestRequest {
+  database_type: DatabaseType;
+  connection_string: string;
+}
+
+export interface ConnectionTestResult {
+  success: boolean;
+  message: string;
+  latency_ms: number;
+  tables_found: number | null;
+}
+
+export interface ColumnSchema {
+  name: string;
+  data_type: string;
+  nullable: boolean;
+  is_primary_key: boolean;
+  is_foreign_key: boolean;
+  foreign_key_target: string | null;
+  comment: string | null;
+}
+
+export interface TableSchema {
+  table_name: string;
+  columns: ColumnSchema[];
+  row_count_estimate: number | null;
+  comment: string | null;
+  sample_values: Record<string, any[]> | null;
+}
+
+export interface IntrospectResponse {
+  tables: TableSchema[];
+  introspected_at: string;
+  table_count: number;
+}
+
+export interface QueryAuditEntry {
+  tenant_id: string;
+  project_id: string;
+  session_id: string;
+  message_id: string;
+  user_query: string;
+  sql_query: string;
+  query_valid: boolean;
+  execution_time_ms: number | null;
+  row_count: number | null;
+  error_message: string | null;
+  generated_at: string;
+  executed_at: string | null;
+}
+
+export interface AuditLogResponse {
+  entries: QueryAuditEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+}

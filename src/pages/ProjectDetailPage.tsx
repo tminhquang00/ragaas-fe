@@ -37,6 +37,7 @@ import {
     Article as DocupediaIcon,
     Public as PublicIcon,
     Lock as LockIcon,
+    Storage as StorageIcon,
 } from '@mui/icons-material';
 import { UploadZone, DocumentList } from '../components/documents';
 import { SharePointBrowser } from '../components/sharepoint';
@@ -44,8 +45,9 @@ import { DocupediaIngest } from '../components/docupedia';
 import { ChatInterface } from '../components/chat';
 import { WidgetEmbed } from '../components/widget';
 import { MembersPanel, RoleBadge } from '../components/sharing';
+import { DatabaseConnection } from '../components/database';
 import { useAuth } from '../context';
-import { Project, Document, SourceReference, UploadTaskStatus, PipelineConfig, StepProgress, AgentAction, ChatSession, getUserRole, hasPermission } from '../types';
+import { Project, Document, SourceReference, UploadTaskStatus, PipelineConfig, StepProgress, AgentAction, ChatSession, getUserRole, hasPermission, ConnectionStatus } from '../types';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -99,6 +101,10 @@ export const ProjectDetailPage: React.FC = () => {
 
     // Documents source tab: 'local' | 'sharepoint' | 'docupedia'
     const [sourceTab, setSourceTab] = useState<'local' | 'sharepoint' | 'docupedia'>('local');
+
+    // Database connection status (for badge + chat hint)
+    const [dbStatus, setDbStatus] = useState<ConnectionStatus | null>(null);
+    const [dbDisplayName, setDbDisplayName] = useState<string | null>(null);
 
     // Chat state
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -805,6 +811,17 @@ export const ProjectDetailPage: React.FC = () => {
                     <Tab label="Chat" disabled={project.status !== 'active'} />
                     <Tab label="Pipeline" />
                     <Tab label="Widget" disabled={project.status !== 'active'} />
+                    <Tab
+                        label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                <StorageIcon sx={{ fontSize: 16 }} />
+                                Database
+                                {dbStatus === 'connected' && (
+                                    <Chip label="Connected" color="success" size="small" sx={{ height: 18, fontSize: '0.65rem' }} />
+                                )}
+                            </Box>
+                        }
+                    />
                     <Tab label="Settings" />
                     <Tab label="Members" />
                 </Tabs>
@@ -974,6 +991,11 @@ export const ProjectDetailPage: React.FC = () => {
 
             {/* Chat Tab */}
             <TabPanel value={tab} index={2}>
+                {dbStatus === 'connected' && dbDisplayName && (
+                    <Alert severity="info" icon={<StorageIcon />} sx={{ mb: 2 }}>
+                        Database connected — you can ask questions about your <strong>{dbDisplayName}</strong>.
+                    </Alert>
+                )}
                 <Card sx={{ height: 'calc(100vh - 350px)' }}>
                     <ChatInterface
                         projectId={projectId!}
@@ -1037,8 +1059,20 @@ export const ProjectDetailPage: React.FC = () => {
                 )}
             </TabPanel>
 
-            {/* Settings Tab */}
+            {/* Database Tab */}
             <TabPanel value={tab} index={5}>
+                {apiClient && (
+                    <DatabaseConnection
+                        projectId={projectId!}
+                        apiClient={apiClient}
+                        onStatusChange={(s) => setDbStatus(s)}
+                        onDisplayNameChange={(n) => setDbDisplayName(n)}
+                    />
+                )}
+            </TabPanel>
+
+            {/* Settings Tab */}
+            <TabPanel value={tab} index={6}>
                 {project && project.config && (
                     <ConfigEditor
                         config={project.config}
@@ -1048,7 +1082,7 @@ export const ProjectDetailPage: React.FC = () => {
             </TabPanel>
 
             {/* Members Tab */}
-            <TabPanel value={tab} index={6}>
+            <TabPanel value={tab} index={7}>
                 {apiClient && (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                         {/* Visibility Toggle — owner only */}
