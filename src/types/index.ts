@@ -530,20 +530,34 @@ export function hasPermission(
 
 export type DatabaseType = 'postgresql' | 'mysql' | 'sqlserver' | 'sqlite';
 export type ConnectionStatus = 'connected' | 'disconnected' | 'error' | 'pending';
+export type AuthType = 'connection_string' | 'service_principal' | 'app_service_principal';
 
 export interface DatabaseConnectionCreate {
   database_type: DatabaseType;
-  connection_string: string;
+  auth_type?: AuthType;             // default: 'connection_string'
   display_name?: string;
   include_tables?: string[] | null;
   exclude_tables?: string[] | null;
-  max_result_rows?: number;       // 1-5000, default 500
-  query_timeout_seconds?: number; // 5-120, default 30
+  max_result_rows?: number;         // 1-5000, default 500
+  query_timeout_seconds?: number;   // 5-120, default 30
+
+  // connection_string auth
+  connection_string?: string;
+
+  // service_principal auth (user's own Azure AD app)
+  azure_server?: string;
+  azure_database?: string;
+  azure_tenant_id?: string;
+  azure_client_id?: string;
+  azure_client_secret?: string;     // write-only, never returned by API
+
+  // app_service_principal auth — only azure_server + azure_database needed
 }
 
 export interface DatabaseConnectionResponse {
   enabled: boolean;
   database_type: DatabaseType;
+  auth_type: AuthType;
   display_name: string;
   status: ConnectionStatus;
   include_tables: string[] | null;
@@ -556,7 +570,19 @@ export interface DatabaseConnectionResponse {
 
 export interface ConnectionTestRequest {
   database_type: DatabaseType;
-  connection_string: string;
+  auth_type?: AuthType;
+
+  // connection_string auth
+  connection_string?: string;
+
+  // service_principal auth
+  azure_server?: string;
+  azure_database?: string;
+  azure_tenant_id?: string;
+  azure_client_id?: string;
+  azure_client_secret?: string;
+
+  // app_service_principal auth — only azure_server + azure_database needed
 }
 
 export interface ConnectionTestResult {

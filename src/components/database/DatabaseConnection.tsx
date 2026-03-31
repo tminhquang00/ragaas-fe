@@ -30,6 +30,10 @@ import {
     Paper,
     Collapse,
     Pagination,
+    RadioGroup,
+    FormControlLabel,
+    Radio,
+    FormLabel,
 } from '@mui/material';
 import {
     ExpandMore as ExpandMoreIcon,
@@ -42,10 +46,14 @@ import {
     Link as FkIcon,
     History as HistoryIcon,
     ExpandLess,
+    Info as InfoIcon,
+    Lock as LockIcon,
+    Cloud as CloudIcon,
 } from '@mui/icons-material';
 import { RAGaaSClient } from '../../services/api';
 import {
     DatabaseType,
+    AuthType,
     ConnectionStatus,
     DatabaseConnectionResponse,
     ConnectionTestResult,
@@ -53,6 +61,8 @@ import {
     QueryAuditEntry,
     AuditLogResponse,
 } from '../../types';
+
+// ── Constants ──────────────────────────────────────────────────────────────
 
 const DB_TYPE_LABELS: Record<DatabaseType, string> = {
     postgresql: 'PostgreSQL',
@@ -75,10 +85,10 @@ const STATUS_COLORS: Record<ConnectionStatus, 'success' | 'error' | 'warning' | 
     pending: 'warning',
 };
 
-function maskConnectionString(cs: string): string {
-    // Replace everything between :// and @ with user:***
-    return cs.replace(/(:\/{2}[^:]+):([^@]+)@/, '$1:***@');
-}
+/** Auth modes that require SQL Server */
+const AZURE_AUTH_MODES: AuthType[] = ['service_principal', 'app_service_principal'];
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 function timeAgo(isoString: string): string {
     const diffMs = Date.now() - new Date(isoString).getTime();
@@ -90,6 +100,8 @@ function timeAgo(isoString: string): string {
     return `${Math.floor(hours / 24)}d ago`;
 }
 
+// ── Props ────────────────────────────────────────────────────────────────────
+
 interface Props {
     projectId: string;
     apiClient: RAGaaSClient;
@@ -98,6 +110,8 @@ interface Props {
     /** Called with display name when connected */
     onDisplayNameChange?: (name: string | null) => void;
 }
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export const DatabaseConnection: React.FC<Props> = ({
     projectId,
@@ -108,15 +122,32 @@ export const DatabaseConnection: React.FC<Props> = ({
     // ── Feature flag ──
     const [featureEnabled, setFeatureEnabled] = useState<boolean | null>(null);
 
+    // ── Platform app availability ──
+    const [appSpAvailable, setAppSpAvailable] = useState<boolean | null>(null);
+
     // ── Existing connection ──
     const [existingConn, setExistingConn] = useState<DatabaseConnectionResponse | null>(null);
 
-    // ── Form state ──
+    // ── Form: common fields ──
     const [dbType, setDbType] = useState<DatabaseType>('postgresql');
+    const [authType, setAuthType] = useState<AuthType>('connection_string');
     const [displayName, setDisplayName] = useState('');
+
+    // ── Form: connection_string fields ──
     const [connString, setConnString] = useState('');
     const [connStringMasked, setConnStringMasked] = useState(false);
+
+    // ── Form: service_principal / app_service_principal fields ──
+    const [azureServer, setAzureServer] = useState('');
+    const [azureDatabase, setAzureDatabase] = useState('');
+    const [azureTenantId, setAzureTenantId] = useState('');
+    const [azureClientId, setAzureClientId] = useState('');
+    const [azureClientSecret, setAzureClientSecret] = useState('');
+    const [clientSecretMasked, setClientSecretMasked] = useState(false);
+
+    // ── Form: advanced settings ──
     const [includeTables, setIncludeTables] = useState('');
+    const [excludeTables, setExcludeTables] = useState('');
     const [maxRows, setMaxRows] = useState(500);
     const [queryTimeout, setQueryTimeout] = useState(30);
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -142,19 +173,37 @@ export const DatabaseConnection: React.FC<Props> = ({
     const [auditLoading, setAuditLoading] = useState(false);
     const AUDIT_LIMIT = 10;
 
+    // ── Populate form from existing connection ──
+    const populateFormFromConn = useCallback((conn: DatabaseConnectionResponse) => {
+        setDbType(conn.database_type);
+        setAuthType(conn.auth_type ?? 'connection_string');
+        setDisplayName(conn.display_name || '');
+        setIncludeTables((conn.include_tables ?? []).join(', '));
+        setExcludeTables((conn.exclude_tables ?? []).join(', '));
+        setMaxRows(conn.max_result_rows);
+        setQueryTimeout(conn.query_timeout_seconds);
+
+        // Secrets are never returned — just mark as masked
+        setConnString('');
+        setConnStringMasked(conn.auth_type === 'connection_string' || !conn.auth_type);
+        setAzureClientSecret('');
+        setClientSecretMasked(conn.auth_type === 'service_principal');
+
+        // Non-secret Azure fields are safe to restore
+        // (backend currently doesn't return them, so leave blank — server known from display_name)
+        setAzureServer('');
+        setAzureDatabase('');
+        setAzureTenantId('');
+        setAzureClientId('');
+    }, []);
+
     // ── Load existing connection on mount ──
     const loadConnection = useCallback(async () => {
         try {
             const conn = await apiClient.getDatabaseConnection(projectId);
             setExistingConn(conn);
             setFeatureEnabled(true);
-            setDbType(conn.database_type);
-            setDisplayName(conn.display_name || '');
-            setConnString('');
-            setConnStringMasked(true);
-            setIncludeTables((conn.include_tables ?? []).join(', '));
-            setMaxRows(conn.max_result_rows);
-            setQueryTimeout(conn.query_timeout_seconds);
+            populateFormFromConn(conn);
             onStatusChange?.(conn.status);
             onDisplayNameChange?.(conn.display_name);
         } catch (err: any) {
@@ -166,49 +215,97 @@ export const DatabaseConnection: React.FC<Props> = ({
                 setExistingConn(null);
             }
         }
-    }, [apiClient, projectId, onStatusChange, onDisplayNameChange]);
+    }, [apiClient, projectId, onStatusChange, onDisplayNameChange, populateFormFromConn]);
 
     useEffect(() => {
         loadConnection();
     }, [loadConnection]);
 
-    // ── Load audit log ──
-    const loadAuditLog = useCallback(async (page = 1) => {
-        setAuditLoading(true);
-        try {
-            const res: AuditLogResponse = await apiClient.getQueryAuditLog(projectId, {
-                limit: AUDIT_LIMIT,
-                offset: (page - 1) * AUDIT_LIMIT,
-            });
-            setAuditEntries(res.entries);
-            setAuditTotal(res.total);
-        } catch {
-            // silently fail
-        } finally {
-            setAuditLoading(false);
-        }
-    }, [apiClient, projectId]);
-
+    // ── Probe platform app availability (after feature flag resolves) ──
     useEffect(() => {
-        if (auditOpen) loadAuditLog(auditPage);
-    }, [auditOpen, auditPage, loadAuditLog]);
+        if (featureEnabled !== true) return;
+        apiClient.checkAppServicePrincipalAvailable(projectId).then(setAppSpAvailable);
+    }, [featureEnabled, apiClient, projectId]);
+
+    // ── When DB type changes away from SQL Server, reset Azure auth modes ──
+    const handleDbTypeChange = (newType: DatabaseType) => {
+        setDbType(newType);
+        setTestResult(null);
+        if (newType !== 'sqlserver' && AZURE_AUTH_MODES.includes(authType)) {
+            setAuthType('connection_string');
+        }
+    };
+
+    // ── When auth type changes ──
+    const handleAuthTypeChange = (newAuth: AuthType) => {
+        setAuthType(newAuth);
+        setTestResult(null);
+        setFormError('');
+        // SQL Server is required for Azure modes — auto-lock
+        if (AZURE_AUTH_MODES.includes(newAuth)) {
+            setDbType('sqlserver');
+        }
+    };
+
+    // ── Build test payload based on auth mode ──
+    const buildTestPayload = () => {
+        if (authType === 'connection_string') {
+            return { database_type: dbType, auth_type: authType, connection_string: connString };
+        }
+        if (authType === 'service_principal') {
+            return {
+                database_type: dbType,
+                auth_type: authType,
+                azure_server: azureServer,
+                azure_database: azureDatabase,
+                azure_tenant_id: azureTenantId,
+                azure_client_id: azureClientId,
+                azure_client_secret: azureClientSecret,
+            };
+        }
+        // app_service_principal
+        return {
+            database_type: dbType,
+            auth_type: authType,
+            azure_server: azureServer,
+            azure_database: azureDatabase,
+        };
+    };
+
+    // ── Validate form before test / save ──
+    const validateForm = (): string => {
+        if (authType === 'connection_string') {
+            if (!connString && !connStringMasked) return 'Connection string is required.';
+        } else if (authType === 'service_principal') {
+            if (!azureServer) return 'Azure server is required.';
+            if (!azureDatabase) return 'Azure database is required.';
+            if (!azureTenantId) return 'Tenant ID is required.';
+            if (!azureClientId) return 'Client ID is required.';
+            if (!azureClientSecret && !clientSecretMasked) return 'Client secret is required.';
+        } else {
+            if (!azureServer) return 'Azure server is required.';
+            if (!azureDatabase) return 'Azure database is required.';
+        }
+        return '';
+    };
 
     // ── Test connection ──
     const handleTest = async () => {
-        if (!connString) { setFormError('Connection string is required to test.'); return; }
+        const err = validateForm();
+        if (err && !(authType === 'connection_string' && connStringMasked && existingConn)) {
+            setFormError(err);
+            return;
+        }
         setFormError('');
         setTesting(true);
         setTestResult(null);
         try {
-            const result = await apiClient.testDatabaseConnection(projectId, {
-                database_type: dbType,
-                connection_string: connString,
-            });
+            const result = await apiClient.testDatabaseConnection(projectId, buildTestPayload());
             setTestResult(result);
-        } catch (err) {
+        } catch (e) {
             setTestResult({
                 success: false,
-                message: err instanceof Error ? err.message : 'Test failed',
+                message: e instanceof Error ? e.message : 'Test failed',
                 latency_ms: 0,
                 tables_found: null,
             });
@@ -219,37 +316,59 @@ export const DatabaseConnection: React.FC<Props> = ({
 
     // ── Save connection ──
     const handleSave = async () => {
-        if (!connString) { setFormError('Connection string is required to save.'); return; }
+        const err = validateForm();
+        if (err && !(authType === 'connection_string' && connStringMasked && existingConn)) {
+            setFormError(err);
+            return;
+        }
         setFormError('');
         setSaving(true);
         setSaveSuccess(false);
         try {
-            const includeArr = includeTables
-                .split(',')
-                .map((t) => t.trim())
-                .filter(Boolean);
+            const includeArr = includeTables.split(',').map((t) => t.trim()).filter(Boolean);
+            const excludeArr = excludeTables.split(',').map((t) => t.trim()).filter(Boolean);
 
-            const result = await apiClient.saveDatabaseConnection(projectId, {
+            const basePayload = {
                 database_type: dbType,
-                connection_string: connString,
+                auth_type: authType,
                 display_name: displayName || undefined,
                 include_tables: includeArr.length > 0 ? includeArr : null,
+                exclude_tables: excludeArr.length > 0 ? excludeArr : null,
                 max_result_rows: maxRows,
                 query_timeout_seconds: queryTimeout,
-            });
+            };
 
+            let payload: Record<string, unknown> = { ...basePayload };
+            if (authType === 'connection_string') {
+                if (connString) payload.connection_string = connString;
+            } else if (authType === 'service_principal') {
+                payload.azure_server = azureServer;
+                payload.azure_database = azureDatabase;
+                payload.azure_tenant_id = azureTenantId;
+                payload.azure_client_id = azureClientId;
+                if (azureClientSecret) payload.azure_client_secret = azureClientSecret;
+            } else {
+                payload.azure_server = azureServer;
+                payload.azure_database = azureDatabase;
+            }
+
+            const result = await apiClient.saveDatabaseConnection(projectId, payload as any);
             setExistingConn(result);
-            // Clear connection string from state — security
+
+            // Security: clear secrets from state
             setConnString('');
-            setConnStringMasked(true);
+            setConnStringMasked(authType === 'connection_string');
+            setAzureClientSecret('');
+            setClientSecretMasked(authType === 'service_principal');
+
             setSaveSuccess(true);
             onStatusChange?.(result.status);
             onDisplayNameChange?.(result.display_name);
 
             // Trigger schema introspection display
             await handleRefreshSchema(false);
-        } catch (err) {
-            setFormError(err instanceof Error ? err.message : 'Failed to save connection');
+        } catch (e) {
+            setFormError(e instanceof Error ? e.message : 'Failed to save connection');
         } finally {
             setSaving(false);
         }
@@ -277,21 +396,44 @@ export const DatabaseConnection: React.FC<Props> = ({
             setSchema(null);
             setConnString('');
             setConnStringMasked(false);
+            setAzureClientSecret('');
+            setClientSecretMasked(false);
             setDisplayName('');
             setTestResult(null);
             setSaveSuccess(false);
             setDeleteDialogOpen(false);
             onStatusChange?.(null);
             onDisplayNameChange?.(null);
-        } catch (err) {
-            setFormError(err instanceof Error ? err.message : 'Failed to delete connection');
+        } catch (e) {
+            setFormError(e instanceof Error ? e.message : 'Failed to delete connection');
             setDeleteDialogOpen(false);
         } finally {
             setDeleting(false);
         }
     };
 
-    // ── Feature flag disabled ──
+    // ── Load audit log ──
+    const loadAuditLog = useCallback(async (page = 1) => {
+        setAuditLoading(true);
+        try {
+            const res: AuditLogResponse = await apiClient.getQueryAuditLog(projectId, {
+                limit: AUDIT_LIMIT,
+                offset: (page - 1) * AUDIT_LIMIT,
+            });
+            setAuditEntries(res.entries);
+            setAuditTotal(res.total);
+        } catch {
+            // silently fail
+        } finally {
+            setAuditLoading(false);
+        }
+    }, [apiClient, projectId]);
+
+    useEffect(() => {
+        if (auditOpen) loadAuditLog(auditPage);
+    }, [auditOpen, auditPage, loadAuditLog]);
+
+    // ── Loading / feature-disabled states ──
     if (featureEnabled === null) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
@@ -309,9 +451,13 @@ export const DatabaseConnection: React.FC<Props> = ({
     }
 
     const isConnected = existingConn?.status === 'connected';
+    const isAzureMode = AZURE_AUTH_MODES.includes(authType);
+    const isSqlServer = dbType === 'sqlserver';
 
+    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+
             {/* ── Status banner ── */}
             {existingConn && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -329,13 +475,24 @@ export const DatabaseConnection: React.FC<Props> = ({
                             {existingConn.table_count} tables
                         </Typography>
                     )}
+                    {existingConn.auth_type === 'app_service_principal' && (
+                        <Chip
+                            icon={<CloudIcon />}
+                            label="Platform App"
+                            color="info"
+                            size="small"
+                            variant="outlined"
+                        />
+                    )}
                 </Box>
             )}
 
             {/* ── Success notice ── */}
             {saveSuccess && (
                 <Alert severity="success" onClose={() => setSaveSuccess(false)}>
-                    Database connection saved successfully! The connection string has been cleared from this form for security.
+                    Database connection saved successfully!
+                    {authType === 'connection_string' && ' The connection string has been cleared from this form for security.'}
+                    {authType === 'service_principal' && ' The client secret has been cleared from this form for security.'}
                 </Alert>
             )}
 
@@ -353,6 +510,7 @@ export const DatabaseConnection: React.FC<Props> = ({
                 </Typography>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+
                     {/* Database Type */}
                     <FormControl fullWidth size="small">
                         <InputLabel id="db-type-label">Database Type</InputLabel>
@@ -360,15 +518,18 @@ export const DatabaseConnection: React.FC<Props> = ({
                             labelId="db-type-label"
                             label="Database Type"
                             value={dbType}
-                            onChange={(e) => {
-                                setDbType(e.target.value as DatabaseType);
-                                setTestResult(null);
-                            }}
+                            disabled={isAzureMode}
+                            onChange={(e) => handleDbTypeChange(e.target.value as DatabaseType)}
                         >
                             {(Object.keys(DB_TYPE_LABELS) as DatabaseType[]).map((t) => (
                                 <MenuItem key={t} value={t}>{DB_TYPE_LABELS[t]}</MenuItem>
                             ))}
                         </Select>
+                        {isAzureMode && (
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 0.5 }}>
+                                Locked to SQL Server for Azure authentication modes.
+                            </Typography>
+                        )}
                     </FormControl>
 
                     {/* Display Name */}
@@ -381,34 +542,192 @@ export const DatabaseConnection: React.FC<Props> = ({
                         onChange={(e) => setDisplayName(e.target.value)}
                     />
 
-                    {/* Connection String */}
+                    {/* ── Authentication Mode ── */}
                     <Box>
-                        <TextField
-                            label="Connection String"
-                            size="small"
-                            fullWidth
-                            type="password"
-                            placeholder={DB_TYPE_PLACEHOLDERS[dbType]}
-                            value={connString}
-                            onChange={(e) => {
-                                setConnString(e.target.value);
-                                setConnStringMasked(false);
-                                setTestResult(null);
-                            }}
-                            helperText={
-                                connStringMasked && existingConn
-                                    ? `Current: ${maskConnectionString(
-                                          existingConn.database_type + '://user:pass@host/db'
-                                      )} — enter a new string to change`
-                                    : 'Encrypted at rest. Never returned by the API after saving.'
-                            }
-                        />
-                        <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>
-                            Your connection string contains credentials. Treat it like a password.
-                        </Alert>
+                        <FormControl component="fieldset">
+                            <FormLabel component="legend" sx={{ fontSize: '0.875rem', fontWeight: 600, mb: 0.5 }}>
+                                Authentication Mode
+                            </FormLabel>
+                            <RadioGroup
+                                value={authType}
+                                onChange={(e) => handleAuthTypeChange(e.target.value as AuthType)}
+                            >
+                                {/* Connection String — always available */}
+                                <FormControlLabel
+                                    value="connection_string"
+                                    control={<Radio size="small" />}
+                                    label={
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <LockIcon sx={{ fontSize: 16 }} />
+                                            <Typography variant="body2">Connection String</Typography>
+                                        </Box>
+                                    }
+                                />
+
+                                {/* Service Principal — SQL Server only */}
+                                {(isSqlServer || authType === 'service_principal') && (
+                                    <FormControlLabel
+                                        value="service_principal"
+                                        control={<Radio size="small" />}
+                                        label={
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                <KeyIcon sx={{ fontSize: 16 }} />
+                                                <Typography variant="body2">My Azure App (Service Principal)</Typography>
+                                                <Chip label="SQL Server" size="small" variant="outlined" sx={{ ml: 0.5 }} />
+                                            </Box>
+                                        }
+                                    />
+                                )}
+
+                                {/* Platform App — SQL Server only, availability-gated */}
+                                {(isSqlServer || authType === 'app_service_principal') && (
+                                    <Tooltip
+                                        title={
+                                            appSpAvailable === false
+                                                ? 'Not available on this platform — contact your administrator.'
+                                                : appSpAvailable === null
+                                                ? 'Checking platform configuration…'
+                                                : ''
+                                        }
+                                        disableHoverListener={appSpAvailable === true}
+                                    >
+                                        <span>
+                                            <FormControlLabel
+                                                value="app_service_principal"
+                                                control={<Radio size="small" />}
+                                                disabled={appSpAvailable !== true}
+                                                label={
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                        <CloudIcon sx={{ fontSize: 16, color: appSpAvailable === true ? 'info.main' : 'inherit' }} />
+                                                        <Typography variant="body2">
+                                                            Platform App
+                                                        </Typography>
+                                                        <Chip
+                                                            label={
+                                                                appSpAvailable === null ? 'Checking…' :
+                                                                appSpAvailable === false ? 'Unavailable' :
+                                                                'Zero Credentials'
+                                                            }
+                                                            color={appSpAvailable === true ? 'success' : 'default'}
+                                                            size="small"
+                                                            variant="outlined"
+                                                            sx={{ ml: 0.5 }}
+                                                        />
+                                                        <Chip label="SQL Server" size="small" variant="outlined" sx={{ ml: 0.5 }} />
+                                                    </Box>
+                                                }
+                                            />
+                                        </span>
+                                    </Tooltip>
+                                )}
+                            </RadioGroup>
+                        </FormControl>
                     </Box>
 
-                    {/* Advanced Settings */}
+                    {/* ── Platform App banner ── */}
+                    {authType === 'app_service_principal' && appSpAvailable === true && (
+                        <Alert severity="info" icon={<InfoIcon />}>
+                            This platform's app registration will be used — no credentials required from
+                            you. Just provide the server and database name.
+                        </Alert>
+                    )}
+
+                    {/* ── connection_string fields ── */}
+                    {authType === 'connection_string' && (
+                        <Box>
+                            <TextField
+                                label="Connection String"
+                                size="small"
+                                fullWidth
+                                type="password"
+                                placeholder={DB_TYPE_PLACEHOLDERS[dbType]}
+                                value={connString}
+                                onChange={(e) => {
+                                    setConnString(e.target.value);
+                                    setConnStringMasked(false);
+                                    setTestResult(null);
+                                }}
+                                helperText={
+                                    connStringMasked && existingConn
+                                        ? 'A connection string is already saved. Enter a new one to replace it.'
+                                        : 'Encrypted at rest. Never returned by the API after saving.'
+                                }
+                            />
+                            <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>
+                                Your connection string contains credentials. Treat it like a password.
+                            </Alert>
+                        </Box>
+                    )}
+
+                    {/* ── Azure Server + Database (shared between SP and App SP) ── */}
+                    {isAzureMode && (
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <TextField
+                                label="Azure Server"
+                                size="small"
+                                fullWidth
+                                placeholder="myserver.database.windows.net"
+                                value={azureServer}
+                                onChange={(e) => { setAzureServer(e.target.value); setTestResult(null); }}
+                                helperText="e.g. myserver.database.windows.net"
+                            />
+                            <TextField
+                                label="Azure Database"
+                                size="small"
+                                fullWidth
+                                placeholder="MyDatabaseName"
+                                value={azureDatabase}
+                                onChange={(e) => { setAzureDatabase(e.target.value); setTestResult(null); }}
+                            />
+                        </Box>
+                    )}
+
+                    {/* ── service_principal-only fields ── */}
+                    {authType === 'service_principal' && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <Divider>
+                                <Typography variant="caption" color="text.secondary">Your Azure AD App Credentials</Typography>
+                            </Divider>
+                            <TextField
+                                label="Tenant ID"
+                                size="small"
+                                fullWidth
+                                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                value={azureTenantId}
+                                onChange={(e) => { setAzureTenantId(e.target.value); setTestResult(null); }}
+                            />
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                                <TextField
+                                    label="Client ID (Application ID)"
+                                    size="small"
+                                    fullWidth
+                                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                    value={azureClientId}
+                                    onChange={(e) => { setAzureClientId(e.target.value); setTestResult(null); }}
+                                />
+                                <TextField
+                                    label="Client Secret"
+                                    size="small"
+                                    fullWidth
+                                    type="password"
+                                    placeholder={clientSecretMasked && existingConn ? '••••••••• (saved)' : 'your-client-secret'}
+                                    value={azureClientSecret}
+                                    onChange={(e) => {
+                                        setAzureClientSecret(e.target.value);
+                                        setClientSecretMasked(false);
+                                        setTestResult(null);
+                                    }}
+                                    helperText={
+                                        clientSecretMasked && existingConn
+                                            ? 'A secret is saved. Enter a new one to rotate it.'
+                                            : 'Encrypted at rest. Never returned by the API.'
+                                    }
+                                />
+                            </Box>
+                        </Box>
+                    )}
+
+                    {/* ── Advanced Settings ── */}
                     <Box>
                         <Button
                             size="small"
@@ -421,15 +740,26 @@ export const DatabaseConnection: React.FC<Props> = ({
                         </Button>
                         <Collapse in={showAdvanced}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                                <TextField
-                                    label="Include Tables (comma-separated, blank = all)"
-                                    size="small"
-                                    fullWidth
-                                    placeholder="orders, customers, products"
-                                    value={includeTables}
-                                    onChange={(e) => setIncludeTables(e.target.value)}
-                                    helperText="Leave empty to allow access to all tables."
-                                />
+                                <Box sx={{ display: 'flex', gap: 2 }}>
+                                    <TextField
+                                        label="Include Tables (comma-separated)"
+                                        size="small"
+                                        fullWidth
+                                        placeholder="orders, customers, products"
+                                        value={includeTables}
+                                        onChange={(e) => setIncludeTables(e.target.value)}
+                                        helperText="Allowlist — leave empty to allow all tables."
+                                    />
+                                    <TextField
+                                        label="Exclude Tables (comma-separated)"
+                                        size="small"
+                                        fullWidth
+                                        placeholder="logs, audit_trail"
+                                        value={excludeTables}
+                                        onChange={(e) => setExcludeTables(e.target.value)}
+                                        helperText="Blocklist — tables to hide from the agent."
+                                    />
+                                </Box>
                                 <Box sx={{ display: 'flex', gap: 2 }}>
                                     <TextField
                                         label="Max Result Rows"

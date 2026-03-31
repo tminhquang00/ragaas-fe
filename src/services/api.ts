@@ -605,6 +605,38 @@ export class RAGaaSClient {
         );
     }
 
+    /**
+     * Probe whether the platform has configured the `app_service_principal`
+     * Azure AD app registration (SQL_AZURE_TENANT_ID / CLIENT_ID / SECRET env vars).
+     * A 503 means it is NOT configured; any other response means it IS configured
+     * (the test request itself may fail to connect to the dummy server — that is expected).
+     */
+    async checkAppServicePrincipalAvailable(projectId: string): Promise<boolean> {
+        try {
+            const response = await fetch(
+                `${this.baseUrl}/api/v1/projects/${projectId}/database-connection/test`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': this.tenantId,
+                        ...(this.accessToken ? { Authorization: `Bearer ${this.accessToken}` } : {}),
+                    },
+                    body: JSON.stringify({
+                        database_type: 'sqlserver',
+                        auth_type: 'app_service_principal',
+                        azure_server: 'probe',
+                        azure_database: 'probe',
+                    }),
+                }
+            );
+            // 503 = platform env vars not configured
+            return response.status !== 503;
+        } catch {
+            return false;
+        }
+    }
+
     // ============ Health ============
 
     async healthCheck(): Promise<{ status: string; components: Record<string, string> }> {

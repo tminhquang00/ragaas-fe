@@ -9,18 +9,33 @@ The SQL Agent feature allows users to connect a relational database to a project
 
 ---
 
-## 1. API Endpoints
+## 1. Authentication Modes
 
-### 1.1 Create / Update Database Connection
+Three authentication modes are supported. The `auth_type` field controls which fields are required.
+
+| `auth_type` | Who provides credentials | Supported DB |
+|---|---|---|
+| `connection_string` | User provides a full connection URI | All |
+| `service_principal` | User provides their own Azure AD client_id + client_secret | SQL Server only |
+| `app_service_principal` | Platform uses its own pre-configured app registration — user only provides server + database | SQL Server only |
+
+> **`app_service_principal`** is the zero-credential option. The platform admin configures `SQL_AZURE_TENANT_ID`, `SQL_AZURE_CLIENT_ID`, and `SQL_AZURE_CLIENT_SECRET` once as environment variables, and users just pick a server and database. If those env vars are not set, this mode returns `503`.
+
+---
+
+## 2. API Endpoints
+
+### 2.1 Create / Update Database Connection
 
 **`PUT /api/v1/projects/{project_id}/database-connection`**
 
 Creates or replaces the database connection for a project. Tests the connection before saving. Triggers automatic schema introspection.
 
-**Request Body:**
+#### connection_string auth
 ```json
 {
   "database_type": "postgresql",
+  "auth_type": "connection_string",
   "connection_string": "postgresql://user:password@host:5432/dbname",
   "display_name": "Sales Database",
   "include_tables": ["orders", "customers", "products"],
@@ -30,60 +45,100 @@ Creates or replaces the database connection for a project. Tests the connection 
 }
 ```
 
-| Field | Type | Required | Description |
+#### service_principal auth (user's own Azure app)
+```json
+{
+  "database_type": "sqlserver",
+  "auth_type": "service_principal",
+  "azure_server": "myserver.database.windows.net",
+  "azure_database": "MyDB",
+  "azure_tenant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "azure_client_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "azure_client_secret": "your-client-secret",
+  "display_name": "Azure SQL Database",
+  "max_result_rows": 500,
+  "query_timeout_seconds": 30
+}
+```
+
+#### app_service_principal auth (platform's app — no credentials needed from user)
+```json
+{
+  "database_type": "sqlserver",
+  "auth_type": "app_service_principal",
+  "azure_server": "myserver.database.windows.net",
+  "azure_database": "MyDB",
+  "display_name": "Azure SQL Database",
+  "max_result_rows": 500,
+  "query_timeout_seconds": 30
+}
+```
+
+**Fields reference:**
+
+| Field | Type | Required for | Description |
 |---|---|---|---|
-| `database_type` | enum | Yes | `postgresql`, `mysql`, `sqlserver`, `sqlite` |
-| `connection_string` | string | Yes | Database connection URI (plaintext, encrypted at rest) |
-| `display_name` | string | No | Human-readable name (default: "Database") |
-| `include_tables` | string[] | No | Allowlist of tables. `null` = all tables |
-| `exclude_tables` | string[] | No | Blocklist of tables |
-| `max_result_rows` | int | No | Max rows per query result (1-5000, default: 500) |
-| `query_timeout_seconds` | int | No | Query timeout in seconds (5-120, default: 30) |
+| `database_type` | enum | all | `postgresql`, `mysql`, `sqlserver`, `sqlite` |
+| `auth_type` | enum | all | `connection_string` (default), `service_principal`, `app_service_principal` |
+| `display_name` | string | — | Human-readable name (default: "Database") |
+| `include_tables` | string[] | — | Allowlist of tables. `null` = all tables |
+| `exclude_tables` | string[] | — | Blocklist of tables |
+| `max_result_rows` | int | — | Max rows per query (1-5000, default: 500) |
+| `query_timeout_seconds` | int | — | Query timeout (5-120, default: 30) |
+| `connection_string` | string | `connection_string` | Full database URI |
+| `azure_server` | string | `service_principal`, `app_service_principal` | e.g. `myserver.database.windows.net` |
+| `azure_database` | string | `service_principal`, `app_service_principal` | Database name |
+| `azure_tenant_id` | string | `service_principal` | Azure AD tenant ID |
+| `azure_client_id` | string | `service_principal` | Application (client) ID |
+| `azure_client_secret` | string | `service_principal` | Client secret (never returned in responses) |
 
 **Response (200):**
 ```json
 {
   "enabled": true,
-  "database_type": "postgresql",
-  "display_name": "Sales Database",
+  "database_type": "sqlserver",
+  "auth_type": "app_service_principal",
+  "display_name": "Azure SQL Database",
   "status": "connected",
-  "include_tables": ["orders", "customers", "products"],
-  "exclude_tables": [],
+  "include_tables": null,
+  "exclude_tables": null,
   "max_result_rows": 500,
   "query_timeout_seconds": 30,
   "schema_introspected_at": "2026-03-11T10:00:00Z",
-  "table_count": 3
+  "table_count": 12
 }
 ```
 
 **Errors:**
-- `400` — Invalid request body
+- `400` — Invalid request body or missing required fields for the chosen auth_type
 - `404` — Project not found
 - `502` — Database connection test failed (message includes DB error)
+- `503` — `app_service_principal` selected but platform env vars not configured
 
-> **Note**: The connection string is never returned in any API response. It is encrypted at rest.
+> **Security**: Connection strings and client secrets are **never** returned in any API response. For `app_service_principal`, no user credentials are stored at all.
 
 ---
 
-### 1.2 Get Database Connection Info
+### 2.2 Get Database Connection Info
 
 **`GET /api/v1/projects/{project_id}/database-connection`**
 
-Returns the current database connection configuration (without the connection string).
+Returns the current database connection configuration (no secrets ever returned).
 
 **Response (200):**
 ```json
 {
   "enabled": true,
-  "database_type": "postgresql",
-  "display_name": "Sales Database",
+  "database_type": "sqlserver",
+  "auth_type": "app_service_principal",
+  "display_name": "Azure SQL Database",
   "status": "connected",
-  "include_tables": ["orders", "customers", "products"],
-  "exclude_tables": [],
+  "include_tables": null,
+  "exclude_tables": null,
   "max_result_rows": 500,
   "query_timeout_seconds": 30,
   "schema_introspected_at": "2026-03-11T10:00:00Z",
-  "table_count": 3
+  "table_count": 12
 }
 ```
 
@@ -92,7 +147,7 @@ Returns the current database connection configuration (without the connection st
 
 ---
 
-### 1.3 Delete Database Connection
+### 2.3 Delete Database Connection
 
 **`DELETE /api/v1/projects/{project_id}/database-connection`**
 
@@ -102,17 +157,41 @@ Removes the database connection and all cached schema data.
 
 ---
 
-### 1.4 Test Connection (without saving)
+### 2.4 Test Connection (without saving)
 
 **`POST /api/v1/projects/{project_id}/database-connection/test`**
 
-Tests a connection string without saving it. Use this for the "Test Connection" button in the UI.
+Tests a connection without saving it. Use this for the "Test Connection" button in the UI.
 
-**Request Body:**
+#### connection_string
 ```json
 {
   "database_type": "postgresql",
+  "auth_type": "connection_string",
   "connection_string": "postgresql://user:password@host:5432/dbname"
+}
+```
+
+#### service_principal
+```json
+{
+  "database_type": "sqlserver",
+  "auth_type": "service_principal",
+  "azure_server": "myserver.database.windows.net",
+  "azure_database": "MyDB",
+  "azure_tenant_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "azure_client_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "azure_client_secret": "your-client-secret"
+}
+```
+
+#### app_service_principal
+```json
+{
+  "database_type": "sqlserver",
+  "auth_type": "app_service_principal",
+  "azure_server": "myserver.database.windows.net",
+  "azure_database": "MyDB"
 }
 ```
 
@@ -131,15 +210,18 @@ Tests a connection string without saving it. Use this for the "Test Connection" 
 ```json
 {
   "success": false,
-  "message": "Connection refused: could not connect to server at host:5432",
+  "message": "Connection refused: could not connect to server at host:1433",
   "latency_ms": 5023,
   "tables_found": null
 }
 ```
 
+**Errors:**
+- `503` — `app_service_principal` selected but platform env vars not configured
+
 ---
 
-### 1.5 Introspect Schema (Refresh)
+### 2.5 Introspect Schema (Refresh)
 
 **`POST /api/v1/projects/{project_id}/database-connection/introspect`**
 
@@ -169,15 +251,6 @@ Triggers a schema introspection refresh. Returns the full schema structure.
           "is_foreign_key": true,
           "foreign_key_target": "customers.id",
           "comment": null
-        },
-        {
-          "name": "total",
-          "data_type": "DECIMAL(10,2)",
-          "nullable": false,
-          "is_primary_key": false,
-          "is_foreign_key": false,
-          "foreign_key_target": null,
-          "comment": null
         }
       ],
       "row_count_estimate": 150000,
@@ -192,7 +265,7 @@ Triggers a schema introspection refresh. Returns the full schema structure.
 
 ---
 
-### 1.6 Query Audit Log
+### 2.6 Query Audit Log
 
 **`GET /api/v1/projects/{project_id}/database-connection/audit-log`**
 
@@ -232,35 +305,28 @@ Retrieve history of SQL queries executed by the agent.
 
 ---
 
-### 1.7 Chat (Existing Endpoint - No Changes)
+### 2.7 Chat (Existing Endpoint - No Changes)
 
 **`POST /api/v1/projects/{project_id}/chat`**
 
 The existing chat endpoint works unchanged. When the project has a database connection enabled, the agent automatically gets SQL tools and can query the database.
 
-The frontend does NOT need to do anything special for SQL queries — the agent decides when to use SQL tools based on the user's question.
-
-**The agent's responses for SQL queries typically include:**
-- The SQL query in a code block
-- A results table
-- A natural language explanation
-
 ---
 
-## 2. Supported Database Types
+## 3. Supported Database Types
 
-| Value | Display Name | Connection String Format |
+| Value | Display Name | Auth modes available |
 |---|---|---|
-| `postgresql` | PostgreSQL | `postgresql://user:pass@host:5432/dbname` |
-| `mysql` | MySQL | `mysql://user:pass@host:3306/dbname` |
-| `sqlserver` | SQL Server | `mssql://user:pass@host:1433/dbname?driver=ODBC+Driver+18+for+SQL+Server` |
-| `sqlite` | SQLite | `sqlite:///path/to/database.db` |
+| `postgresql` | PostgreSQL | `connection_string` |
+| `mysql` | MySQL | `connection_string` |
+| `sqlserver` | SQL Server | `connection_string`, `service_principal`, `app_service_principal` |
+| `sqlite` | SQLite | `connection_string` |
 
-> The backend automatically converts sync driver prefixes to async ones. Users can provide standard connection strings.
+> The backend automatically converts sync driver prefixes to async ones (e.g. `postgresql://` → `postgresql+asyncpg://`).
 
 ---
 
-## 3. Connection Status Values
+## 4. Connection Status Values
 
 | Status | Meaning |
 |---|---|
@@ -271,9 +337,11 @@ The frontend does NOT need to do anything special for SQL queries — the agent 
 
 ---
 
-## 4. UI Flow Recommendations
+## 5. UI Flow Recommendations
 
-### 4.1 Database Connection Setup Page
+### 5.1 Database Connection Setup Page
+
+The auth mode selector should drive which fields are shown:
 
 ```
 Project Settings > Database Connection
@@ -281,12 +349,20 @@ Project Settings > Database Connection
 ┌─────────────────────────────────────────────────────────┐
 │  Database Connection                          [Enabled] │
 │                                                         │
-│  Database Type:  [PostgreSQL ▼]                         │
-│  Display Name:   [Sales Database          ]             │
-│  Connection:     [postgresql://user:***@host/db ]       │
+│  Database Type:  [SQL Server ▼]                         │
+│  Display Name:   [Azure SQL Database      ]             │
+│                                                         │
+│  Authentication: [Use Platform App ▼]                   │
+│    ○ Connection String                                  │
+│    ○ My Azure App (Service Principal)                   │
+│    ● Platform App  ← zero-credential option             │
+│                                                         │
+│  ── Platform App fields (shown for "Platform App") ──   │
+│  Server:    [myserver.database.windows.net ]            │
+│  Database:  [MyDB                          ]            │
 │                                                         │
 │  ── Table Access Control ──                             │
-│  Include Tables: [orders, customers, products  ]        │
+│  Include Tables: [orders, customers           ]         │
 │  (Leave empty for all tables)                           │
 │                                                         │
 │  ── Safety Settings ──                                  │
@@ -300,41 +376,78 @@ Project Settings > Database Connection
 │                                                         │
 │  ▸ orders (3 columns, ~150K rows)                       │
 │  ▸ customers (5 columns, ~10K rows)                     │
-│  ▸ products (4 columns, ~500 rows)                      │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Recommended UI Flow
+### 5.2 Field Visibility by Auth Mode
 
-1. User selects database type from dropdown
-2. User enters connection string and display name
-3. User clicks **"Test Connection"** → call `POST .../test`
+| Field | `connection_string` | `service_principal` | `app_service_principal` |
+|---|---|---|---|
+| Connection String input | ✓ | — | — |
+| Azure Server | — | ✓ | ✓ |
+| Azure Database | — | ✓ | ✓ |
+| Tenant ID | — | ✓ | — |
+| Client ID | — | ✓ | — |
+| Client Secret | — | ✓ | — |
+
+### 5.3 Recommended UI Flow
+
+1. User selects **Database Type** (dropdown)
+2. User selects **Authentication Mode** (radio/select)
+   - If `app_service_principal` is selected and the platform has it configured, show a green info banner: *"This platform's app registration will be used — no credentials required."*
+   - If the platform has NOT configured it, either hide the option or show a greyed-out option with tooltip: *"Not available on this platform — contact your administrator."*
+3. User fills in the relevant fields based on the chosen auth mode
+4. User clicks **"Test Connection"** → call `POST .../test`
    - Show green checkmark + table count on success
    - Show red error message on failure
-4. User configures table filters (optional)
-5. User clicks **"Save"** → call `PUT .../database-connection`
+5. User configures table filters (optional)
+6. User clicks **"Save"** → call `PUT .../database-connection`
    - This tests, saves, and introspects in one step
-6. Schema table tree is rendered from the response
-7. User clicks **"Refresh Schema"** → call `POST .../introspect`
+7. Schema table tree is rendered from the response
 
-### 4.3 Connection String Security
+### 5.4 Detecting Platform App Availability
 
-- Mask the connection string in the input field after saving (show `postgresql://user:***@host:5432/dbname`)
-- The backend never returns the connection string — the frontend should clear it from local state after a successful save
-- Show a warning that the connection string contains credentials
+The frontend can detect whether `app_service_principal` is available by checking if a test request with that mode returns `200` or `503`:
 
-### 4.4 Chat Integration
+```typescript
+async function isAppSpAvailable(projectId: string): Promise<boolean> {
+  try {
+    // A minimal test request — will 503 fast if not configured
+    const res = await fetch(`/api/v1/projects/${projectId}/database-connection/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-User-ID': tenantId },
+      body: JSON.stringify({
+        database_type: 'sqlserver',
+        auth_type: 'app_service_principal',
+        azure_server: 'probe',
+        azure_database: 'probe',
+      }),
+    });
+    // 503 = not configured; any other status (even 200 success=false) = configured
+    return res.status !== 503;
+  } catch {
+    return false;
+  }
+}
+```
 
-No special frontend changes needed for the chat UI. The agent handles SQL queries transparently through the existing chat endpoint.
+### 5.5 Connection String Security
 
-However, you may want to:
+- Mask the connection string in the input field after saving
+- The backend never returns the connection string — clear it from local state after a successful save
+- For `service_principal`, mask the client secret field
+- For `app_service_principal`, no secrets are ever sent or stored — no masking needed
+
+### 5.6 Chat Integration
+
+No special frontend changes needed for the chat UI. The agent handles SQL queries transparently.
+
+You may want to:
 - Show a "Database Connected" badge on projects with SQL enabled
 - Display a hint in the chat input (e.g., "You can ask questions about your Sales Database")
-- Render SQL code blocks with syntax highlighting when the agent returns SQL queries
+- Render SQL code blocks with syntax highlighting
 
-### 4.5 Audit Log Page
-
-Optional page accessible from project settings:
+### 5.7 Audit Log Page
 
 ```
 Project Settings > SQL Query History
@@ -358,44 +471,59 @@ Project Settings > SQL Query History
 
 ---
 
-## 5. Error Handling
+## 6. Error Handling
 
 | HTTP Code | Scenario | Frontend Action |
 |---|---|---|
 | 200 (success=false) | Connection test failed | Show error message from `message` field |
-| 400 | Invalid request body | Show validation errors |
+| 400 | Invalid request body / missing fields | Show validation errors |
 | 403 | SQL agent feature disabled | Show "SQL Agent is not enabled on this platform" |
 | 404 | Project or connection not found | Show appropriate "not found" message |
 | 500 | Encryption key not configured | Show "Platform configuration error" (admin issue) |
 | 502 | Database connection failed on save | Show the DB error from `detail` field |
+| 503 | `app_service_principal` not configured | Show "Platform app not configured — use a different auth mode or contact your administrator" |
 
 ---
 
-## 6. Feature Flag
+## 7. Feature Flag
 
 The SQL Agent has a global feature flag (`SQL_AGENT_ENABLED`). If disabled, all endpoints return `403`. The frontend can detect this by calling `GET .../database-connection` — if it returns `403`, hide the database connection UI entirely.
 
 ---
 
-## 7. TypeScript Types
+## 8. TypeScript Types
 
 ```typescript
 type DatabaseType = 'postgresql' | 'mysql' | 'sqlserver' | 'sqlite';
 type ConnectionStatus = 'connected' | 'disconnected' | 'error' | 'pending';
+type AuthType = 'connection_string' | 'service_principal' | 'app_service_principal';
 
 interface DatabaseConnectionCreate {
   database_type: DatabaseType;
-  connection_string: string;
+  auth_type?: AuthType;             // default: 'connection_string'
   display_name?: string;
   include_tables?: string[] | null;
   exclude_tables?: string[] | null;
-  max_result_rows?: number;       // 1-5000, default 500
-  query_timeout_seconds?: number;  // 5-120, default 30
+  max_result_rows?: number;         // 1-5000, default 500
+  query_timeout_seconds?: number;   // 5-120, default 30
+
+  // connection_string auth
+  connection_string?: string;
+
+  // service_principal auth
+  azure_server?: string;
+  azure_database?: string;
+  azure_tenant_id?: string;
+  azure_client_id?: string;
+  azure_client_secret?: string;     // write-only, never returned
+
+  // app_service_principal auth — only azure_server + azure_database needed
 }
 
 interface DatabaseConnectionResponse {
   enabled: boolean;
   database_type: DatabaseType;
+  auth_type: AuthType;
   display_name: string;
   status: ConnectionStatus;
   include_tables: string[] | null;
@@ -408,7 +536,19 @@ interface DatabaseConnectionResponse {
 
 interface ConnectionTestRequest {
   database_type: DatabaseType;
-  connection_string: string;
+  auth_type?: AuthType;
+
+  // connection_string auth
+  connection_string?: string;
+
+  // service_principal auth
+  azure_server?: string;
+  azure_database?: string;
+  azure_tenant_id?: string;
+  azure_client_id?: string;
+  azure_client_secret?: string;
+
+  // app_service_principal auth — only azure_server + azure_database needed
 }
 
 interface ConnectionTestResult {
