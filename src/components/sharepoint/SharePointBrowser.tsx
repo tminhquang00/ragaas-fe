@@ -1,27 +1,15 @@
 import React, { useState } from 'react';
 import {
-    Alert,
-    Box,
+    Notification,
     Button,
     Chip,
-    CircularProgress,
-    Divider,
-    IconButton,
-    LinearProgress,
+    ActivityIndicator,
+    ProgressIndicator,
     TextField,
     Tooltip,
-    Typography,
-} from '@mui/material';
-import {
-    Add as AddIcon,
-    CheckCircle as ConnectedIcon,
-    Close as CloseIcon,
-    CloudSync as CheckUpdatesIcon,
-    FileUpload as IngestIcon,
-    Link as LinkIcon,
-    Login as ConnectIcon,
-    Search as BrowseIcon,
-} from '@mui/icons-material';
+    Divider,
+} from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
 import { useMsal } from '@azure/msal-react';
 import { InteractionRequiredAuthError } from '@azure/msal-browser';
 
@@ -312,31 +300,27 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
     // ── Render ────────────────────────────────────────────────────────────────
 
     return (
-        <Box>
+        <div>
             {/* ── Auth banner ─────────────────────────────────────── */}
-            <Box
-                sx={{
+            <div
+                style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 2,
-                    p: 2,
-                    mb: 2,
-                    bgcolor: 'background.paper',
-                    border: 1,
-                    borderColor: 'divider',
-                    borderRadius: 0,
+                    gap: '1rem',
+                    padding: '1rem',
+                    marginBottom: '1rem',
+                    background: 'var(--app-bg)',
+                    border: '1px solid var(--app-border)',
                 }}
             >
                 {spAccessToken ? (
                     <>
-                        <ConnectedIcon color="success" />
-                        <Typography variant="body2" sx={{ flex: 1 }}>
+                        <FrokIcon name="CheckCircle" />
+                        <span style={{ flex: 1, fontSize: '0.875rem' }}>
                             Connected{connectedAs ? ` as ${connectedAs}` : ''}
-                        </Typography>
+                        </span>
                         <Button
-                            size="small"
-                            variant="outlined"
-                            color="inherit"
+                            mode="secondary"
                             onClick={() => {
                                 setSpAccessToken(null);
                                 setSpRefreshToken(null);
@@ -351,14 +335,14 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
                     </>
                 ) : (
                     <>
-                        <LinkIcon color="action" />
-                        <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+                        <FrokIcon name="Link" />
+                        <span style={{ flex: 1, color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>
                             {isAzureADEnabled
                                 ? 'Connect to SharePoint to browse and ingest files'
                                 : 'SharePoint requires Azure AD (VITE_USE_AZURE_AD=true)'}
-                        </Typography>
+                        </span>
                         <Tooltip
-                            title={
+                            content={
                                 !isAzureADEnabled
                                     ? 'SharePoint requires Azure AD authentication. Set VITE_USE_AZURE_AD=true to enable.'
                                     : ''
@@ -366,219 +350,211 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
                         >
                             <span>
                                 <Button
-                                    variant="contained"
-                                    size="small"
-                                    startIcon={<ConnectIcon />}
+                                    mode="primary"
                                     onClick={handleConnect}
                                     disabled={!isAzureADEnabled}
                                 >
-                                    Connect to SharePoint
+                                    <FrokIcon name="Login" /> Connect to SharePoint
                                 </Button>
                             </span>
                         </Tooltip>
                     </>
                 )}
-            </Box>
+            </div>
 
             {/* ── URL / folder / extension form ───────────────────── */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FrokIcon name="Link" />
+                    <div style={{ flex: 1 }}>
+                        <TextField
+                            id="sp-url"
+                            label="SharePoint URL"
+                            placeholder="https://contoso.sharepoint.com/sites/MySite"
+                            value={sharePointUrl}
+                            onChange={e => setSharePointUrl(e.target.value)}
+                            disabled={!spAccessToken}
+                        />
+                    </div>
+                </div>
                 <TextField
-                    label="SharePoint URL"
-                    placeholder="https://contoso.sharepoint.com/sites/MySite"
-                    value={sharePointUrl}
-                    onChange={e => setSharePointUrl(e.target.value)}
-                    size="small"
-                    fullWidth
-                    disabled={!spAccessToken}
-                    InputProps={{ startAdornment: <LinkIcon fontSize="small" sx={{ mr: 1, color: 'action.active' }} /> }}
-                />
-                <TextField
+                    id="sp-folder-path"
                     label="Folder Path (optional)"
                     placeholder="Documents/ProjectA"
                     value={folderPath}
                     onChange={e => setFolderPath(e.target.value)}
-                    size="small"
-                    fullWidth
                     disabled={!spAccessToken}
-                    helperText="Leave empty to start from the root of Shared Documents"
                 />
 
                 {/* Extension chips */}
-                <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                <div>
+                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.75rem', display: 'block', marginBottom: '0.25rem' }}>
                         File type filter
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                    </span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBottom: '0.5rem' }}>
                         {extensions.map(ext => (
                             <Chip
                                 key={ext}
                                 label={ext}
-                                size="small"
-                                onDelete={() => removeExtension(ext)}
+                                buttonClose
+                                onClose={() => removeExtension(ext)}
                                 disabled={!spAccessToken}
                             />
                         ))}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <TextField
-                                value={newExtension}
-                                onChange={e => setNewExtension(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && addExtension()}
-                                placeholder=".md"
-                                size="small"
-                                sx={{ width: 80 }}
-                                disabled={!spAccessToken}
-                            />
-                            <IconButton
-                                size="small"
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <div style={{ width: 80 }}>
+                                <TextField
+                                    id="sp-ext-filter"
+                                    value={newExtension}
+                                    onChange={e => setNewExtension(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && addExtension()}
+                                    placeholder=".md"
+                                    disabled={!spAccessToken}
+                                />
+                            </div>
+                            <Button
+                                mode="integrated"
                                 onClick={addExtension}
                                 disabled={!spAccessToken || !newExtension.trim()}
                             >
-                                <AddIcon fontSize="small" />
-                            </IconButton>
-                        </Box>
-                    </Box>
-                </Box>
+                                <FrokIcon name="Add" />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
 
-                <Button
-                    variant="outlined"
-                    startIcon={browsing ? <CircularProgress size={16} /> : <BrowseIcon />}
-                    onClick={handleBrowse}
-                    disabled={!spAccessToken || browsing || !sharePointUrl.trim()}
-                    sx={{ alignSelf: 'flex-start' }}
-                >
-                    {browsing ? 'Browsing…' : 'Browse Files'}
-                </Button>
-            </Box>
+                <div>
+                    <Button
+                        mode="secondary"
+                        onClick={handleBrowse}
+                        disabled={!spAccessToken || browsing || !sharePointUrl.trim()}
+                    >
+                        {browsing ? <ActivityIndicator size="small" /> : <FrokIcon name="Search" />}
+                        {browsing ? ' Browsing…' : ' Browse Files'}
+                    </Button>
+                </div>
+            </div>
 
             {/* ── Error ───────────────────────────────────────────── */}
             {error && (
-                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-                    {error}
-                </Alert>
+                <div style={{ marginBottom: '1rem' }}>
+                    <Notification type="error" defaultOpen onCloseClick={() => setError(null)}>
+                        {error}
+                    </Notification>
+                </div>
             )}
 
             {/* ── File tree ───────────────────────────────────────── */}
             {tree && (
                 <>
-                    <Divider sx={{ mb: 2 }} />
-
-                    <Box
-                        sx={{
-                            border: 1,
-                            borderColor: 'divider',
-                            borderRadius: 0,
-                            maxHeight: 420,
-                            overflow: 'auto',
-                            bgcolor: 'background.paper',
-                            mb: 2,
-                        }}
-                    >
-                        <Box sx={{ p: 1, borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover' }}>
-                            <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                                📂 {tree.name}
-                            </Typography>
-                        </Box>
-                        <SharePointFileTree
-                            nodes={tree.children ?? []}
-                            selected={selected}
-                            statusMap={statusMap}
-                            onToggle={handleToggle}
-                        />
-                    </Box>
-
-                    {/* ── Action bar ──────────────────────────────── */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={checkingStatus ? <CircularProgress size={14} /> : <CheckUpdatesIcon />}
-                            onClick={handleCheckUpdates}
-                            disabled={checkingStatus || ingesting}
+                    <Divider />
+                    <div style={{ marginTop: '1rem' }}>
+                        <div
+                            style={{
+                                border: '1px solid var(--app-border)',
+                                maxHeight: 420,
+                                overflow: 'auto',
+                                background: 'var(--app-bg)',
+                                marginBottom: '1rem',
+                            }}
                         >
-                            {checkingStatus ? 'Checking…' : 'Check for Updates'}
-                        </Button>
+                            <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--app-border)', background: 'var(--app-bg-surface)' }}>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)', fontWeight: 600 }}>
+                                    📂 {tree.name}
+                                </span>
+                            </div>
+                            <SharePointFileTree
+                                nodes={tree.children ?? []}
+                                selected={selected}
+                                statusMap={statusMap}
+                                onToggle={handleToggle}
+                            />
+                        </div>
 
-                        <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
-                            {selected.size > 0
-                                ? `${selected.size} file${selected.size !== 1 ? 's' : ''} selected`
-                                : 'No files selected'}
-                        </Typography>
+                        {/* ── Action bar ──────────────────────────────── */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                            <Button
+                                mode="secondary"
+                                onClick={handleCheckUpdates}
+                                disabled={checkingStatus || ingesting}
+                            >
+                                {checkingStatus ? <ActivityIndicator size="small" /> : <FrokIcon name="CloudSync" />}
+                                {checkingStatus ? ' Checking…' : ' Check for Updates'}
+                            </Button>
 
-                        <Button
-                            variant="contained"
-                            size="small"
-                            startIcon={ingesting ? <CircularProgress size={14} color="inherit" /> : <IngestIcon />}
-                            onClick={handleIngest}
-                            disabled={selected.size === 0 || ingesting || browsing}
-                        >
-                            {ingesting ? 'Starting…' : `Ingest ${selected.size > 0 ? selected.size : ''} File${selected.size !== 1 ? 's' : ''}`}
-                        </Button>
-                    </Box>
+                            <span style={{ flex: 1, fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
+                                {selected.size > 0
+                                    ? `${selected.size} file${selected.size !== 1 ? 's' : ''} selected`
+                                    : 'No files selected'}
+                            </span>
+
+                            <Button
+                                mode="primary"
+                                onClick={handleIngest}
+                                disabled={selected.size === 0 || ingesting || browsing}
+                            >
+                                {ingesting ? <ActivityIndicator size="small" /> : <FrokIcon name="FileUpload" />}
+                                {ingesting ? ' Starting…' : ` Ingest ${selected.size > 0 ? selected.size : ''} File${selected.size !== 1 ? 's' : ''}`}
+                            </Button>
+                        </div>
+                    </div>
                 </>
             )}
 
             {/* ── Task progress (reuses parent task status) ────────── */}
             {showProgress && (
-                <Box
-                    sx={{
-                        mt: 3,
-                        p: 2,
-                        bgcolor: 'background.paper',
-                        border: 1,
-                        borderColor: 'divider',
-                        borderRadius: 0,
+                <div
+                    style={{
+                        marginTop: '1.5rem',
+                        padding: '1rem',
+                        background: 'var(--app-bg)',
+                        border: '1px solid var(--app-border)',
                     }}
                 >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                        <Typography variant="subtitle2" color="primary">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--app-primary)', fontSize: '0.875rem' }}>
                             Processing SharePoint Files
-                        </Typography>
+                        </span>
                         <Chip
-                            size="small"
                             label={`${uploadTaskStatus!.processed_files}/${uploadTaskStatus!.total_files} files`}
-                            color="primary"
-                            variant="outlined"
                         />
-                    </Box>
-                    <LinearProgress
-                        variant="determinate"
+                    </div>
+                    <ProgressIndicator
+                        type="determinate"
                         value={
                             uploadTaskStatus!.total_files > 0
                                 ? (uploadTaskStatus!.processed_files / uploadTaskStatus!.total_files) * 100
                                 : 0
                         }
-                        sx={{ height: 8, borderRadius: 0 }}
                     />
-                </Box>
+                </div>
             )}
 
             {uploadTaskStatus && uploadTaskStatus.status === 'completed' && (
-                <Alert
-                    severity="success"
-                    sx={{ mt: 2 }}
-                    action={
-                        <IconButton size="small" onClick={() => { /* parent clears it */ }}>
-                            <CloseIcon fontSize="small" />
-                        </IconButton>
-                    }
-                >
-                    Ingestion complete — {uploadTaskStatus.processed_files} file
-                    {uploadTaskStatus.processed_files !== 1 ? 's' : ''} processed.
-                </Alert>
+                <div style={{ marginTop: '1rem' }}>
+                    <Notification type="success" defaultOpen>
+                        Ingestion complete — {uploadTaskStatus.processed_files} file
+                        {uploadTaskStatus.processed_files !== 1 ? 's' : ''} processed.
+                    </Notification>
+                </div>
             )}
 
             {uploadTaskStatus && uploadTaskStatus.status === 'completed_with_errors' && (
-                <Alert severity="warning" sx={{ mt: 2 }}>
-                    Ingestion completed with errors —{' '}
-                    {uploadTaskStatus.results.filter(r => r.status === 'failed').length} file(s) failed.
-                </Alert>
+                <div style={{ marginTop: '1rem' }}>
+                    <Notification type="warning" defaultOpen>
+                        Ingestion completed with errors —{' '}
+                        {uploadTaskStatus.results.filter(r => r.status === 'failed').length} file(s) failed.
+                    </Notification>
+                </div>
             )}
 
             {uploadTaskStatus && uploadTaskStatus.status === 'failed' && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                    Ingestion failed. {uploadTaskStatus.errors.join(' ')}
-                </Alert>
+                <div style={{ marginTop: '1rem' }}>
+                    <Notification type="error" defaultOpen>
+                        Ingestion failed. {uploadTaskStatus.errors.join(' ')}
+                    </Notification>
+                </div>
             )}
-        </Box>
+        </div>
     );
 };

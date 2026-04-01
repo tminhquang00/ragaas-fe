@@ -2,43 +2,24 @@ import { ConfigEditor } from '../components/projects';
 import { PipelineEditor } from '../components/pipeline';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Skeleton } from '@mui/material';
 import {
-    Box,
-    Typography,
-    Tabs,
-    Tab,
     Button,
+    TabNavigation,
+    Tab,
     Chip,
-    IconButton,
-    Alert,
-    Skeleton,
-    Card,
-    CardContent,
-    Grid,
-    useTheme,
-    Breadcrumbs,
-    Link,
+    Notification,
+    Tile,
+    Breadcrumbs as FrokBreadcrumbs,
+    Link as FrokLink,
     Tooltip,
-    LinearProgress,
-    ToggleButton,
-    ToggleButtonGroup,
-    Switch,
-    FormControlLabel,
-} from '@mui/material';
-import {
-    ArrowBack as BackIcon,
-    PlayArrow as ActivateIcon,
-    Archive as ArchiveIcon,
-    Refresh as RefreshIcon,
-    Circle as CircleIcon,
-    Save as SaveIcon,
-    FolderOpen as LocalUploadIcon,
-    Share as SharePointIcon,
-    Article as DocupediaIcon,
-    Public as PublicIcon,
-    Lock as LockIcon,
-    Storage as StorageIcon,
-} from '@mui/icons-material';
+    Toggle,
+    ProgressIndicator,
+    OptionBar,
+    OptionBarItem,
+    Badge,
+} from '@bosch/react-frok';
+import { FrokIcon } from '../utils/iconAdapter';
 import { UploadZone, DocumentList } from '../components/documents';
 import { SharePointBrowser } from '../components/sharepoint';
 import { DocupediaIngest } from '../components/docupedia';
@@ -55,9 +36,9 @@ interface TabPanelProps {
     value: number;
 }
 const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
-    <Box role="tabpanel" hidden={value !== index} sx={{ pt: 3 }}>
+    <div role="tabpanel" hidden={value !== index} style={{ paddingTop: '1.5rem' }}>
         {value === index && children}
-    </Box>
+    </div>
 );
 
 interface ChatMessage {
@@ -82,7 +63,6 @@ interface UploadFile {
 }
 
 export const ProjectDetailPage: React.FC = () => {
-    useTheme();
     const { projectId } = useParams<{ projectId: string }>();
     const navigate = useNavigate();
     const { apiClient, tenantId } = useAuth();
@@ -688,90 +668,83 @@ export const ProjectDetailPage: React.FC = () => {
 
     if (loading) {
         return (
-            <Box>
+            <div>
                 <Skeleton variant="text" width={200} height={40} />
                 <Skeleton variant="text" width={400} height={24} sx={{ mb: 3 }} />
                 <Skeleton variant="rounded" height={400} />
-            </Box>
+            </div>
         );
     }
 
     if (!project) {
         return (
-            <Box sx={{ textAlign: 'center', py: 8 }}>
-                <Typography variant="h6" color="text.secondary">
+            <div style={{ textAlign: 'center', padding: '4rem 0' }}>
+                <h6 style={{ color: 'var(--app-text-secondary)' }}>
                     Project not found
-                </Typography>
-                <Button onClick={() => navigate('/projects')} sx={{ mt: 2 }}>
+                </h6>
+                <Button mode="tertiary" onClick={() => navigate('/projects')} style={{ marginTop: '1rem' }}>
                     Back to Projects
                 </Button>
-            </Box>
+            </div>
         );
     }
 
     const statusColor = {
         draft: 'warning',
         active: 'success',
-        archived: 'default',
-    }[project.status] as 'warning' | 'success' | 'default';
+        archived: undefined,
+    }[project.status] as 'warning' | 'success' | undefined;
 
     const userRole = getUserRole(project, tenantId);
     const isOwner = userRole === 'owner';
     const isEditorOrAbove = hasPermission(project, tenantId, 'editor');
 
     return (
-        <Box>
+        <div>
             {/* Breadcrumbs */}
-            <Breadcrumbs sx={{ mb: 2 }}>
-                <Link
-                    color="inherit"
-                    href="#"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        navigate('/projects');
-                    }}
-                    sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
-                >
-                    Projects
-                </Link>
-                <Typography color="text.primary">{project.name}</Typography>
-            </Breadcrumbs>
+            <div style={{ marginBottom: '1rem' }}>
+                <FrokBreadcrumbs>
+                    <FrokLink
+                        href="#"
+                        onClick={(e: React.MouseEvent) => {
+                            e.preventDefault();
+                            navigate('/projects');
+                        }}
+                    >
+                        Projects
+                    </FrokLink>
+                    <FrokLink href="#">{project.name}</FrokLink>
+                </FrokBreadcrumbs>
+            </div>
 
             {/* Header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <IconButton onClick={() => navigate('/projects')}>
-                        <BackIcon />
-                    </IconButton>
-                    <Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Typography variant="h4" fontWeight={700}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <Button mode="integrated" icon="left" aria-label="Back" onClick={() => navigate('/projects')} />
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <h4 style={{ fontWeight: 700, margin: 0 }}>
                                 {project.name}
-                            </Typography>
-                            <Chip
-                                size="small"
-                                label={project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                                color={statusColor}
-                                icon={<CircleIcon sx={{ fontSize: '8px !important' }} />}
-                            />
+                            </h4>
+                            <Badge type={statusColor}>
+                                {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                            </Badge>
                             {userRole && <RoleBadge role={userRole} />}
-                        </Box>
-                        <Typography variant="body1" color="text.secondary">
+                        </div>
+                        <p style={{ color: 'var(--app-text-secondary)', marginTop: '0.25rem' }}>
                             {project.description || 'No description'}
-                        </Typography>
-                    </Box>
-                </Box>
+                        </p>
+                    </div>
+                </div>
 
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Tooltip title="Refresh">
-                        <IconButton onClick={() => { fetchProject(); fetchDocuments(); }}>
-                            <RefreshIcon />
-                        </IconButton>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <Tooltip content="Refresh">
+                        <Button mode="integrated" icon="refresh" aria-label="Refresh" onClick={() => { fetchProject(); fetchDocuments(); }} />
                     </Tooltip>
                     {project.status === 'draft' && isEditorOrAbove && (
                         <Button
-                            variant="contained"
-                            startIcon={<ActivateIcon />}
+                            mode="primary"
+                            icon="play"
                             onClick={handleActivate}
                         >
                             Activate
@@ -779,168 +752,148 @@ export const ProjectDetailPage: React.FC = () => {
                     )}
                     {project.status === 'active' && isEditorOrAbove && (
                         <Button
-                            variant="outlined"
-                            startIcon={<ArchiveIcon />}
+                            mode="secondary"
+                            icon={"archive" as any}
                             onClick={handleArchive}
                         >
                             Archive
                         </Button>
                     )}
-                </Box>
-            </Box>
+                </div>
+            </div>
 
             {/* Error */}
             {error && (
-                <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
-                    {error}
-                </Alert>
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <Notification type="error" variant="banner" open={!!error} onCloseClick={() => setError('')}>
+                        {error}
+                    </Notification>
+                </div>
             )}
 
             {/* Activation Notice */}
             {project.status === 'draft' && (
-                <Alert severity="info" sx={{ mb: 3 }}>
-                    This project is in draft mode. Upload documents and activate it to enable chat functionality.
-                </Alert>
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <Notification type="neutral" icon="alert-info" defaultOpen>
+                        This project is in draft mode. Upload documents and activate it to enable chat functionality.
+                    </Notification>
+                </div>
             )}
 
             {/* Tabs */}
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                <Tabs value={tab} onChange={(_, v) => setTab(v)}>
-                    <Tab label="Overview" />
-                    <Tab label="Documents" />
-                    <Tab label="Chat" disabled={project.status !== 'active'} />
-                    <Tab label="Pipeline" />
-                    <Tab label="Widget" disabled={project.status !== 'active'} />
-                    <Tab
-                        label={
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                <StorageIcon sx={{ fontSize: 16 }} />
-                                Database
-                                {dbStatus === 'connected' && (
-                                    <Chip label="Connected" color="success" size="small" sx={{ height: 18, fontSize: '0.65rem' }} />
-                                )}
-                            </Box>
-                        }
-                    />
-                    <Tab label="Settings" />
-                    <Tab label="Members" />
-                </Tabs>
-            </Box>
+            <div style={{ borderBottom: '1px solid var(--app-border)' }}>
+                <TabNavigation
+                    selectedValue={tab}
+                    onTabSelect={(_ev, data) => setTab(data.value as number)}
+                >
+                    <Tab value={0}>Overview</Tab>
+                    <Tab value={1}>Documents</Tab>
+                    <Tab value={2} disabled={project.status !== 'active'}>Chat</Tab>
+                    <Tab value={3}>Pipeline</Tab>
+                    <Tab value={4} disabled={project.status !== 'active'}>Widget</Tab>
+                    <Tab value={5}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <FrokIcon name="Storage" />
+                            Database
+                            {dbStatus === 'connected' && (
+                                <Badge type="success">Connected</Badge>
+                            )}
+                        </span>
+                    </Tab>
+                    <Tab value={6}>Settings</Tab>
+                    <Tab value={7}>Members</Tab>
+                </TabNavigation>
+            </div>
 
             {/* Overview Tab */}
             <TabPanel value={tab} index={0}>
-                <Grid container spacing={3}>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                        <Card>
-                            <CardContent>
-                                <Typography variant="h6" fontWeight={600} gutterBottom>
-                                    Configuration
-                                </Typography>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Typography variant="body2" color="text.secondary">LLM Model</Typography>
-                                        <Typography variant="body2">{project.config?.llm_config?.config_name || 'Not set'}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Typography variant="body2" color="text.secondary">Temperature</Typography>
-                                        <Typography variant="body2">{project.config?.llm_config?.temperature || 0.7}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Typography variant="body2" color="text.secondary">Top K</Typography>
-                                        <Typography variant="body2">{project.config?.retrieval_config?.top_k || 5}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Typography variant="body2" color="text.secondary">Pipeline Type</Typography>
-                                        <Typography variant="body2">{project.config?.pipeline_config?.type || 'simple_rag'}</Typography>
-                                    </Box>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                        <Card>
-                            <CardContent>
-                                <Typography variant="h6" fontWeight={600} gutterBottom>
-                                    Statistics
-                                </Typography>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Typography variant="body2" color="text.secondary">Documents</Typography>
-                                        <Typography variant="body2">{documents.length}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Typography variant="body2" color="text.secondary">Total Chunks</Typography>
-                                        <Typography variant="body2">
-                                            {documents.reduce((sum, d) => sum + (d.chunks_count || 0), 0)}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Typography variant="body2" color="text.secondary">Created</Typography>
-                                        <Typography variant="body2">
-                                            {new Date(project.created_at).toLocaleDateString()}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Typography variant="body2" color="text.secondary">Last Updated</Typography>
-                                        <Typography variant="body2">
-                                            {new Date(project.updated_at).toLocaleDateString()}
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                </Grid>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                    <Tile>
+                            <h6 style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
+                                Configuration
+                            </h6>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>LLM Model</span>
+                                    <span style={{ fontSize: '0.875rem' }}>{project.config?.llm_config?.config_name || 'Not set'}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Temperature</span>
+                                    <span style={{ fontSize: '0.875rem' }}>{project.config?.llm_config?.temperature || 0.7}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Top K</span>
+                                    <span style={{ fontSize: '0.875rem' }}>{project.config?.retrieval_config?.top_k || 5}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Pipeline Type</span>
+                                    <span style={{ fontSize: '0.875rem' }}>{project.config?.pipeline_config?.type || 'simple_rag'}</span>
+                                </div>
+                            </div>
+                        </Tile>
+                        <Tile>
+                            <h6 style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
+                                Statistics
+                            </h6>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Documents</span>
+                                    <span style={{ fontSize: '0.875rem' }}>{documents.length}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Total Chunks</span>
+                                    <span style={{ fontSize: '0.875rem' }}>
+                                        {documents.reduce((sum, d) => sum + (d.chunks_count || 0), 0)}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Created</span>
+                                    <span style={{ fontSize: '0.875rem' }}>
+                                        {new Date(project.created_at).toLocaleDateString()}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Last Updated</span>
+                                    <span style={{ fontSize: '0.875rem' }}>
+                                        {new Date(project.updated_at).toLocaleDateString()}
+                                    </span>
+                                </div>
+                            </div>
+                        </Tile>
+                </div>
             </TabPanel>
 
             {/* Documents Tab */}
             <TabPanel value={tab} index={1}>
                 {/* Source toggle */}
-                <Box sx={{ mb: 3 }}>
-                    <ToggleButtonGroup
-                        value={sourceTab}
-                        exclusive
-                        onChange={(_e, val) => { if (val) setSourceTab(val); }}
-                        size="small"
-                        aria-label="Document source"
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <OptionBar
+                        selectedValue={sourceTab}
+                        onOptionSelect={(_e, data) => { if (data.value) setSourceTab(data.value as 'local' | 'sharepoint' | 'docupedia'); }}
+                        name="document-source"
                     >
-                        <ToggleButton value="local" aria-label="Local Upload">
-                            <LocalUploadIcon fontSize="small" sx={{ mr: 0.75 }} />
-                            Local Upload
-                        </ToggleButton>
-                        <ToggleButton value="sharepoint" aria-label="SharePoint">
-                            <SharePointIcon fontSize="small" sx={{ mr: 0.75 }} />
-                            SharePoint
-                        </ToggleButton>
-                        <ToggleButton value="docupedia" aria-label="Docupedia">
-                            <DocupediaIcon fontSize="small" sx={{ mr: 0.75 }} />
-                            Docupedia
-                        </ToggleButton>
-                    </ToggleButtonGroup>
-                </Box>
+                        <OptionBarItem value="local" icon="folder-open" label="Local Upload" />
+                        <OptionBarItem value="sharepoint" icon="link" label="SharePoint" />
+                        <OptionBarItem value="docupedia" icon="document-text" label="Docupedia" />
+                    </OptionBar>
+                </div>
 
                 {sourceTab === 'local' && (
                     <>
                         {/* Task Progress Display (local uploads) */}
                         {uploadTaskStatus && ['pending', 'processing'].includes(uploadTaskStatus.status) && (
-                            <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 0, border: 1, borderColor: 'divider' }}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                    <Typography variant="subtitle2" color="primary">
+                            <div style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid var(--app-border)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                    <span style={{ fontWeight: 600, color: 'var(--app-primary)', fontSize: '0.875rem' }}>
                                         Processing Documents
-                                    </Typography>
-                                    <Chip
-                                        size="small"
-                                        label={`${uploadTaskStatus.processed_files}/${uploadTaskStatus.total_files} files`}
-                                        color="primary"
-                                        variant="outlined"
-                                    />
-                                </Box>
-                                <LinearProgress
-                                    variant="determinate"
+                                    </span>
+                                    <Chip label={`${uploadTaskStatus.processed_files}/${uploadTaskStatus.total_files} files`} />
+                                </div>
+                                <ProgressIndicator
+                                    type="determinate"
                                     value={(uploadTaskStatus.processed_files / uploadTaskStatus.total_files) * 100}
-                                    sx={{ height: 8, borderRadius: 0 }}
                                 />
-                            </Box>
+                            </div>
                         )}
                         {isEditorOrAbove && (
                             <UploadZone
@@ -978,25 +931,27 @@ export const ProjectDetailPage: React.FC = () => {
                 )}
 
                 {/* Uploaded Documents list — always visible regardless of source tab */}
-                <Box sx={{ mt: 4 }}>
-                    <Typography variant="h6" fontWeight={600} gutterBottom>
+                <div style={{ marginTop: '2rem' }}>
+                    <h6 style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
                         Uploaded Documents
-                    </Typography>
+                    </h6>
                     <DocumentList
                         documents={documents}
                         onDelete={isEditorOrAbove ? handleDocumentDelete : undefined}
                     />
-                </Box>
+                </div>
             </TabPanel>
 
             {/* Chat Tab */}
             <TabPanel value={tab} index={2}>
                 {dbStatus === 'connected' && dbDisplayName && (
-                    <Alert severity="info" icon={<StorageIcon />} sx={{ mb: 2 }}>
-                        Database connected — you can ask questions about your <strong>{dbDisplayName}</strong>.
-                    </Alert>
+                    <div style={{ marginBottom: '1rem' }}>
+                        <Notification type="neutral" icon={"database" as any} defaultOpen>
+                            Database connected — you can ask questions about your <strong>{dbDisplayName}</strong>.
+                        </Notification>
+                    </div>
                 )}
-                <Card sx={{ height: 'calc(100vh - 350px)' }}>
+                <Tile style={{ height: 'calc(100vh - 350px)' }}>
                     <ChatInterface
                         projectId={projectId!}
                         messages={messages}
@@ -1016,25 +971,25 @@ export const ProjectDetailPage: React.FC = () => {
                         onUpdateSession={handleUpdateSession}
                         onSearch={handleSearchSessions}
                     />
-                </Card>
+                </Tile>
             </TabPanel>
 
             {/* Pipeline Tab */}
             <TabPanel value={tab} index={3}>
-                <Box sx={{ height: 'calc(100vh - 300px)', display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                <div style={{ height: 'calc(100vh - 300px)', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
                         {isEditorOrAbove && (
                             <Button
-                                variant="contained"
-                                startIcon={<SaveIcon />}
+                                mode="primary"
+                                icon="save"
                                 onClick={handleSavePipeline}
                                 disabled={!pipelineDirty}
                             >
                                 Save Pipeline
                             </Button>
                         )}
-                    </Box>
-                    <Box sx={{ flex: 1, border: '1px solid #e0e0e0', borderRadius: 0, overflow: 'hidden' }}>
+                    </div>
+                    <div style={{ flex: 1, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
                         {project && project.config && (
                             <PipelineEditor
                                 initialConfig={project.config.pipeline_config || { type: 'simple_rag', steps: [], chat_history_config: { include_history: true, max_history_turns: 3 } }}
@@ -1044,8 +999,8 @@ export const ProjectDetailPage: React.FC = () => {
                                 }}
                             />
                         )}
-                    </Box>
-                </Box>
+                    </div>
+                </div>
             </TabPanel>
 
             {/* Widget Tab */}
@@ -1084,52 +1039,47 @@ export const ProjectDetailPage: React.FC = () => {
             {/* Members Tab */}
             <TabPanel value={tab} index={7}>
                 {apiClient && (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         {/* Visibility Toggle — owner only */}
-                        <Card variant="outlined">
-                            <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Tile>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                     {project.visibility === 'public'
-                                        ? <PublicIcon sx={{ color: '#059669' }} />
-                                        : <LockIcon sx={{ color: 'text.secondary' }} />
+                                        ? <FrokIcon name="Public" style={{ color: '#059669' }} />
+                                        : <FrokIcon name="Lock" style={{ color: 'var(--app-text-secondary)' }} />
                                     }
-                                    <Box>
-                                        <Typography variant="subtitle1" fontWeight={600}>
+                                    <div>
+                                        <p style={{ fontWeight: 600 }}>
                                             {project.visibility === 'public' ? 'Public project' : 'Private project'}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
+                                        </p>
+                                        <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>
                                             {project.visibility === 'public'
                                                 ? 'Any authenticated user can view and chat with this project.'
                                                 : 'Only the owner and explicitly added members can access this project.'}
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                                <Tooltip title={isOwner ? '' : 'Only the project owner can change visibility'}>
+                                        </p>
+                                    </div>
+                                </div>
+                                <Tooltip content={isOwner ? '' : 'Only the project owner can change visibility'}>
                                     <span>
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    checked={project.visibility === 'public'}
-                                                    disabled={!isOwner}
-                                                    onChange={async (e) => {
-                                                        const newVisibility = e.target.checked ? 'public' : 'private';
-                                                        try {
-                                                            const updated = await apiClient.setVisibility(projectId!, newVisibility);
-                                                            setProject(updated);
-                                                        } catch (err) {
-                                                            setError(err instanceof Error ? err.message : 'Failed to update visibility');
-                                                        }
-                                                    }}
-                                                    color="success"
-                                                />
-                                            }
-                                            label="Make public"
-                                            labelPlacement="start"
+                                        <Toggle
+                                            id="visibility-toggle"
+                                            rightLabel="Make public"
+                                            checked={project.visibility === 'public'}
+                                            disabled={!isOwner}
+                                            onChange={async (e: React.ChangeEvent<HTMLInputElement>) => {
+                                                const newVisibility = e.target.checked ? 'public' : 'private';
+                                                try {
+                                                    const updated = await apiClient.setVisibility(projectId!, newVisibility);
+                                                    setProject(updated);
+                                                } catch (err) {
+                                                    setError(err instanceof Error ? err.message : 'Failed to update visibility');
+                                                }
+                                            }}
                                         />
                                     </span>
                                 </Tooltip>
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </Tile>
 
                         <MembersPanel
                             projectId={projectId!}
@@ -1142,9 +1092,9 @@ export const ProjectDetailPage: React.FC = () => {
                             }}
                             fetchMembers={(pid) => apiClient.listMembers(pid)}
                         />
-                    </Box>
+                    </div>
                 )}
             </TabPanel>
-        </Box >
+        </div>
     );
 };

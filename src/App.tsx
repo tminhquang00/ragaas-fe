@@ -1,3 +1,5 @@
+import '@bosch/frontend.kit-npm/styles/frontend-kit.complete.css';
+import './styles/frok-overrides.css';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, ThemeProvider } from './context';
 import { MainLayout } from './components/layout';

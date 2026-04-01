@@ -1,0 +1,68 @@
+/* ============================================================
+   FROK Override Styles — RAGaaS Frontend
+   App-specific CSS overrides using FROK design tokens.
+   ============================================================ */
+
+/* ------- Color mapping reference -------
+   primary  #007bc0  = var(--g-blue-50)
+   success  #00884a  = var(--g-green-50)
+   error    #ef4444  ≈ var(--g-red-50)
+   warning  #f59e0b  ≈ var(--g-yellow-85)
+   ---------------------------------------- */
+
+:root {
+    --app-primary: var(--g-blue-50, #007bc0);
+    --app-primary-hover: var(--g-blue-40, #00629a);
+    --app-primary-pressed: var(--g-blue-30, #004975);
+    --app-success: var(--g-green-50, #00884a);
+    --app-error: var(--g-red-50, #ed0007);
+    --app-warning: var(--g-yellow-85, #ffcf00);
+    --app-bg: var(--g-gray-100, #ffffff);
+    --app-bg-surface: var(--g-gray-95, #eff1f2);
+    --app-text: var(--g-gray-05, #101112);
+    --app-text-secondary: var(--g-gray-50, #71767c);
+    --app-border: var(--g-gray-80, #c1c7cc);
+    --app-sidebar-bg: var(--g-gray-95, #eff1f2);
+}
+
+.-dark-mode {
+    --app-bg: var(--g-gray-05, #101112);
+    --app-bg-surface: var(--g-gray-15, #232628);
+    --app-text: var(--g-gray-95, #eff1f2);
+    --app-text-secondary: var(--g-gray-60, #8a9097);
+    --app-border: var(--g-gray-30, #43464a);
+    --app-sidebar-bg: var(--g-gray-10, #1a1c1d);
+}
+
+/* ---- Scrollbar ---- */
+body {
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-primary) var(--app-bg-surface);
+}
+
+body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+body::-webkit-scrollbar-track {
+    background: var(--app-bg-surface);
+}
+
+body::-webkit-scrollbar-thumb {
+    background: var(--app-primary);
+    border-radius: 4px;
+}
+
+body::-webkit-scrollbar-thumb:hover {
+    background: var(--app-primary-hover);
+}
+
+/* ---- Global app styles ---- */
+body {
+    background-color: var(--app-bg);
+    color: var(--app-text);
+    font-family: boschsans, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+/* ---- Border radius 0 is already the FROK default ---- */

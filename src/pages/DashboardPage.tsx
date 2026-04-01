@@ -1,20 +1,8 @@
 import React from 'react';
-import {
-    Box,
-    Typography,
-    Grid,
-    Card,
-    CardContent,
-    useTheme,
-    alpha,
-} from '@mui/material';
-import {
-    Folder as ProjectIcon,
-    Description as DocIcon,
-    Chat as ChatIcon,
-    TrendingUp as TrendingIcon,
-} from '@mui/icons-material';
+import { Tile } from '@bosch/react-frok';
 import { useNavigate } from 'react-router-dom';
+import { FrokIcon } from '../utils/iconAdapter';
+import { alpha } from '../utils/frokTheme';
 
 interface StatCardProps {
     title: string;
@@ -27,149 +15,120 @@ interface StatCardProps {
 const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, onClick }) => {
 
     return (
-        <Card
-            sx={{
+        <Tile
+            style={{
                 cursor: onClick ? 'pointer' : 'default',
                 transition: 'all 0.3s ease',
-                '&:hover': onClick
-                    ? {
-                        transform: 'translateY(-4px)',
-                    }
-                    : {},
             }}
             onClick={onClick}
         >
-            <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                    <Box>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                            {title}
-                        </Typography>
-                        <Typography variant="h4" fontWeight={700}>
-                            {value}
-                        </Typography>
-                    </Box>
-                    <Box
-                        sx={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 0,
-                            background: color,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: `0 8px 20px ${alpha(color, 0.3)}`,
-                        }}
-                    >
-                        {icon}
-                    </Box>
-                </Box>
-            </CardContent>
-        </Card>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <div>
+                    <p style={{ color: 'var(--app-text-secondary)', marginBottom: '0.25rem', fontSize: '0.875rem' }}>
+                        {title}
+                    </p>
+                    <h4 style={{ fontWeight: 700, margin: 0 }}>
+                        {value}
+                    </h4>
+                </div>
+                <div
+                    style={{
+                        width: 48,
+                        height: 48,
+                        background: color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: `0 8px 20px ${alpha(color, 0.3)}`,
+                    }}
+                >
+                    {icon}
+                </div>
+            </div>
+        </Tile>
     );
 };
 
 export const DashboardPage: React.FC = () => {
-    const theme = useTheme();
     const navigate = useNavigate();
 
     return (
-        <Box>
+        <div>
             {/* Header */}
-            <Box sx={{ mb: 4 }}>
-                <Typography variant="h4" fontWeight={700} gutterBottom>
+            <div style={{ marginBottom: '2rem' }}>
+                <h4 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>
                     Dashboard
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
+                </h4>
+                <p style={{ color: 'var(--app-text-secondary)' }}>
                     Welcome to RAG-as-a-Service. Manage your AI-powered knowledge bases.
-                </Typography>
-            </Box>
+                </p>
+            </div>
 
             {/* Stats Grid */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <StatCard
-                        title="Total Projects"
-                        value="--"
-                        icon={<ProjectIcon sx={{ color: 'white' }} />}
-                        color={theme.palette.primary.main}
-                        onClick={() => navigate('/projects')}
-                    />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <StatCard
-                        title="Documents"
-                        value="--"
-                        icon={<DocIcon sx={{ color: 'white' }} />}
-                        color={theme.palette.secondary.main}
-                    />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <StatCard
-                        title="Chat Sessions"
-                        value="--"
-                        icon={<ChatIcon sx={{ color: 'white' }} />}
-                        color={theme.palette.success.main}
-                    />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <StatCard
-                        title="Active Projects"
-                        value="--"
-                        icon={<TrendingIcon sx={{ color: 'white' }} />}
-                        color={theme.palette.warning.main}
-                    />
-                </Grid>
-            </Grid>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                <StatCard
+                    title="Total Projects"
+                    value="--"
+                    icon={<FrokIcon name="Folder" style={{ color: 'white' }} />}
+                    color="var(--app-primary)"
+                    onClick={() => navigate('/projects')}
+                />
+                <StatCard
+                    title="Documents"
+                    value="--"
+                    icon={<FrokIcon name="Description" style={{ color: 'white' }} />}
+                    color="var(--g-violet-60, #6d37c7)"
+                />
+                <StatCard
+                    title="Chat Sessions"
+                    value="--"
+                    icon={<FrokIcon name="Chat" style={{ color: 'white' }} />}
+                    color="var(--app-success)"
+                />
+                <StatCard
+                    title="Active Projects"
+                    value="--"
+                    icon={<FrokIcon name="TrendingUp" style={{ color: 'white' }} />}
+                    color="var(--app-warning)"
+                />
+            </div>
 
             {/* Quick Actions */}
-            <Typography variant="h6" fontWeight={600} gutterBottom>
+            <h6 style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
                 Quick Start
-            </Typography>
-            <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 6 }}>
-                    <Card
-                        sx={{
-                            cursor: 'pointer',
-                            background: alpha(theme.palette.primary.main, 0.08),
-                            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                            '&:hover': {
-                                border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
-                            },
-                        }}
-                        onClick={() => navigate('/projects')}
-                    >
-                        <CardContent sx={{ p: 3 }}>
-                            <Typography variant="h6" fontWeight={600} gutterBottom>
-                                Create Your First Project
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Set up a new RAG project to start building your AI-powered knowledge base.
-                                Upload documents, configure your LLM, and start chatting.
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
-                    <Card
-                        sx={{
-                            cursor: 'pointer',
-                            background: alpha(theme.palette.background.paper, 0.5),
-                        }}
-                        onClick={() => navigate('/settings')}
-                    >
-                        <CardContent sx={{ p: 3 }}>
-                            <Typography variant="h6" fontWeight={600} gutterBottom>
-                                Configure Settings
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Customize your tenant settings, manage API keys, and configure
-                                default options for new projects.
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-            </Grid>
-        </Box>
+            </h6>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                <Tile
+                    style={{
+                        cursor: 'pointer',
+                        background: alpha('var(--app-primary)', 0.08),
+                        border: `1px solid ${alpha('var(--app-primary)', 0.2)}`,
+                    }}
+                    onClick={() => navigate('/projects')}
+                >
+                    <h6 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
+                        Create Your First Project
+                    </h6>
+                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>
+                        Set up a new RAG project to start building your AI-powered knowledge base.
+                        Upload documents, configure your LLM, and start chatting.
+                    </p>
+                </Tile>
+                <Tile
+                    style={{
+                        cursor: 'pointer',
+                    }}
+                    onClick={() => navigate('/settings')}
+                >
+                    <h6 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
+                        Configure Settings
+                    </h6>
+                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>
+                        Customize your tenant settings, manage API keys, and configure
+                        default options for new projects.
+                    </p>
+                </Tile>
+            </div>
+        </div>
     );
 };

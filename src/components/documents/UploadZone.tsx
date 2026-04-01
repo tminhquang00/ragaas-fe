@@ -1,26 +1,11 @@
 import React, { useCallback } from 'react';
 import { useDropzone, Accept } from 'react-dropzone';
 import {
-    Box,
-    Typography,
-    LinearProgress,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
-    IconButton,
-    useTheme,
-    alpha,
     Chip,
-} from '@mui/material';
-import {
-    CloudUpload as UploadIcon,
-    InsertDriveFile as FileIcon,
-    Close as CloseIcon,
-    CheckCircle as SuccessIcon,
-    Error as ErrorIcon,
-    HourglassEmpty as PendingIcon,
-} from '@mui/icons-material';
+    Button,
+    ProgressIndicator,
+} from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
 
 interface UploadFile {
     file: File;
@@ -53,8 +38,6 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
     disabled = false,
     maxFiles = 10,
 }) => {
-    const theme = useTheme();
-
     const onDrop = useCallback(
         (acceptedFiles: File[]) => {
             onFilesAdded(acceptedFiles);
@@ -72,138 +55,113 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
     const getStatusIcon = (status: UploadFile['status']) => {
         switch (status) {
             case 'success':
-                return <SuccessIcon color="success" />;
+                return <FrokIcon name="CheckCircle" style={{ color: 'var(--app-success)' }} />;
             case 'error':
-                return <ErrorIcon color="error" />;
+                return <FrokIcon name="Error" style={{ color: 'var(--app-error)' }} />;
             case 'uploading':
-                return <PendingIcon color="primary" />;
+                return <FrokIcon name="Pending" style={{ color: 'var(--app-primary)' }} />;
             default:
-                return <FileIcon color="action" />;
+                return <FrokIcon name="InsertDriveFile" />;
         }
     };
 
-    const getStatusColor = (status: UploadFile['status']) => {
-        switch (status) {
-            case 'success':
-                return 'success';
-            case 'error':
-                return 'error';
-            case 'uploading':
-                return 'primary';
-            default:
-                return 'default';
-        }
-    };
+    const borderColor = isDragReject
+        ? 'var(--app-error)'
+        : isDragActive
+            ? 'var(--app-primary)'
+            : 'color-mix(in srgb, var(--app-primary) 30%, transparent)';
 
     return (
-        <Box>
+        <div>
             {/* Drop Zone */}
-            <Box
+            <div
                 {...getRootProps()}
-                sx={{
-                    border: `2px dashed ${isDragReject
-                        ? theme.palette.error.main
-                        : isDragActive
-                            ? theme.palette.primary.main
-                            : alpha(theme.palette.primary.main, 0.3)
-                        }`,
-                    borderRadius: 0,
-                    p: 4,
-                    textAlign: 'center',
+                style={{
+                    border: `2px dashed ${borderColor}`,
+                    padding: '2rem',
+                    textAlign: 'center' as const,
                     cursor: disabled ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s ease-in-out',
                     background: isDragActive
-                        ? alpha(theme.palette.primary.main, 0.05)
+                        ? 'color-mix(in srgb, var(--app-primary) 5%, transparent)'
                         : 'transparent',
                     opacity: disabled ? 0.6 : 1,
-                    '&:hover': !disabled
-                        ? {
-                            borderColor: theme.palette.primary.main,
-                            background: alpha(theme.palette.divider, 0.02),
-                        }
-                        : {},
                 }}
             >
                 <input {...getInputProps()} />
-                <UploadIcon
-                    sx={{
-                        fontSize: 56,
-                        color: isDragActive ? 'primary.main' : 'action.active',
-                        mb: 2,
+                <FrokIcon
+                    name="CloudUpload"
+                    style={{
+                        fontSize: '3.5rem',
+                        color: isDragActive ? 'var(--app-primary)' : 'var(--app-text-secondary)',
+                        marginBottom: '1rem',
                     }}
                 />
-                <Typography variant="h6" gutterBottom>
+                <h6 style={{ margin: '0 0 0.5rem' }}>
                     {isDragActive
                         ? 'Drop files here'
                         : 'Drag & drop files here'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
+                </h6>
+                <p style={{ margin: '0 0 1rem', fontSize: '0.875rem', color: 'var(--app-text-secondary)' }}>
                     or click to browse
-                </Typography>
-                <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <Chip label="PDF" size="small" variant="outlined" />
-                    <Chip label="DOCX" size="small" variant="outlined" />
-                    <Chip label="XLSX" size="small" variant="outlined" />
-                    <Chip label="PPTX" size="small" variant="outlined" />
-                    <Chip label="TXT" size="small" variant="outlined" />
-                    <Chip label="MD" size="small" variant="outlined" />
-                </Box>
-            </Box>
+                </p>
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <Chip label="PDF" />
+                    <Chip label="DOCX" />
+                    <Chip label="XLSX" />
+                    <Chip label="PPTX" />
+                    <Chip label="TXT" />
+                    <Chip label="MD" />
+                </div>
+            </div>
 
             {/* File List */}
             {files.length > 0 && (
-                <List sx={{ mt: 2 }}>
+                <ul style={{ listStyle: 'none', padding: 0, marginTop: '1rem' }}>
                     {files.map((uploadFile, index) => (
-                        <ListItem
+                        <li
                             key={`${uploadFile.file.name}-${index}`}
-                            sx={{
-                                background: alpha(theme.palette.background.paper, 0.5),
-                                borderRadius: 0,
-                                mb: 1,
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                padding: '0.75rem',
+                                marginBottom: '0.5rem',
+                                background: 'var(--app-bg-surface)',
                             }}
-                            secondaryAction={
-                                <IconButton
-                                    edge="end"
-                                    onClick={() => onFileRemove(uploadFile.file)}
-                                    disabled={uploadFile.status === 'uploading'}
-                                >
-                                    <CloseIcon />
-                                </IconButton>
-                            }
                         >
-                            <ListItemIcon>{getStatusIcon(uploadFile.status)}</ListItemIcon>
-                            <ListItemText
-                                primary={uploadFile.file.name}
-                                secondary={
-                                    <Box>
-                                        <Typography variant="caption" color="text.secondary">
-                                            {(uploadFile.file.size / 1024).toFixed(1)} KB
-                                        </Typography>
-                                        {uploadFile.status === 'uploading' && (
-                                            <LinearProgress
-                                                variant="determinate"
-                                                value={uploadFile.progress || 0}
-                                                sx={{ mt: 0.5, height: 4, borderRadius: 0, }}
-                                            />
-                                        )}
-                                        {uploadFile.error && (
-                                            <Typography variant="caption" color="error">
-                                                {uploadFile.error}
-                                            </Typography>
-                                        )}
-                                    </Box>
-                                }
+                            {getStatusIcon(uploadFile.status)}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <span>{uploadFile.file.name}</span>
+                                <div>
+                                    <small style={{ color: 'var(--app-text-secondary)' }}>
+                                        {(uploadFile.file.size / 1024).toFixed(1)} KB
+                                    </small>
+                                    {uploadFile.status === 'uploading' && (
+                                        <ProgressIndicator
+                                            type="determinate"
+                                            value={uploadFile.progress || 0}
+                                        />
+                                    )}
+                                    {uploadFile.error && (
+                                        <small style={{ display: 'block', color: 'var(--app-error)' }}>
+                                            {uploadFile.error}
+                                        </small>
+                                    )}
+                                </div>
+                            </div>
+                            <Chip label={uploadFile.status} />
+                            <Button
+                                mode="integrated"
+                                icon="close"
+                                onClick={() => onFileRemove(uploadFile.file)}
+                                disabled={uploadFile.status === 'uploading'}
+                                aria-label="Remove file"
                             />
-                            <Chip
-                                size="small"
-                                label={uploadFile.status}
-                                color={getStatusColor(uploadFile.status) as any}
-                                sx={{ ml: 2 }}
-                            />
-                        </ListItem>
+                        </li>
                     ))}
-                </List>
+                </ul>
             )}
-        </Box>
+        </div>
     );
 };

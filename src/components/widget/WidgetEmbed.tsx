@@ -1,33 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Box,
-    Card,
-    CardContent,
-    Typography,
+    Tile,
     TextField,
-
-    Tabs,
+    TabNavigation,
     Tab,
-    IconButton,
-    Switch,
-    FormControlLabel,
-    Select,
-    MenuItem,
-    FormControl,
-    InputLabel,
-    Alert,
-    CircularProgress,
+    Toggle,
+    Dropdown,
+    Notification,
     Tooltip,
-    useTheme,
-    alpha,
-} from '@mui/material';
-import {
-    ContentCopy as CopyIcon,
-    Check as CheckIcon,
-    Code as CodeIcon,
-    Preview as PreviewIcon,
-
-} from '@mui/icons-material';
+    ActivityIndicator,
+    Button,
+} from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
+import { alpha } from '../../utils/frokTheme';
 import { WidgetConfig, WidgetEmbedCode } from '../../types';
 import { RAGaaSClient } from '../../services/api';
 
@@ -50,8 +35,7 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
     apiClient,
     projectName,
 }) => {
-    const theme = useTheme();
-    const [tab, setTab] = useState(0);
+    const [tab, setTab] = useState('embed');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [config, setConfig] = useState<WidgetConfig>({
@@ -134,164 +118,151 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
 
     if (loading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                <CircularProgress />
-            </Box>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+                <ActivityIndicator />
+            </div>
         );
     }
 
     return (
-        <Box>
+        <div>
             {error && (
-                <Alert severity="warning" sx={{ mb: 3 }} onClose={() => setError('')}>
-                    {error}
-                </Alert>
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <Notification type="warning" defaultOpen onCloseClick={() => setError('')}>
+                        {error}
+                    </Notification>
+                </div>
             )}
 
-            <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
-                <Tab icon={<CodeIcon />} label="Embed Code" iconPosition="start" />
-                <Tab icon={<PreviewIcon />} label="Customize" iconPosition="start" />
-            </Tabs>
+            <TabNavigation
+                selectedValue={tab}
+                onTabSelect={(_, data) => setTab(data.value as string)}
+            >
+                <Tab value="embed">Embed Code</Tab>
+                <Tab value="customize">Customize</Tab>
+            </TabNavigation>
 
             {/* Embed Code Tab */}
-            {tab === 0 && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <Alert severity="info">
-                        Copy the code below and paste it into your website's HTML, just before the closing <code>&lt;/body&gt;</code> tag.
-                    </Alert>
+            {tab === 'embed' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.5rem' }}>
+                    <Notification type="neutral" defaultOpen>
+                        Copy the code below and paste it into your website's HTML, just before the closing &lt;/body&gt; tag.
+                    </Notification>
 
                     {/* Script Embed */}
-                    <Card>
-                        <CardContent>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                                <Typography variant="h6" fontWeight={600}>
-                                    Script Embed (Recommended)
-                                </Typography>
-                                <Tooltip title={copied === 'script' ? 'Copied!' : 'Copy code'}>
-                                    <IconButton onClick={() => handleCopy(generateScriptCode(), 'script')}>
-                                        {copied === 'script' ? <CheckIcon color="success" /> : <CopyIcon />}
-                                    </IconButton>
+                    <Tile>
+                        <div style={{ padding: '1.5rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <h3 style={{ fontWeight: 600, margin: 0 }}>Script Embed (Recommended)</h3>
+                                <Tooltip content={copied === 'script' ? 'Copied!' : 'Copy code'}>
+                                    <Button mode="integrated" onClick={() => handleCopy(generateScriptCode(), 'script')}>
+                                        {copied === 'script' ? <FrokIcon name="Check" /> : <FrokIcon name="ContentCopy" />}
+                                    </Button>
                                 </Tooltip>
-                            </Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            </div>
+                            <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
                                 This embeds a floating chat bubble that can be customized and won't affect your page layout.
-                            </Typography>
-                            <Box
-                                component="pre"
-                                sx={{
-                                    p: 2,
-                                    borderRadius: 0,
-                                    background: alpha(theme.palette.background.default, 0.8),
-                                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                            </p>
+                            <pre
+                                style={{
+                                    padding: '1rem',
+                                    background: 'var(--app-bg-surface)',
+                                    border: '1px solid var(--app-border)',
                                     overflow: 'auto',
                                     fontSize: '0.85rem',
                                     fontFamily: 'monospace',
                                 }}
                             >
                                 {generateScriptCode()}
-                            </Box>
-                        </CardContent>
-                    </Card>
+                            </pre>
+                        </div>
+                    </Tile>
 
                     {/* iFrame Embed */}
-                    <Card>
-                        <CardContent>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                                <Typography variant="h6" fontWeight={600}>
-                                    iFrame Embed
-                                </Typography>
-                                <Tooltip title={copied === 'iframe' ? 'Copied!' : 'Copy code'}>
-                                    <IconButton onClick={() => handleCopy(generateIframeCode(), 'iframe')}>
-                                        {copied === 'iframe' ? <CheckIcon color="success" /> : <CopyIcon />}
-                                    </IconButton>
+                    <Tile>
+                        <div style={{ padding: '1.5rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <h3 style={{ fontWeight: 600, margin: 0 }}>iFrame Embed</h3>
+                                <Tooltip content={copied === 'iframe' ? 'Copied!' : 'Copy code'}>
+                                    <Button mode="integrated" onClick={() => handleCopy(generateIframeCode(), 'iframe')}>
+                                        {copied === 'iframe' ? <FrokIcon name="Check" /> : <FrokIcon name="ContentCopy" />}
+                                    </Button>
                                 </Tooltip>
-                            </Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            </div>
+                            <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
                                 Use this if you prefer a simple iframe-based integration.
-                            </Typography>
-                            <Box
-                                component="pre"
-                                sx={{
-                                    p: 2,
-                                    borderRadius: 0,
-                                    background: alpha(theme.palette.background.default, 0.8),
-                                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                            </p>
+                            <pre
+                                style={{
+                                    padding: '1rem',
+                                    background: 'var(--app-bg-surface)',
+                                    border: '1px solid var(--app-border)',
                                     overflow: 'auto',
                                     fontSize: '0.85rem',
                                     fontFamily: 'monospace',
                                 }}
                             >
                                 {generateIframeCode()}
-                            </Box>
-                        </CardContent>
-                    </Card>
-                </Box>
+                            </pre>
+                        </div>
+                    </Tile>
+                </div>
             )}
 
             {/* Customize Tab */}
-            {tab === 1 && (
-                <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
+            {tab === 'customize' && (
+                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '1.5rem' }}>
                     {/* Configuration Form */}
-                    <Card sx={{ flex: 1 }}>
-                        <CardContent>
-                            <Typography variant="h6" fontWeight={600} gutterBottom>
-                                Widget Configuration
-                            </Typography>
+                    <Tile style={{ flex: 1, minWidth: 300 }}>
+                        <div style={{ padding: '1.5rem' }}>
+                            <h3 style={{ fontWeight: 600, marginBottom: '1.5rem' }}>Widget Configuration</h3>
 
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 3 }}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={config.enabled}
-                                            onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
-                                        />
-                                    }
-                                    label="Enable Widget"
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                <Toggle
+                                    id="widget-enabled"
+                                    leftLabel="Enable Widget"
+                                    checked={config.enabled}
+                                    onChange={(e) => setConfig({ ...config, enabled: (e.target as HTMLInputElement).checked })}
                                 />
 
                                 <TextField
+                                    id="widget-title"
                                     label="Widget Title"
                                     value={config.title || ''}
                                     onChange={(e) => setConfig({ ...config, title: e.target.value })}
-                                    fullWidth
                                     placeholder="AI Assistant"
                                 />
 
                                 <TextField
+                                    id="widget-welcome-message"
                                     label="Welcome Message"
                                     value={config.welcome_message}
                                     onChange={(e) => setConfig({ ...config, welcome_message: e.target.value })}
-                                    fullWidth
-                                    multiline
-                                    rows={2}
                                     placeholder="Hi! How can I help you today?"
                                 />
 
-                                <FormControl fullWidth>
-                                    <InputLabel>Position</InputLabel>
-                                    <Select
-                                        value={config.position}
-                                        label="Position"
-                                        onChange={(e) => setConfig({ ...config, position: e.target.value as 'left' | 'right' })}
-                                    >
-                                        <MenuItem value="right">Bottom Right</MenuItem>
-                                        <MenuItem value="left">Bottom Left</MenuItem>
-                                    </Select>
-                                </FormControl>
+                                <Dropdown
+                                    label="Position"
+                                    value={config.position}
+                                    onChange={(e) => setConfig({ ...config, position: e.target.value as 'left' | 'right' })}
+                                    options={[
+                                        { name: 'Bottom Right', value: 'right' },
+                                        { name: 'Bottom Left', value: 'left' },
+                                    ]}
+                                />
 
-                                <Box>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                <div>
+                                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
                                         Primary Color
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                    </p>
+                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                                         {colorPresets.map((color) => (
-                                            <Tooltip key={color.value} title={color.name}>
-                                                <Box
+                                            <Tooltip key={color.value} content={color.name}>
+                                                <div
                                                     onClick={() => setConfig({ ...config, primary_color: color.value })}
-                                                    sx={{
+                                                    style={{
                                                         width: 36,
                                                         height: 36,
-                                                        borderRadius: 0,
                                                         background: color.value,
                                                         cursor: 'pointer',
                                                         border: config.primary_color === color.value
@@ -301,40 +272,33 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                                             ? `0 0 0 2px ${color.value}`
                                                             : 'none',
                                                         transition: 'all 0.2s',
-                                                        '&:hover': {
-                                                            transform: 'scale(1.1)',
-                                                        },
                                                     }}
                                                 />
                                             </Tooltip>
                                         ))}
                                         <TextField
-                                            size="small"
+                                            id="widget-primary-color"
                                             value={config.primary_color}
                                             onChange={(e) => setConfig({ ...config, primary_color: e.target.value })}
-                                            sx={{ width: 100 }}
                                             placeholder="#007bc0"
                                         />
-                                    </Box>
-                                </Box>
-                            </Box>
-                        </CardContent>
-                    </Card>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Tile>
 
                     {/* Preview */}
-                    <Card sx={{ flex: 1, minHeight: 400 }}>
-                        <CardContent>
-                            <Typography variant="h6" fontWeight={600} gutterBottom>
-                                Preview
-                            </Typography>
+                    <Tile style={{ flex: 1, minWidth: 300, minHeight: 400 }}>
+                        <div style={{ padding: '1.5rem' }}>
+                            <h3 style={{ fontWeight: 600, marginBottom: '1rem' }}>Preview</h3>
 
                             {/* Mock widget preview */}
-                            <Box
-                                sx={{
-                                    mt: 2,
-                                    p: 2,
-                                    borderRadius: 0,
-                                    background: alpha(theme.palette.background.default, 0.5),
+                            <div
+                                style={{
+                                    marginTop: '1rem',
+                                    padding: '1rem',
+                                    background: 'var(--app-bg-surface)',
                                     minHeight: 350,
                                     position: 'relative',
                                     display: 'flex',
@@ -343,65 +307,62 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                 }}
                             >
                                 {/* Chat bubble preview */}
-                                <Box
-                                    sx={{
+                                <div
+                                    style={{
                                         width: 320,
-                                        borderRadius: 0,
                                         overflow: 'hidden',
                                         boxShadow: `0 8px 32px ${alpha(config.primary_color, 0.3)}`,
-                                        background: theme.palette.background.paper,
+                                        background: 'var(--app-bg)',
                                     }}
                                 >
                                     {/* Header */}
-                                    <Box
-                                        sx={{
-                                            p: 2,
+                                    <div
+                                        style={{
+                                            padding: '1rem',
                                             background: config.primary_color,
                                             color: 'white',
                                         }}
                                     >
-                                        <Typography variant="subtitle1" fontWeight={600}>
+                                        <p style={{ fontWeight: 600, margin: 0 }}>
                                             {config.title || 'AI Assistant'}
-                                        </Typography>
-                                        <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                                        </p>
+                                        <span style={{ fontSize: '0.75rem', opacity: 0.9 }}>
                                             Online
-                                        </Typography>
-                                    </Box>
+                                        </span>
+                                    </div>
 
                                     {/* Message area */}
-                                    <Box sx={{ p: 2, minHeight: 150 }}>
-                                        <Box
-                                            sx={{
-                                                p: 1.5,
-                                                borderRadius: 0,
+                                    <div style={{ padding: '1rem', minHeight: 150 }}>
+                                        <div
+                                            style={{
+                                                padding: '0.75rem',
                                                 borderTopLeftRadius: 4,
                                                 background: alpha(config.primary_color, 0.1),
                                                 maxWidth: '85%',
                                             }}
                                         >
-                                            <Typography variant="body2">
+                                            <p style={{ fontSize: '0.875rem', margin: 0 }}>
                                                 {config.welcome_message}
-                                            </Typography>
-                                        </Box>
-                                    </Box>
+                                            </p>
+                                        </div>
+                                    </div>
 
                                     {/* Input area */}
-                                    <Box sx={{ p: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
-                                        <Box
-                                            sx={{
-                                                p: 1.5,
-                                                borderRadius: 0,
-                                                background: alpha(theme.palette.background.default, 0.5),
+                                    <div style={{ padding: '0.75rem', borderTop: '1px solid var(--app-border)' }}>
+                                        <div
+                                            style={{
+                                                padding: '0.75rem',
+                                                background: 'var(--app-bg-surface)',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'space-between',
                                             }}
                                         >
-                                            <Typography variant="body2" color="text.secondary">
+                                            <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>
                                                 Type a message...
-                                            </Typography>
-                                            <Box
-                                                sx={{
+                                            </span>
+                                            <div
+                                                style={{
                                                     width: 28,
                                                     height: 28,
                                                     borderRadius: '50%',
@@ -411,16 +372,16 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                                     justifyContent: 'center',
                                                 }}
                                             >
-                                                <Typography variant="caption" sx={{ color: 'white' }}>→</Typography>
-                                            </Box>
-                                        </Box>
-                                    </Box>
-                                </Box>
-                            </Box>
-                        </CardContent>
-                    </Card>
-                </Box>
+                                                <span style={{ color: 'white', fontSize: '0.75rem' }}>→</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Tile>
+                </div>
             )}
-        </Box>
+        </div>
     );
 };

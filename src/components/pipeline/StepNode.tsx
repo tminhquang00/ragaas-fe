@@ -1,52 +1,35 @@
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { PipelineNode } from '../../utils/pipelineFlowUtils';
-import {
-    Card,
-    CardContent,
-    Typography,
-    Chip,
-    Box,
-    Divider,
-    Stack
-} from '@mui/material';
-import {
-    Settings as SettingsIcon,
-    Search as SearchIcon,
-    AutoFixHigh as MagicIcon,
-    FilterList as FilterIcon,
-    SmartToy as BotIcon,
-    Description as DescriptionIcon,
-    Bolt as BoltIcon,
-    CallSplit as RouteIcon,
-} from '@mui/icons-material';
+import { Tile, Chip, Divider } from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
 
 const typeIcons: Record<string, React.ReactElement> = {
-    retrieve: <SearchIcon fontSize="small" />,
-    classify: <DescriptionIcon fontSize="small" />,
-    generate: <BotIcon fontSize="small" />,
-    transform: <MagicIcon fontSize="small" />,
-    filter: <FilterIcon fontSize="small" />,
-    tool_call: <SettingsIcon fontSize="small" />,
-    parallel: <BoltIcon fontSize="small" />,
-    route: <RouteIcon fontSize="small" />,
+    retrieve: <FrokIcon name="Search" />,
+    classify: <FrokIcon name="Description" />,
+    generate: <FrokIcon name="SmartToy" />,
+    transform: <FrokIcon name="AutoFixHigh" />,
+    filter: <FrokIcon name="FilterList" />,
+    tool_call: <FrokIcon name="Settings" />,
+    parallel: <FrokIcon name="Bolt" />,
+    route: <FrokIcon name="CallSplit" />,
 };
 
-const typeColors: Record<string, "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning"> = {
-    retrieve: 'primary',
-    classify: 'secondary',
-    generate: 'success',
-    transform: 'warning',
-    filter: 'error',
-    tool_call: 'info',
-    parallel: 'secondary',
-    route: 'warning',
-    default: 'default',
+const typeColors: Record<string, string> = {
+    retrieve: '#007bc0',
+    classify: '#9c27b0',
+    generate: '#18837e',
+    transform: '#ed6c02',
+    filter: '#d32f2f',
+    tool_call: '#0288d1',
+    parallel: '#9c27b0',
+    route: '#ed6c02',
+    default: '#757575',
 };
 
 export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
     const { label, type, config, branchKeys = [] } = data;
-    const icon = typeIcons[type || 'default'] || <SettingsIcon fontSize="small" />;
-    const color = typeColors[type || 'default'] || 'default';
+    const icon = typeIcons[type || 'default'] || <FrokIcon name="Settings" />;
+    const color = typeColors[type || 'default'] || typeColors.default;
 
     // Check if this is a routing/parallel node with branches
     const hasBranches = ['route', 'parallel'].includes(type || '') && branchKeys.length > 0;
@@ -63,23 +46,23 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
         if (displayConfig.length === 0) return null;
 
         return (
-            <Stack spacing={0.5} sx={{ mt: 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.5rem' }}>
                 {displayConfig.map(([key, value]) => (
-                    <Box key={key} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                    <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#757575', textTransform: 'capitalize' }}>
                             {key.replace('_', ' ')}
-                        </Typography>
-                        <Typography variant="caption" fontWeight={500} sx={{ maxWidth: 80 }} noWrap>
+                        </span>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 500, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {typeof value === 'object' ? JSON.stringify(value).slice(0, 15) + '...' : String(value)}
-                        </Typography>
-                    </Box>
+                        </span>
+                    </div>
                 ))}
                 {Object.keys(config).filter(k => k !== 'branches').length > 3 && (
-                    <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic', fontSize: '0.65rem' }}>
+                    <span style={{ fontSize: '0.65rem', color: '#bdbdbd', fontStyle: 'italic' }}>
                         + {Object.keys(config).filter(k => k !== 'branches').length - 3} more...
-                    </Typography>
+                    </span>
                 )}
-            </Stack>
+            </div>
         );
     };
 
@@ -88,34 +71,27 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
         if (!hasBranches) return null;
 
         return (
-            <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5, justifyContent: 'center' }}>
+            <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.25rem', justifyContent: 'center' }}>
                 {branchKeys.map((branchKey: string) => (
                     <Chip
                         key={branchKey}
                         label={branchKey}
-                        size="small"
-                        variant="filled"
-                        color="warning"
-                        sx={{ height: 16, fontSize: '0.55rem' }}
+                        style={{ fontSize: '0.55rem' }}
                     />
                 ))}
-            </Box>
+            </div>
         );
     };
 
     return (
-        <Card
-            variant="outlined"
-            sx={{
+        <Tile
+            background="primary"
+            style={{
                 width: hasBranches ? Math.max(200, branchKeys.length * 80) : 200,
-                borderRadius: 0,
-                boxShadow: selected ? `0 0 0 2px #1976d2` : 1, // Highlight when selected
-                borderColor: selected ? 'primary.main' : 'divider',
-                bgcolor: 'background.paper',
+                boxShadow: selected ? '0 0 0 2px #007bc0' : '0 1px 3px rgba(0,0,0,0.12)',
+                border: selected ? '1px solid #007bc0' : '1px solid var(--bosch-gray-75)',
                 transition: 'all 0.2s ease-in-out',
-                '&:hover': {
-                    boxShadow: 3,
-                },
+                padding: 0,
             }}
         >
             {/* Input Handle */}
@@ -125,24 +101,27 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
                 style={{ background: '#555', width: 10, height: 10 }}
             />
 
-            <CardContent sx={{ p: '12px !important' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ color: `${color}.main`, display: 'flex' }}>
+            <div style={{ padding: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ color, display: 'flex' }}>
                             {icon}
-                        </Box>
-                        <Typography variant="subtitle2" component="div" width={90} noWrap fontWeight={600} title={label}>
+                        </span>
+                        <strong style={{ width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', fontSize: '0.875rem' }} title={label}>
                             {label}
-                        </Typography>
-                    </Box>
-                </Box>
+                        </strong>
+                    </div>
+                </div>
 
                 <Chip
-                    label={type}
-                    size="small"
-                    color={color}
-                    variant="outlined"
-                    sx={{ height: 18, fontSize: '0.65rem', width: '100%', mb: 1, textTransform: 'uppercase' }}
+                    label={type || 'unknown'}
+                    style={{
+                        textTransform: 'uppercase',
+                        fontSize: '0.65rem',
+                        width: '100%',
+                        marginBottom: '0.5rem',
+                        borderColor: color,
+                    }}
                 />
 
                 <Divider />
@@ -153,7 +132,7 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
                 {/* Branch Labels for Route/Parallel */}
                 {renderBranchLabels()}
 
-            </CardContent>
+            </div>
 
             {/* Dynamic Output Handles for branches, or single handle for normal steps */}
             {hasBranches ? (
@@ -180,7 +159,7 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
                     style={{ background: '#555', width: 10, height: 10 }}
                 />
             )}
-        </Card>
+        </Tile>
     );
 }
 

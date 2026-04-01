@@ -3,28 +3,13 @@ import {
     Table,
     TableBody,
     TableCell,
-    TableContainer,
     TableHead,
     TableRow,
-    Paper,
-    Chip,
-    IconButton,
-    Typography,
-    Box,
     Tooltip,
-    Skeleton,
-    useTheme,
-    alpha,
-} from '@mui/material';
-import {
-    Delete as DeleteIcon,
-    Refresh as RefreshIcon,
-    Visibility as ViewIcon,
-    CheckCircle as SuccessIcon,
-    Error as ErrorIcon,
-    HourglassEmpty as PendingIcon,
-    Settings as ProcessingIcon,
-} from '@mui/icons-material';
+    Badge,
+    Button,
+} from '@bosch/react-frok';
+import { Skeleton } from '@mui/material';
 import { Document, ProcessingStatus } from '../../types';
 
 interface DocumentListProps {
@@ -35,11 +20,11 @@ interface DocumentListProps {
     onView?: (documentId: string) => void;
 }
 
-const statusConfig: Record<ProcessingStatus, { icon: React.ReactNode; color: 'success' | 'error' | 'warning' | 'info' | 'default'; label: string }> = {
-    completed: { icon: <SuccessIcon fontSize="small" />, color: 'success', label: 'Completed' },
-    failed: { icon: <ErrorIcon fontSize="small" />, color: 'error', label: 'Failed' },
-    pending: { icon: <PendingIcon fontSize="small" />, color: 'default', label: 'Pending' },
-    processing: { icon: <ProcessingIcon fontSize="small" />, color: 'info', label: 'Processing' },
+const statusConfig: Record<ProcessingStatus, { type?: 'success' | 'warning' | 'error'; label: string }> = {
+    completed: { type: 'success', label: 'Completed' },
+    failed: { type: 'error', label: 'Failed' },
+    pending: { label: 'Pending' },
+    processing: { type: 'warning', label: 'Processing' },
 };
 
 const formatBytes = (bytes: number): string => {
@@ -66,20 +51,18 @@ export const DocumentList: React.FC<DocumentListProps> = ({
     onRetry,
     onView,
 }) => {
-    const theme = useTheme();
-
     if (loading) {
         return (
-            <TableContainer component={Paper} elevation={0}>
+            <div style={{ overflow: 'auto' }}>
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell>Document</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Chunks</TableCell>
-                            <TableCell>Size</TableCell>
-                            <TableCell>Uploaded</TableCell>
-                            <TableCell align="right">Actions</TableCell>
+                            <TableCell header>Document</TableCell>
+                            <TableCell header>Status</TableCell>
+                            <TableCell header>Chunks</TableCell>
+                            <TableCell header>Size</TableCell>
+                            <TableCell header>Uploaded</TableCell>
+                            <TableCell header style={{ textAlign: 'right' }}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -95,42 +78,40 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                         ))}
                     </TableBody>
                 </Table>
-            </TableContainer>
+            </div>
         );
     }
 
     if (documents.length === 0) {
         return (
-            <Box
-                sx={{
-                    p: 6,
+            <div
+                style={{
+                    padding: '3rem',
                     textAlign: 'center',
-                    background: alpha(theme.palette.background.paper, 0.5),
-                    borderRadius: 0,
-                    border: `1px dashed ${alpha(theme.palette.divider, 0.5)}`,
+                    border: '1px dashed var(--app-border)',
                 }}
             >
-                <Typography variant="h6" color="text.secondary" gutterBottom>
+                <h6 style={{ margin: '0 0 0.5rem', color: 'var(--app-text-secondary)' }}>
                     No documents yet
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
+                </h6>
+                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--app-text-secondary)' }}>
                     Upload documents to get started with your knowledge base
-                </Typography>
-            </Box>
+                </p>
+            </div>
         );
     }
 
     return (
-        <TableContainer component={Paper} elevation={0}>
+        <div style={{ overflow: 'auto' }}>
             <Table>
                 <TableHead>
                     <TableRow>
-                        <TableCell>Document</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Chunks</TableCell>
-                        <TableCell>Size</TableCell>
-                        <TableCell>Uploaded</TableCell>
-                        <TableCell align="right">Actions</TableCell>
+                        <TableCell header>Document</TableCell>
+                        <TableCell header>Status</TableCell>
+                        <TableCell header>Chunks</TableCell>
+                        <TableCell header>Size</TableCell>
+                        <TableCell header>Uploaded</TableCell>
+                        <TableCell header style={{ textAlign: 'right' }}>Actions</TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
@@ -138,99 +119,74 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                         const status = statusConfig[doc.processing_status];
 
                         return (
-                            <TableRow
-                                key={doc.document_id}
-                                sx={{
-                                    '&:hover': {
-                                        background: alpha(theme.palette.primary.main, 0.03),
-                                    },
-                                }}
-                            >
+                            <TableRow key={doc.document_id}>
                                 <TableCell>
-                                    <Box>
-                                        <Typography variant="body2" fontWeight={500}>
-                                            {doc.filename}
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            {doc.file_type}
-                                        </Typography>
-                                    </Box>
+                                    <div>
+                                        <span style={{ fontWeight: 500 }}>{doc.filename}</span>
+                                        <br />
+                                        <small style={{ color: 'var(--app-text-secondary)' }}>{doc.file_type}</small>
+                                    </div>
                                 </TableCell>
                                 <TableCell>
-                                    <Chip
-                                        size="small"
-                                        icon={status.icon as React.ReactElement}
-                                        label={status.label}
-                                        color={status.color}
-                                        variant="outlined"
-                                    />
+                                    <Badge label={status.label} type={status.type} />
                                     {doc.processing_error && (
-                                        <Tooltip title={doc.processing_error}>
-                                            <Typography
-                                                variant="caption"
-                                                color="error"
-                                                sx={{ display: 'block', mt: 0.5 }}
+                                        <Tooltip content={doc.processing_error}>
+                                            <small
+                                                style={{ display: 'block', marginTop: '0.25rem', color: 'var(--app-error)', cursor: 'help' }}
                                             >
                                                 Error details
-                                            </Typography>
+                                            </small>
                                         </Tooltip>
                                     )}
                                 </TableCell>
                                 <TableCell>
-                                    <Typography variant="body2">
-                                        {doc.chunks_count || '--'}
-                                    </Typography>
+                                    {doc.chunks_count || '--'}
                                 </TableCell>
                                 <TableCell>
-                                    <Typography variant="body2">
-                                        {formatBytes(doc.file_size)}
-                                    </Typography>
+                                    {formatBytes(doc.file_size)}
                                 </TableCell>
                                 <TableCell>
-                                    <Typography variant="body2">
-                                        {formatDate(doc.upload_timestamp)}
-                                    </Typography>
+                                    {formatDate(doc.upload_timestamp)}
                                 </TableCell>
-                                <TableCell align="right">
-                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+                                <TableCell style={{ textAlign: 'right' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.25rem' }}>
                                         {doc.processing_status === 'failed' && onRetry && (
-                                            <Tooltip title="Retry">
-                                                <IconButton
-                                                    size="small"
+                                            <Tooltip content="Retry">
+                                                <Button
+                                                    mode="integrated"
+                                                    icon="refresh"
                                                     onClick={() => onRetry(doc.document_id)}
-                                                >
-                                                    <RefreshIcon fontSize="small" />
-                                                </IconButton>
+                                                    aria-label="Retry"
+                                                />
                                             </Tooltip>
                                         )}
                                         {doc.processing_status === 'completed' && onView && (
-                                            <Tooltip title="View chunks">
-                                                <IconButton
-                                                    size="small"
+                                            <Tooltip content="View chunks">
+                                                <Button
+                                                    mode="integrated"
+                                                    icon={"view" as any}
                                                     onClick={() => onView(doc.document_id)}
-                                                >
-                                                    <ViewIcon fontSize="small" />
-                                                </IconButton>
+                                                    aria-label="View chunks"
+                                                />
                                             </Tooltip>
                                         )}
                                         {onDelete && (
-                                            <Tooltip title="Delete">
-                                                <IconButton
-                                                    size="small"
+                                            <Tooltip content="Delete">
+                                                <Button
+                                                    mode="integrated"
+                                                    icon="delete"
                                                     onClick={() => onDelete(doc.document_id)}
-                                                    color="error"
-                                                >
-                                                    <DeleteIcon fontSize="small" />
-                                                </IconButton>
+                                                    aria-label="Delete"
+                                                />
                                             </Tooltip>
                                         )}
-                                    </Box>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         );
                     })}
                 </TableBody>
             </Table>
-        </TableContainer>
+        </div>
     );
 };

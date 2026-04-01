@@ -1,93 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import {
-    Box,
-    Drawer,
-    AppBar,
-    Toolbar,
-    List,
-    Typography,
-    IconButton,
-    ListItemButton,
-    ListItemIcon,
-    ListItemText,
-    Avatar,
-    Menu,
-    MenuItem,
-    Divider,
-    Tooltip,
-    useMediaQuery,
-    useTheme as useMuiTheme,
-    alpha,
-    Badge,
-    TextField,
-    InputAdornment,
-} from '@mui/material';
-import {
-    Menu as MenuIcon,
-    Dashboard as DashboardIcon,
-    Folder as FolderIcon,
-    Settings as SettingsIcon,
-    LightMode as LightModeIcon,
-    DarkMode as DarkModeIcon,
-    Logout as LogoutIcon,
-    Person as PersonIcon,
-    Brightness4 as ThemeIcon,
-    Edit as EditIcon,
-    Check as CheckIcon,
-    ChevronLeft as ChevronLeftIcon,
-    ChevronRight as ChevronRightIcon,
-} from '@mui/icons-material';
+import { SideNavigation, Divider, Icon, Button, Popover } from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
+import { alpha } from '../../utils/frokTheme';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+
+// SideNavigation.Item may be typed as potentially undefined in FROK + React 19
+const SideNavItem = SideNavigation.Item!;
 
 const DRAWER_WIDTH = 280;
 const DRAWER_COLLAPSED_WIDTH = 72;
 
-interface NavItem {
+interface NavItemDef {
     label: string;
     path: string;
-    icon: React.ReactNode;
+    icon: string;
     badge?: number;
 }
 
-const navItems: NavItem[] = [
-    { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
-    { label: 'Projects', path: '/projects', icon: <FolderIcon /> },
-    { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
+const navItems: NavItemDef[] = [
+    { label: 'Dashboard', path: '/', icon: 'home' },
+    { label: 'Projects', path: '/projects', icon: 'folder' },
+    { label: 'Settings', path: '/settings', icon: 'settings' },
 ];
 
+function useMediaQueryCustom(query: string): boolean {
+    const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+    useEffect(() => {
+        const mql = window.matchMedia(query);
+        const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
+        mql.addEventListener('change', handler);
+        return () => mql.removeEventListener('change', handler);
+    }, [query]);
+    return matches;
+}
+
 export const MainLayout: React.FC = () => {
-    const muiTheme = useMuiTheme();
     const { mode, toggleTheme } = useTheme();
     const { tenantId, setTenantId, user, logout } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
-    const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
+    const isMobile = useMediaQueryCustom('(max-width: 899.95px)');
 
     const [mobileOpen, setMobileOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [editingTenant, setEditingTenant] = useState(false);
     const [tempTenantId, setTempTenantId] = useState(tenantId);
 
-    const handleDrawerToggle = () => {
-        setMobileOpen(!mobileOpen);
-    };
+    const backdropRef = useRef<HTMLDivElement>(null);
 
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-        setAnchorEl(event.currentTarget);
-    };
-
-    const handleMenuClose = () => {
-        setAnchorEl(null);
-    };
+    const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
     const handleNavClick = (path: string) => {
         navigate(path);
-        if (isMobile) {
-            setMobileOpen(false);
-        }
+        if (isMobile) setMobileOpen(false);
     };
 
     const handleTenantSave = () => {
@@ -95,23 +63,34 @@ export const MainLayout: React.FC = () => {
         setEditingTenant(false);
     };
 
-    const drawer = (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    const handleTenantKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') handleTenantSave();
+    }, [tempTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const currentPath = location.pathname;
+    const selectedNav = navItems.find(
+        (item) => currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path))
+    )?.path ?? '/';
+
+    const sidebarWidth = sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH;
+
+    // ── Sidebar content ──
+    const sidebarContent = (
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--app-sidebar-bg)' }}>
             {/* Logo */}
-            <Box
-                sx={{
-                    p: sidebarCollapsed ? 1.5 : 3,
+            <div
+                style={{
+                    padding: sidebarCollapsed ? '12px' : '24px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 2,
+                    gap: '12px',
                     justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                 }}
             >
-                <Box
-                    component="img"
-                    src={sidebarCollapsed ? "/bosch-icon.png" : "/bosch-logo.png"}
+                <img
+                    src={sidebarCollapsed ? '/bosch-icon.png' : '/bosch-logo.png'}
                     alt="Bosch"
-                    sx={{
+                    style={{
                         height: 48,
                         width: sidebarCollapsed ? 48 : 'auto',
                         maxWidth: sidebarCollapsed ? 48 : 180,
@@ -121,335 +100,410 @@ export const MainLayout: React.FC = () => {
                     }}
                 />
                 {!sidebarCollapsed && (
-                    <Box>
-                        <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+                    <div>
+                        <div style={{ fontWeight: 700, fontSize: '1.25rem', lineHeight: 1.2 }}>
                             Bosch RAGaaS
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
                             AI-Powered Knowledge
-                        </Typography>
-                    </Box>
+                        </div>
+                    </div>
                 )}
-            </Box>
+            </div>
 
-            <Divider sx={{ mx: sidebarCollapsed ? 1 : 2, opacity: 0.5 }} />
+            <Divider />
 
             {/* Navigation */}
-            <List sx={{ px: 1, py: 2, flex: 1 }}>
-                {navItems.map((item) => {
-                    const isActive = location.pathname === item.path ||
-                        (item.path !== '/' && location.pathname.startsWith(item.path));
+            <div style={{ padding: '8px 4px', flex: 1 }}>
+                <SideNavigation
+                    contrast
+                    defaultOpen
+                    selectedItem={selectedNav}
+                    onSelectedItemChange={(_ev, data) => handleNavClick(data.value as string)}
+                >
+                    {navItems.map((item) => (
+                        <SideNavItem key={item.path} value={item.path}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Icon iconName={item.icon} />
+                                {!sidebarCollapsed && item.label}
+                            </span>
+                        </SideNavItem>
+                    ))}
+                </SideNavigation>
+            </div>
 
-                    return (
-                        <Tooltip
-                            key={item.path}
-                            title={sidebarCollapsed ? item.label : ''}
-                            placement="right"
-                            arrow
-                        >
-                            <ListItemButton
-                                onClick={() => handleNavClick(item.path)}
-                                selected={isActive}
-                                sx={{
-                                    mb: 0.5,
-                                    borderRadius: 2,
-                                    justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                                    px: sidebarCollapsed ? 1 : 2,
-                                    '&.Mui-selected': {
-                                        background: `linear-gradient(135deg, ${alpha(muiTheme.palette.primary.main, 0.15)} 0%, ${alpha(muiTheme.palette.secondary.main, 0.1)} 100%)`,
-                                    },
-                                }}
-                            >
-                                <ListItemIcon
-                                    sx={{
-                                        color: isActive ? muiTheme.palette.primary.main : 'inherit',
-                                        minWidth: sidebarCollapsed ? 'auto' : 40,
-                                        justifyContent: 'center',
-                                    }}
-                                >
-                                    {item.badge ? (
-                                        <Badge badgeContent={item.badge} color="secondary">
-                                            {item.icon}
-                                        </Badge>
-                                    ) : (
-                                        item.icon
-                                    )}
-                                </ListItemIcon>
-                                {!sidebarCollapsed && (
-                                    <ListItemText
-                                        primary={item.label}
-                                        primaryTypographyProps={{
-                                            fontWeight: isActive ? 600 : 400,
-                                        }}
-                                    />
-                                )}
-                            </ListItemButton>
-                        </Tooltip>
-                    );
-                })}
-            </List>
-
-            {/* Tenant ID Section - Hidden when collapsed */}
+            {/* Tenant ID Section */}
             {!sidebarCollapsed && (
-                <Box sx={{ p: 2 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                <div style={{ padding: '16px' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)', marginBottom: '8px' }}>
                         Tenant ID
-                    </Typography>
+                    </div>
                     {editingTenant ? (
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                            <TextField
-                                size="small"
-                                fullWidth
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                            <input
+                                type="text"
                                 value={tempTenantId}
                                 onChange={(e) => setTempTenantId(e.target.value)}
+                                onKeyDown={handleTenantKeyDown}
                                 autoFocus
-                                InputProps={{
-                                    endAdornment: (
-                                        <InputAdornment position="end">
-                                            <IconButton size="small" onClick={handleTenantSave}>
-                                                <CheckIcon fontSize="small" />
-                                            </IconButton>
-                                        </InputAdornment>
-                                    ),
+                                style={{
+                                    flex: 1,
+                                    padding: '6px 8px',
+                                    border: '1px solid var(--app-border)',
+                                    background: 'var(--app-bg)',
+                                    color: 'var(--app-text)',
+                                    fontFamily: 'monospace',
+                                    fontSize: '0.875rem',
                                 }}
                             />
-                        </Box>
+                            <button
+                                onClick={handleTenantSave}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: 'var(--app-text)',
+                                    padding: '4px',
+                                }}
+                                aria-label="Save tenant ID"
+                            >
+                                <FrokIcon name="Check" />
+                            </button>
+                        </div>
                     ) : (
-                        <Box
-                            sx={{
+                        <div
+                            style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 1,
-                                p: 1,
-                                borderRadius: 1,
-                                background: alpha(muiTheme.palette.primary.main, 0.1),
+                                gap: '8px',
+                                padding: '8px',
+                                background: alpha('var(--app-primary)', 0.1),
                             }}
                         >
-                            <Typography variant="body2" sx={{ flex: 1, fontFamily: 'monospace' }} noWrap>
+                            <span style={{
+                                flex: 1,
+                                fontFamily: 'monospace',
+                                fontSize: '0.875rem',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                            }}>
                                 {tenantId}
-                            </Typography>
-                            <IconButton size="small" onClick={() => setEditingTenant(true)}>
-                                <EditIcon fontSize="small" />
-                            </IconButton>
-                        </Box>
+                            </span>
+                            <button
+                                onClick={() => setEditingTenant(true)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: 'var(--app-text)',
+                                    padding: '4px',
+                                }}
+                                aria-label="Edit tenant ID"
+                            >
+                                <FrokIcon name="Edit" />
+                            </button>
+                        </div>
                     )}
-                </Box>
+                </div>
             )}
 
-            <Divider sx={{ mx: sidebarCollapsed ? 1 : 2, opacity: 0.5 }} />
+            <Divider />
 
             {/* Theme Toggle */}
-            <Box sx={{ p: sidebarCollapsed ? 1 : 2 }}>
-                <Tooltip title={sidebarCollapsed ? (mode === 'dark' ? 'Light Mode' : 'Dark Mode') : ''} placement="right" arrow>
-                    <ListItemButton
-                        onClick={toggleTheme}
-                        sx={{
-                            borderRadius: 2,
-                            justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                            px: sidebarCollapsed ? 1 : 2,
-                        }}
-                    >
-                        <ListItemIcon sx={{ minWidth: sidebarCollapsed ? 'auto' : 40, justifyContent: 'center' }}>
-                            {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
-                        </ListItemIcon>
-                        {!sidebarCollapsed && (
-                            <ListItemText primary={mode === 'dark' ? 'Light Mode' : 'Dark Mode'} />
-                        )}
-                    </ListItemButton>
-                </Tooltip>
-            </Box>
+            <div style={{ padding: sidebarCollapsed ? '8px' : '16px' }}>
+                <button
+                    onClick={toggleTheme}
+                    title={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: sidebarCollapsed ? '8px' : '8px 16px',
+                        justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--app-text)',
+                        fontSize: '0.875rem',
+                        transition: 'background 0.2s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = alpha('var(--app-primary)', 0.1); }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+                >
+                    <FrokIcon name={mode === 'dark' ? 'LightMode' : 'DarkMode'} />
+                    {!sidebarCollapsed && (mode === 'dark' ? 'Light Mode' : 'Dark Mode')}
+                </button>
+            </div>
 
-            {/* Collapse Toggle Button - Desktop only */}
+            {/* Collapse Toggle — Desktop only */}
             {!isMobile && (
                 <>
-                    <Divider sx={{ mx: sidebarCollapsed ? 1 : 2, opacity: 0.5 }} />
-                    <Box sx={{ p: sidebarCollapsed ? 1 : 2 }}>
-                        <Tooltip title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} placement="right" arrow>
-                            <ListItemButton
-                                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                                sx={{
-                                    borderRadius: 2,
-                                    justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                                    px: sidebarCollapsed ? 1 : 2,
-                                }}
-                            >
-                                <ListItemIcon sx={{ minWidth: sidebarCollapsed ? 'auto' : 40, justifyContent: 'center' }}>
-                                    {sidebarCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-                                </ListItemIcon>
-                                {!sidebarCollapsed && (
-                                    <ListItemText primary="Collapse" />
-                                )}
-                            </ListItemButton>
-                        </Tooltip>
-                    </Box>
+                    <Divider />
+                    <div style={{ padding: sidebarCollapsed ? '8px' : '16px' }}>
+                        <button
+                            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                width: '100%',
+                                padding: sidebarCollapsed ? '8px' : '8px 16px',
+                                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: 'var(--app-text)',
+                                fontSize: '0.875rem',
+                                transition: 'background 0.2s',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = alpha('var(--app-primary)', 0.1); }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+                        >
+                            <FrokIcon name={sidebarCollapsed ? 'ChevronRight' : 'ChevronLeft'} />
+                            {!sidebarCollapsed && 'Collapse'}
+                        </button>
+                    </div>
                 </>
             )}
-        </Box>
+        </div>
     );
 
     return (
-        <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+        <div style={{ display: 'flex', minHeight: '100vh' }}>
             {/* Bosch Supergraphic — signature multi-color brand bar */}
-            <Box
-                sx={{
+            <div
+                style={{
                     position: 'fixed',
                     top: 0,
                     left: 0,
                     right: 0,
                     height: '4px',
-                    zIndex: (theme) => theme.zIndex.appBar + 1,
-                    background: 'linear-gradient(to right, #E20015 0%, #E20015 12.5%, #B20058 12.5%, #B20058 25%, #005691 25%, #005691 37.5%, #008ECF 37.5%, #008ECF 50%, #00A8B0 50%, #00A8B0 62.5%, #78BE20 62.5%, #78BE20 75%, #B2D235 75%, #B2D235 87.5%, #FFC000 87.5%, #FFC000 100%)',
+                    zIndex: 1300,
+                    background:
+                        'linear-gradient(to right, #E20015 0%, #E20015 12.5%, #B20058 12.5%, #B20058 25%, #005691 25%, #005691 37.5%, #008ECF 37.5%, #008ECF 50%, #00A8B0 50%, #00A8B0 62.5%, #78BE20 62.5%, #78BE20 75%, #B2D235 75%, #B2D235 87.5%, #FFC000 87.5%, #FFC000 100%)',
                 }}
             />
 
             {/* App Bar */}
-            <AppBar
-                position="fixed"
-                sx={{
+            <header
+                style={{
+                    position: 'fixed',
                     top: '4px',
-                    width: { md: `calc(100% - ${sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH}px)` },
-                    ml: { md: `${sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH}px` },
-                    transition: 'width 0.2s ease-in-out, margin-left 0.2s ease-in-out',
+                    right: 0,
+                    left: isMobile ? 0 : sidebarWidth,
+                    height: '64px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 16px',
+                    background: 'var(--app-bg)',
+                    borderBottom: '1px solid var(--app-border)',
+                    zIndex: 1200,
+                    transition: 'left 0.2s ease-in-out',
                 }}
             >
-                <Toolbar>
-                    <IconButton
-                        color="inherit"
-                        edge="start"
+                {/* Mobile hamburger */}
+                {isMobile && (
+                    <button
                         onClick={handleDrawerToggle}
-                        sx={{ mr: 2, display: { md: 'none' } }}
-                    >
-                        <MenuIcon />
-                    </IconButton>
-
-                    <Box sx={{ flex: 1 }} />
-
-                    {/* Theme Toggle (Desktop) */}
-                    <Tooltip title={mode === 'dark' ? 'Light mode' : 'Dark mode'}>
-                        <IconButton onClick={toggleTheme} sx={{ mr: 1 }}>
-                            <ThemeIcon />
-                        </IconButton>
-                    </Tooltip>
-
-                    {/* User Menu */}
-                    <Tooltip title="Account">
-                        <IconButton onClick={handleMenuOpen}>
-                            <Avatar sx={{ width: 36, height: 36 }}>
-                                {user?.name?.charAt(0) || <PersonIcon />}
-                            </Avatar>
-                        </IconButton>
-                    </Tooltip>
-
-                    <Menu
-                        anchorEl={anchorEl}
-                        open={Boolean(anchorEl)}
-                        onClose={handleMenuClose}
-                        PaperProps={{
-                            sx: { minWidth: 200, mt: 1 },
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            marginRight: '16px',
+                            color: 'var(--app-text)',
+                            padding: '8px',
                         }}
+                        aria-label="Open navigation"
                     >
-                        <Box sx={{ px: 2, py: 1 }}>
-                            <Typography variant="subtitle2" fontWeight={600}>
+                        <FrokIcon name="Menu" />
+                    </button>
+                )}
+
+                <div style={{ flex: 1 }} />
+
+                {/* Theme Toggle (header) */}
+                <Button
+                    mode="integrated"
+                    icon={mode === 'dark' ? 'sun' : 'moon'}
+                    onClick={toggleTheme}
+                    aria-label={mode === 'dark' ? 'Light mode' : 'Dark mode'}
+                    style={{ marginRight: '8px' }}
+                />
+
+                {/* User Menu */}
+                <Popover
+                    open={userMenuOpen}
+                    trigger={
+                        <button
+                            onClick={() => setUserMenuOpen(!userMenuOpen)}
+                            style={{
+                                width: 36,
+                                height: 36,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'var(--app-primary)',
+                                color: '#fff',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                                fontSize: '0.875rem',
+                            }}
+                            aria-label="Account"
+                        >
+                            {user?.name?.charAt(0) || <FrokIcon name="Person" />}
+                        </button>
+                    }
+                    position="bottom-right"
+                    isPopoverArrowMissing
+                    onOutsideClick={() => setUserMenuOpen(false)}
+                    onCloseKeyPressed={() => setUserMenuOpen(false)}
+                >
+                    <div style={{ minWidth: 200, padding: '8px 0' }}>
+                        <div style={{ padding: '8px 16px' }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>
                                 {user?.name || 'Demo User'}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
                                 {user?.username || tenantId}
-                            </Typography>
-                        </Box>
-                        <Divider sx={{ my: 1 }} />
-                        <MenuItem onClick={() => { handleMenuClose(); navigate('/settings'); }}>
-                            <ListItemIcon>
-                                <SettingsIcon fontSize="small" />
-                            </ListItemIcon>
+                            </div>
+                        </div>
+                        <Divider />
+                        <button
+                            onClick={() => { setUserMenuOpen(false); navigate('/settings'); }}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                width: '100%',
+                                padding: '8px 16px',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: 'var(--app-text)',
+                                fontSize: '0.875rem',
+                            }}
+                        >
+                            <Icon iconName="settings" />
                             Settings
-                        </MenuItem>
-                        <MenuItem onClick={() => { handleMenuClose(); logout(); }}>
-                            <ListItemIcon>
-                                <LogoutIcon fontSize="small" />
-                            </ListItemIcon>
+                        </button>
+                        <button
+                            onClick={() => { setUserMenuOpen(false); logout(); }}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                width: '100%',
+                                padding: '8px 16px',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: 'var(--app-text)',
+                                fontSize: '0.875rem',
+                            }}
+                        >
+                            <Icon iconName="log-out" />
                             Logout
-                        </MenuItem>
-                    </Menu>
-                </Toolbar>
-            </AppBar>
+                        </button>
+                    </div>
+                </Popover>
+            </header>
 
             {/* Sidebar */}
-            <Box
-                component="nav"
-                sx={{
-                    width: { md: sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH },
-                    flexShrink: { md: 0 },
+            <nav
+                style={{
+                    width: isMobile ? 0 : sidebarWidth,
+                    flexShrink: 0,
                     transition: 'width 0.2s ease-in-out',
                 }}
             >
-                {/* Mobile Drawer */}
-                <Drawer
-                    variant="temporary"
-                    open={mobileOpen}
-                    onClose={handleDrawerToggle}
-                    ModalProps={{ keepMounted: true }}
-                    sx={{
-                        display: { xs: 'block', md: 'none' },
-                        '& .MuiDrawer-paper': { width: DRAWER_WIDTH },
-                    }}
-                >
-                    {drawer}
-                </Drawer>
+                {/* Mobile overlay */}
+                {isMobile && mobileOpen && (
+                    <div
+                        ref={backdropRef}
+                        onClick={handleDrawerToggle}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0,0,0,0.5)',
+                            zIndex: 1250,
+                        }}
+                    />
+                )}
 
-                {/* Desktop Drawer */}
-                <Drawer
-                    variant="permanent"
-                    sx={{
-                        display: { xs: 'none', md: 'block' },
-                        '& .MuiDrawer-paper': {
-                            width: sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH,
-                            transition: 'width 0.2s ease-in-out',
-                            overflowX: 'hidden',
+                {/* Mobile drawer */}
+                {isMobile && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: mobileOpen ? 0 : -DRAWER_WIDTH,
+                            width: DRAWER_WIDTH,
+                            height: '100%',
+                            zIndex: 1260,
+                            transition: 'left 0.3s ease-in-out',
+                            overflow: 'hidden',
+                        }}
+                    >
+                        {sidebarContent}
+                    </div>
+                )}
+
+                {/* Desktop sidebar */}
+                {!isMobile && (
+                    <div
+                        style={{
+                            position: 'fixed',
                             top: '4px',
+                            left: 0,
+                            width: sidebarWidth,
                             height: 'calc(100% - 4px)',
-                        },
-                    }}
-                    open
-                >
-                    {drawer}
-                </Drawer>
-            </Box>
+                            overflowX: 'hidden',
+                            overflowY: 'auto',
+                            borderRight: '1px solid var(--app-border)',
+                            transition: 'width 0.2s ease-in-out',
+                        }}
+                    >
+                        {sidebarContent}
+                    </div>
+                )}
+            </nav>
 
             {/* Main Content */}
-            <Box
-                component="main"
-                sx={{
+            <main
+                style={{
                     flexGrow: 1,
-                    p: 3,
-                    width: { md: `calc(100% - ${sidebarCollapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH}px)` },
-                    mt: '68px',
+                    padding: '24px',
+                    width: isMobile ? '100%' : `calc(100% - ${sidebarWidth}px)`,
+                    marginTop: '68px',
                     minHeight: 'calc(100vh - 68px)',
                     transition: 'width 0.2s ease-in-out',
                     display: 'flex',
                     flexDirection: 'column',
                 }}
             >
-                <Box sx={{ flex: 1 }}>
+                <div style={{ flex: 1 }}>
                     <Outlet />
-                </Box>
+                </div>
 
                 {/* Footer */}
-                <Box
-                    component="footer"
-                    sx={{
-                        py: 2,
-                        px: 1,
-                        mt: 4,
-                        borderTop: 1,
-                        borderColor: 'divider',
+                <footer
+                    style={{
+                        paddingTop: '16px',
+                        paddingBottom: '16px',
+                        marginTop: '32px',
+                        borderTop: '1px solid var(--app-border)',
                         textAlign: 'center',
+                        fontSize: '0.875rem',
+                        color: 'var(--app-text-secondary)',
                     }}
                 >
-                    <Typography variant="body2" color="text.secondary">
-                        © 2026 Bosch Global Software Vietnam - SX Department. All rights reserved.
-                    </Typography>
-                </Box>
-            </Box>
-        </Box>
+                    © 2026 Bosch Global Software Vietnam - SX Department. All rights reserved.
+                </footer>
+            </main>
+        </div>
     );
 };

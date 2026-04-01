@@ -1,55 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-    Box,
-    Typography,
     TextField,
-    Select,
-    MenuItem,
-    FormControl,
-    InputLabel,
+    Dropdown,
     Button,
     Chip,
-    Alert,
-    CircularProgress,
+    Notification,
     Accordion,
-    AccordionSummary,
-    AccordionDetails,
     Divider,
-    IconButton,
     Tooltip,
     Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogContentText,
-    DialogActions,
     Table,
     TableBody,
     TableCell,
     TableHead,
     TableRow,
-    Paper,
-    Collapse,
-    Pagination,
-    RadioGroup,
-    FormControlLabel,
-    Radio,
-    FormLabel,
-} from '@mui/material';
-import {
-    ExpandMore as ExpandMoreIcon,
-    CheckCircle as CheckCircleIcon,
-    Error as ErrorIcon,
-    Delete as DeleteIcon,
-    Refresh as RefreshIcon,
-    Storage as StorageIcon,
-    Key as KeyIcon,
-    Link as FkIcon,
-    History as HistoryIcon,
-    ExpandLess,
-    Info as InfoIcon,
-    Lock as LockIcon,
-    Cloud as CloudIcon,
-} from '@mui/icons-material';
+    ActivityIndicator,
+    RadioButton,
+} from '@bosch/react-frok';
+import { Pagination } from '@mui/material';
+import { FrokIcon } from '../../utils/iconAdapter';
 import { RAGaaSClient } from '../../services/api';
 import {
     DatabaseType,
@@ -76,13 +45,6 @@ const DB_TYPE_PLACEHOLDERS: Record<DatabaseType, string> = {
     mysql: 'mysql://user:pass@host:3306/dbname',
     sqlserver: 'mssql://user:pass@host:1433/dbname',
     sqlite: 'sqlite:///path/to/database.db',
-};
-
-const STATUS_COLORS: Record<ConnectionStatus, 'success' | 'error' | 'warning' | 'default'> = {
-    connected: 'success',
-    disconnected: 'default',
-    error: 'error',
-    pending: 'warning',
 };
 
 /** Auth modes that require SQL Server */
@@ -150,7 +112,6 @@ export const DatabaseConnection: React.FC<Props> = ({
     const [excludeTables, setExcludeTables] = useState('');
     const [maxRows, setMaxRows] = useState(500);
     const [queryTimeout, setQueryTimeout] = useState(30);
-    const [showAdvanced, setShowAdvanced] = useState(false);
 
     // ── Action states ──
     const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
@@ -436,17 +397,17 @@ export const DatabaseConnection: React.FC<Props> = ({
     // ── Loading / feature-disabled states ──
     if (featureEnabled === null) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-                <CircularProgress />
-            </Box>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+                <ActivityIndicator />
+            </div>
         );
     }
 
     if (featureEnabled === false) {
         return (
-            <Alert severity="info" icon={<StorageIcon />}>
-                SQL Agent is not enabled on this platform. Contact your administrator.
-            </Alert>
+            <Notification type="neutral" defaultOpen>
+                <FrokIcon name="Storage" /> SQL Agent is not enabled on this platform. Contact your administrator.
+            </Notification>
         );
     }
 
@@ -456,189 +417,165 @@ export const DatabaseConnection: React.FC<Props> = ({
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
             {/* ── Status banner ── */}
             {existingConn && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <StorageIcon color={existingConn.status === 'connected' ? 'success' : 'disabled'} />
-                    <Typography variant="h6" fontWeight={600}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <FrokIcon name="Storage" />
+                    <h3 style={{ fontWeight: 600, margin: 0 }}>
                         {existingConn.display_name || 'Database Connection'}
-                    </Typography>
+                    </h3>
                     <Chip
                         label={existingConn.status.charAt(0).toUpperCase() + existingConn.status.slice(1)}
-                        color={STATUS_COLORS[existingConn.status]}
-                        size="small"
                     />
                     {existingConn.table_count != null && (
-                        <Typography variant="body2" color="text.secondary">
+                        <span style={{ fontSize: '0.875rem', color: 'var(--app-text-secondary)' }}>
                             {existingConn.table_count} tables
-                        </Typography>
+                        </span>
                     )}
                     {existingConn.auth_type === 'app_service_principal' && (
-                        <Chip
-                            icon={<CloudIcon />}
-                            label="Platform App"
-                            color="info"
-                            size="small"
-                            variant="outlined"
-                        />
+                        <Chip label="Platform App" />
                     )}
-                </Box>
+                </div>
             )}
 
             {/* ── Success notice ── */}
             {saveSuccess && (
-                <Alert severity="success" onClose={() => setSaveSuccess(false)}>
+                <Notification type="success" defaultOpen onCloseClick={() => setSaveSuccess(false)}>
                     Database connection saved successfully!
                     {authType === 'connection_string' && ' The connection string has been cleared from this form for security.'}
                     {authType === 'service_principal' && ' The client secret has been cleared from this form for security.'}
-                </Alert>
+                </Notification>
             )}
 
             {/* ── Error ── */}
             {formError && (
-                <Alert severity="error" onClose={() => setFormError('')}>
+                <Notification type="error" defaultOpen onCloseClick={() => setFormError('')}>
                     {formError}
-                </Alert>
+                </Notification>
             )}
 
             {/* ── Connection Form ── */}
-            <Paper variant="outlined" sx={{ p: 3 }}>
-                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+            <div style={{ border: '1px solid var(--app-border)', padding: '1.5rem' }}>
+                <h4 style={{ fontWeight: 600, marginBottom: '1rem' }}>
                     Connection Details
-                </Typography>
+                </h4>
 
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
                     {/* Database Type */}
-                    <FormControl fullWidth size="small">
-                        <InputLabel id="db-type-label">Database Type</InputLabel>
-                        <Select
-                            labelId="db-type-label"
-                            label="Database Type"
-                            value={dbType}
-                            disabled={isAzureMode}
-                            onChange={(e) => handleDbTypeChange(e.target.value as DatabaseType)}
-                        >
-                            {(Object.keys(DB_TYPE_LABELS) as DatabaseType[]).map((t) => (
-                                <MenuItem key={t} value={t}>{DB_TYPE_LABELS[t]}</MenuItem>
-                            ))}
-                        </Select>
-                        {isAzureMode && (
-                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 0.5 }}>
-                                Locked to SQL Server for Azure authentication modes.
-                            </Typography>
-                        )}
-                    </FormControl>
+                    <Dropdown
+                        label="Database Type"
+                        value={dbType}
+                        disabled={isAzureMode}
+                        onChange={(e) => handleDbTypeChange(e.target.value as DatabaseType)}
+                        options={(Object.keys(DB_TYPE_LABELS) as DatabaseType[]).map((t) => ({
+                            name: DB_TYPE_LABELS[t],
+                            value: t,
+                        }))}
+                    />
+                    {isAzureMode && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)', marginTop: '-0.75rem' }}>
+                            Locked to SQL Server for Azure authentication modes.
+                        </span>
+                    )}
 
                     {/* Display Name */}
                     <TextField
+                        id="db-display-name"
                         label="Display Name"
-                        size="small"
-                        fullWidth
                         placeholder="e.g. Sales Database"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
                     />
 
                     {/* ── Authentication Mode ── */}
-                    <Box>
-                        <FormControl component="fieldset">
-                            <FormLabel component="legend" sx={{ fontSize: '0.875rem', fontWeight: 600, mb: 0.5 }}>
-                                Authentication Mode
-                            </FormLabel>
-                            <RadioGroup
-                                value={authType}
-                                onChange={(e) => handleAuthTypeChange(e.target.value as AuthType)}
-                            >
-                                {/* Connection String — always available */}
-                                <FormControlLabel
-                                    value="connection_string"
-                                    control={<Radio size="small" />}
+                    <div>
+                        <p style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                            Authentication Mode
+                        </p>
+                        <div role="radiogroup">
+                            {/* Connection String — always available */}
+                            <RadioButton
+                                name="authType"
+                                id="auth-connection-string"
+                                value="connection_string"
+                                checked={authType === 'connection_string'}
+                                onChange={() => handleAuthTypeChange('connection_string')}
+                                label={<span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><FrokIcon name="Lock" /> Connection String</span>}
+                            />
+
+                            {/* Service Principal — SQL Server only */}
+                            {(isSqlServer || authType === 'service_principal') && (
+                                <RadioButton
+                                    name="authType"
+                                    id="auth-service-principal"
+                                    value="service_principal"
+                                    checked={authType === 'service_principal'}
+                                    onChange={() => handleAuthTypeChange('service_principal')}
                                     label={
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            <LockIcon sx={{ fontSize: 16 }} />
-                                            <Typography variant="body2">Connection String</Typography>
-                                        </Box>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                            <FrokIcon name="Key" /> My Azure App (Service Principal)
+                                            <Chip label="SQL Server" />
+                                        </span>
                                     }
                                 />
+                            )}
 
-                                {/* Service Principal — SQL Server only */}
-                                {(isSqlServer || authType === 'service_principal') && (
-                                    <FormControlLabel
-                                        value="service_principal"
-                                        control={<Radio size="small" />}
-                                        label={
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <KeyIcon sx={{ fontSize: 16 }} />
-                                                <Typography variant="body2">My Azure App (Service Principal)</Typography>
-                                                <Chip label="SQL Server" size="small" variant="outlined" sx={{ ml: 0.5 }} />
-                                            </Box>
-                                        }
-                                    />
-                                )}
-
-                                {/* Platform App — SQL Server only, availability-gated */}
-                                {(isSqlServer || authType === 'app_service_principal') && (
-                                    <Tooltip
-                                        title={
-                                            appSpAvailable === false
-                                                ? 'Not available on this platform — contact your administrator.'
-                                                : appSpAvailable === null
-                                                ? 'Checking platform configuration…'
-                                                : ''
-                                        }
-                                        disableHoverListener={appSpAvailable === true}
-                                    >
-                                        <span>
-                                            <FormControlLabel
-                                                value="app_service_principal"
-                                                control={<Radio size="small" />}
-                                                disabled={appSpAvailable !== true}
-                                                label={
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <CloudIcon sx={{ fontSize: 16, color: appSpAvailable === true ? 'info.main' : 'inherit' }} />
-                                                        <Typography variant="body2">
-                                                            Platform App
-                                                        </Typography>
-                                                        <Chip
-                                                            label={
-                                                                appSpAvailable === null ? 'Checking…' :
-                                                                appSpAvailable === false ? 'Unavailable' :
-                                                                'Zero Credentials'
-                                                            }
-                                                            color={appSpAvailable === true ? 'success' : 'default'}
-                                                            size="small"
-                                                            variant="outlined"
-                                                            sx={{ ml: 0.5 }}
-                                                        />
-                                                        <Chip label="SQL Server" size="small" variant="outlined" sx={{ ml: 0.5 }} />
-                                                    </Box>
-                                                }
-                                            />
-                                        </span>
-                                    </Tooltip>
-                                )}
-                            </RadioGroup>
-                        </FormControl>
-                    </Box>
+                            {/* Platform App — SQL Server only, availability-gated */}
+                            {(isSqlServer || authType === 'app_service_principal') && (
+                                <Tooltip
+                                    content={
+                                        appSpAvailable === false
+                                            ? 'Not available on this platform — contact your administrator.'
+                                            : appSpAvailable === null
+                                            ? 'Checking platform configuration…'
+                                            : ''
+                                    }
+                                >
+                                    <span>
+                                        <RadioButton
+                                            name="authType"
+                                            id="auth-app-service-principal"
+                                            value="app_service_principal"
+                                            checked={authType === 'app_service_principal'}
+                                            disabled={appSpAvailable !== true}
+                                            onChange={() => handleAuthTypeChange('app_service_principal')}
+                                            label={
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                    <FrokIcon name="Cloud" /> Platform App
+                                                    <Chip
+                                                        label={
+                                                            appSpAvailable === null ? 'Checking…' :
+                                                            appSpAvailable === false ? 'Unavailable' :
+                                                            'Zero Credentials'
+                                                        }
+                                                    />
+                                                    <Chip label="SQL Server" />
+                                                </span>
+                                            }
+                                        />
+                                    </span>
+                                </Tooltip>
+                            )}
+                        </div>
+                    </div>
 
                     {/* ── Platform App banner ── */}
                     {authType === 'app_service_principal' && appSpAvailable === true && (
-                        <Alert severity="info" icon={<InfoIcon />}>
+                        <Notification type="neutral" defaultOpen>
                             This platform's app registration will be used — no credentials required from
                             you. Just provide the server and database name.
-                        </Alert>
+                        </Notification>
                     )}
 
                     {/* ── connection_string fields ── */}
                     {authType === 'connection_string' && (
-                        <Box>
+                        <div>
                             <TextField
+                                id="db-conn-string"
                                 label="Connection String"
-                                size="small"
-                                fullWidth
                                 type="password"
                                 placeholder={DB_TYPE_PLACEHOLDERS[dbType]}
                                 value={connString}
@@ -647,419 +584,367 @@ export const DatabaseConnection: React.FC<Props> = ({
                                     setConnStringMasked(false);
                                     setTestResult(null);
                                 }}
-                                helperText={
-                                    connStringMasked && existingConn
-                                        ? 'A connection string is already saved. Enter a new one to replace it.'
-                                        : 'Encrypted at rest. Never returned by the API after saving.'
-                                }
                             />
-                            <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>
-                                Your connection string contains credentials. Treat it like a password.
-                            </Alert>
-                        </Box>
+                            <div style={{ marginTop: '0.5rem' }}>
+                                <Notification type="warning" defaultOpen>
+                                    Your connection string contains credentials. Treat it like a password.
+                                </Notification>
+                            </div>
+                        </div>
                     )}
 
                     {/* ── Azure Server + Database (shared between SP and App SP) ── */}
                     {isAzureMode && (
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                            <TextField
-                                label="Azure Server"
-                                size="small"
-                                fullWidth
-                                placeholder="myserver.database.windows.net"
-                                value={azureServer}
-                                onChange={(e) => { setAzureServer(e.target.value); setTestResult(null); }}
-                                helperText="e.g. myserver.database.windows.net"
-                            />
-                            <TextField
-                                label="Azure Database"
-                                size="small"
-                                fullWidth
-                                placeholder="MyDatabaseName"
-                                value={azureDatabase}
-                                onChange={(e) => { setAzureDatabase(e.target.value); setTestResult(null); }}
-                            />
-                        </Box>
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <div style={{ flex: 1 }}>
+                                <TextField
+                                    id="db-azure-server"
+                                    label="Azure Server"
+                                    placeholder="myserver.database.windows.net"
+                                    value={azureServer}
+                                    onChange={(e) => { setAzureServer(e.target.value); setTestResult(null); }}
+                                />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <TextField
+                                    id="db-azure-database"
+                                    label="Azure Database"
+                                    placeholder="MyDatabaseName"
+                                    value={azureDatabase}
+                                    onChange={(e) => { setAzureDatabase(e.target.value); setTestResult(null); }}
+                                />
+                            </div>
+                        </div>
                     )}
 
                     {/* ── service_principal-only fields ── */}
                     {authType === 'service_principal' && (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <Divider>
-                                <Typography variant="caption" color="text.secondary">Your Azure AD App Credentials</Typography>
-                            </Divider>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <Divider />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)', textAlign: 'center' }}>Your Azure AD App Credentials</span>
                             <TextField
+                                id="db-azure-tenant-id"
                                 label="Tenant ID"
-                                size="small"
-                                fullWidth
                                 placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                                 value={azureTenantId}
                                 onChange={(e) => { setAzureTenantId(e.target.value); setTestResult(null); }}
                             />
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                                <TextField
-                                    label="Client ID (Application ID)"
-                                    size="small"
-                                    fullWidth
-                                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                                    value={azureClientId}
-                                    onChange={(e) => { setAzureClientId(e.target.value); setTestResult(null); }}
-                                />
-                                <TextField
-                                    label="Client Secret"
-                                    size="small"
-                                    fullWidth
-                                    type="password"
-                                    placeholder={clientSecretMasked && existingConn ? '••••••••• (saved)' : 'your-client-secret'}
-                                    value={azureClientSecret}
-                                    onChange={(e) => {
-                                        setAzureClientSecret(e.target.value);
-                                        setClientSecretMasked(false);
-                                        setTestResult(null);
-                                    }}
-                                    helperText={
-                                        clientSecretMasked && existingConn
-                                            ? 'A secret is saved. Enter a new one to rotate it.'
-                                            : 'Encrypted at rest. Never returned by the API.'
-                                    }
-                                />
-                            </Box>
-                        </Box>
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <div style={{ flex: 1 }}>
+                                    <TextField
+                                        id="db-azure-client-id"
+                                        label="Client ID (Application ID)"
+                                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                        value={azureClientId}
+                                        onChange={(e) => { setAzureClientId(e.target.value); setTestResult(null); }}
+                                    />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <TextField
+                                        id="db-azure-client-secret"
+                                        label="Client Secret"
+                                        type="password"
+                                        placeholder={clientSecretMasked && existingConn ? '••••••••• (saved)' : 'your-client-secret'}
+                                        value={azureClientSecret}
+                                        onChange={(e) => {
+                                            setAzureClientSecret(e.target.value);
+                                            setClientSecretMasked(false);
+                                            setTestResult(null);
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     )}
 
                     {/* ── Advanced Settings ── */}
-                    <Box>
-                        <Button
-                            size="small"
-                            variant="text"
-                            onClick={() => setShowAdvanced((p) => !p)}
-                            endIcon={showAdvanced ? <ExpandLess /> : <ExpandMoreIcon />}
-                            sx={{ mb: 1 }}
-                        >
-                            {showAdvanced ? 'Hide' : 'Show'} Advanced Settings
-                        </Button>
-                        <Collapse in={showAdvanced}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                                <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Accordion headline="Advanced Settings">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <div style={{ flex: 1 }}>
                                     <TextField
+                                        id="db-include-tables"
                                         label="Include Tables (comma-separated)"
-                                        size="small"
-                                        fullWidth
                                         placeholder="orders, customers, products"
                                         value={includeTables}
                                         onChange={(e) => setIncludeTables(e.target.value)}
-                                        helperText="Allowlist — leave empty to allow all tables."
                                     />
+                                </div>
+                                <div style={{ flex: 1 }}>
                                     <TextField
+                                        id="db-exclude-tables"
                                         label="Exclude Tables (comma-separated)"
-                                        size="small"
-                                        fullWidth
                                         placeholder="logs, audit_trail"
                                         value={excludeTables}
                                         onChange={(e) => setExcludeTables(e.target.value)}
-                                        helperText="Blocklist — tables to hide from the agent."
                                     />
-                                </Box>
-                                <Box sx={{ display: 'flex', gap: 2 }}>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <div style={{ flex: 1 }}>
                                     <TextField
+                                        id="db-max-rows"
                                         label="Max Result Rows"
-                                        size="small"
-                                        type="number"
-                                        inputProps={{ min: 1, max: 5000 }}
-                                        value={maxRows}
+                                        value={String(maxRows)}
                                         onChange={(e) => setMaxRows(Number(e.target.value))}
-                                        helperText="1–5000 (default 500)"
-                                        sx={{ flex: 1 }}
                                     />
+                                </div>
+                                <div style={{ flex: 1 }}>
                                     <TextField
+                                        id="db-query-timeout"
                                         label="Query Timeout (sec)"
-                                        size="small"
-                                        type="number"
-                                        inputProps={{ min: 5, max: 120 }}
-                                        value={queryTimeout}
+                                        value={String(queryTimeout)}
                                         onChange={(e) => setQueryTimeout(Number(e.target.value))}
-                                        helperText="5–120 (default 30)"
-                                        sx={{ flex: 1 }}
                                     />
-                                </Box>
-                            </Box>
-                        </Collapse>
-                    </Box>
+                                </div>
+                            </div>
+                        </div>
+                    </Accordion>
 
                     {/* Test Result */}
                     {testResult && (
-                        <Alert
-                            severity={testResult.success ? 'success' : 'error'}
-                            icon={testResult.success ? <CheckCircleIcon /> : <ErrorIcon />}
-                        >
+                        <Notification type={testResult.success ? 'success' : 'error'} defaultOpen>
                             {testResult.message}
                             {testResult.success && (
-                                <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                                <span style={{ display: 'block', fontSize: '0.75rem', marginTop: '0.25rem' }}>
                                     {testResult.tables_found != null && `${testResult.tables_found} tables found · `}
                                     {testResult.latency_ms}ms latency
-                                </Typography>
+                                </span>
                             )}
-                        </Alert>
+                        </Notification>
                     )}
 
                     {/* Action Buttons */}
-                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
                         <Button
-                            variant="outlined"
+                            mode="secondary"
                             onClick={handleTest}
                             disabled={testing || saving}
-                            startIcon={testing ? <CircularProgress size={16} /> : <CheckCircleIcon />}
                         >
-                            Test Connection
+                            {testing ? <ActivityIndicator size="small" /> : <FrokIcon name="CheckCircle" />}
+                            {' '}Test Connection
                         </Button>
                         <Button
-                            variant="contained"
+                            mode="primary"
                             onClick={handleSave}
                             disabled={saving || testing}
-                            startIcon={saving ? <CircularProgress size={16} /> : undefined}
                         >
-                            {existingConn ? 'Update Connection' : 'Save Connection'}
+                            {saving && <ActivityIndicator size="small" />}
+                            {existingConn ? ' Update Connection' : ' Save Connection'}
                         </Button>
                         {existingConn && (
-                            <Tooltip title="Remove the database connection and all cached schema data">
+                            <Tooltip content="Remove the database connection and all cached schema data">
                                 <Button
-                                    variant="outlined"
-                                    color="error"
+                                    mode="secondary"
                                     onClick={() => setDeleteDialogOpen(true)}
-                                    startIcon={<DeleteIcon />}
                                 >
-                                    Delete Connection
+                                    <FrokIcon name="Delete" /> Delete Connection
                                 </Button>
                             </Tooltip>
                         )}
-                    </Box>
-                </Box>
-            </Paper>
+                    </div>
+                </div>
+            </div>
 
             {/* ── Schema Explorer ── */}
             {(schema || isConnected) && (
-                <Paper variant="outlined" sx={{ p: 3 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                        <Box>
-                            <Typography variant="subtitle1" fontWeight={600}>
+                <div style={{ border: '1px solid var(--app-border)', padding: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                        <div>
+                            <h4 style={{ fontWeight: 600, margin: 0 }}>
                                 Schema
                                 {schema && ` (${schema.table_count} table${schema.table_count !== 1 ? 's' : ''})`}
-                            </Typography>
+                            </h4>
                             {schema && (
-                                <Typography variant="caption" color="text.secondary">
+                                <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
                                     Last refreshed: {timeAgo(schema.introspected_at)}
-                                </Typography>
+                                </span>
                             )}
-                        </Box>
+                        </div>
                         <Button
-                            size="small"
-                            startIcon={introspecting ? <CircularProgress size={14} /> : <RefreshIcon />}
+                            mode="secondary"
                             onClick={() => handleRefreshSchema(true)}
                             disabled={introspecting}
                         >
-                            Refresh Schema
+                            {introspecting ? <ActivityIndicator size="small" /> : <FrokIcon name="Refresh" />}
+                            {' '}Refresh Schema
                         </Button>
-                    </Box>
+                    </div>
 
                     {schema ? (
                         schema.tables.map((table) => (
-                            <Accordion key={table.table_name} disableGutters sx={{ '&:before': { display: 'none' }, border: 1, borderColor: 'divider', mb: 1 }}>
-                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                        <StorageIcon fontSize="small" color="primary" />
-                                        <Typography fontWeight={600}>{table.table_name}</Typography>
-                                        <Chip size="small" label={`${table.columns.length} col${table.columns.length !== 1 ? 's' : ''}`} variant="outlined" />
-                                        {table.row_count_estimate != null && (
-                                            <Typography variant="caption" color="text.secondary">
-                                                ~{table.row_count_estimate.toLocaleString()} rows
-                                            </Typography>
-                                        )}
-                                    </Box>
-                                </AccordionSummary>
-                                <AccordionDetails sx={{ p: 0 }}>
-                                    <Table size="small">
-                                        <TableHead>
-                                            <TableRow sx={{ bgcolor: 'action.hover' }}>
-                                                <TableCell sx={{ fontWeight: 600 }}>Column</TableCell>
-                                                <TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
-                                                <TableCell sx={{ fontWeight: 600 }}>Flags</TableCell>
-                                                <TableCell sx={{ fontWeight: 600 }}>Nullable</TableCell>
+                            <Accordion key={table.table_name} headline={
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <FrokIcon name="Storage" />
+                                    <strong>{table.table_name}</strong>
+                                    <Chip label={`${table.columns.length} col${table.columns.length !== 1 ? 's' : ''}`} />
+                                    {table.row_count_estimate != null && (
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
+                                            ~{table.row_count_estimate.toLocaleString()} rows
+                                        </span>
+                                    )}
+                                </span>
+                            }>
+                                <Table>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell header>Column</TableCell>
+                                            <TableCell header>Type</TableCell>
+                                            <TableCell header>Flags</TableCell>
+                                            <TableCell header>Nullable</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {table.columns.map((col) => (
+                                            <TableRow key={col.name}>
+                                                <TableCell>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                        {col.is_primary_key && (
+                                                            <Tooltip content="Primary Key">
+                                                                <span><FrokIcon name="Key" /></span>
+                                                            </Tooltip>
+                                                        )}
+                                                        {col.is_foreign_key && (
+                                                            <Tooltip content={`FK → ${col.foreign_key_target}`}>
+                                                                <span><FrokIcon name="Link" /></span>
+                                                            </Tooltip>
+                                                        )}
+                                                        <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                                                            {col.name}
+                                                        </span>
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span style={{ fontFamily: 'monospace', fontSize: '0.875rem', color: 'var(--app-text-secondary)' }}>
+                                                        {col.data_type}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {col.is_primary_key && <Chip label="PK" />}
+                                                    {col.is_foreign_key && <Chip label="FK" />}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span style={{ color: col.nullable ? 'var(--app-text-secondary)' : 'var(--app-text)' }}>
+                                                        {col.nullable ? 'Yes' : 'No'}
+                                                    </span>
+                                                </TableCell>
                                             </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {table.columns.map((col) => (
-                                                <TableRow key={col.name} hover>
-                                                    <TableCell>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                            {col.is_primary_key && (
-                                                                <Tooltip title="Primary Key">
-                                                                    <KeyIcon sx={{ fontSize: 14, color: 'warning.main' }} />
-                                                                </Tooltip>
-                                                            )}
-                                                            {col.is_foreign_key && (
-                                                                <Tooltip title={`FK → ${col.foreign_key_target}`}>
-                                                                    <FkIcon sx={{ fontSize: 14, color: 'info.main' }} />
-                                                                </Tooltip>
-                                                            )}
-                                                            <Typography variant="body2" fontFamily="monospace">
-                                                                {col.name}
-                                                            </Typography>
-                                                        </Box>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Typography variant="body2" fontFamily="monospace" color="text.secondary">
-                                                            {col.data_type}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {col.is_primary_key && <Chip label="PK" size="small" color="warning" variant="outlined" sx={{ mr: 0.5 }} />}
-                                                        {col.is_foreign_key && <Chip label="FK" size="small" color="info" variant="outlined" />}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Typography variant="body2" color={col.nullable ? 'text.secondary' : 'text.primary'}>
-                                                            {col.nullable ? 'Yes' : 'No'}
-                                                        </Typography>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </AccordionDetails>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             </Accordion>
                         ))
                     ) : (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem' }}>
                             <Button
-                                variant="outlined"
+                                mode="secondary"
                                 onClick={() => handleRefreshSchema(true)}
-                                startIcon={introspecting ? <CircularProgress size={16} /> : <RefreshIcon />}
                                 disabled={introspecting}
                             >
-                                Load Schema
+                                {introspecting ? <ActivityIndicator size="small" /> : <FrokIcon name="Refresh" />}
+                                {' '}Load Schema
                             </Button>
-                        </Box>
+                        </div>
                     )}
-                </Paper>
+                </div>
             )}
 
             {/* ── Audit Log ── */}
             {isConnected && (
-                <Paper variant="outlined" sx={{ p: 3 }}>
-                    <Box
-                        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-                        onClick={() => setAuditOpen((p) => !p)}
-                    >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <HistoryIcon color="action" />
-                            <Typography variant="subtitle1" fontWeight={600}>
-                                SQL Query History
-                            </Typography>
-                            {auditTotal > 0 && (
-                                <Chip size="small" label={auditTotal} variant="outlined" />
-                            )}
-                        </Box>
-                        <IconButton size="small">
-                            {auditOpen ? <ExpandLess /> : <ExpandMoreIcon />}
-                        </IconButton>
-                    </Box>
-
-                    <Collapse in={auditOpen}>
-                        <Divider sx={{ my: 2 }} />
+                <div style={{ border: '1px solid var(--app-border)', padding: '1.5rem' }}>
+                    <Accordion headline={
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <FrokIcon name="History" />
+                            <strong>SQL Query History</strong>
+                            {auditTotal > 0 && <Chip label={String(auditTotal)} />}
+                        </span>
+                    } defaultOpen={auditOpen} onOpenChange={(isOpen) => setAuditOpen(isOpen)}>
+                        <Divider />
                         {auditLoading ? (
-                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-                                <CircularProgress size={24} />
-                            </Box>
+                            <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem' }}>
+                                <ActivityIndicator size="small" />
+                            </div>
                         ) : auditEntries.length === 0 ? (
-                            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
+                            <p style={{ textAlign: 'center', color: 'var(--app-text-secondary)', padding: '1.5rem', fontSize: '0.875rem' }}>
                                 No SQL queries have been executed yet.
-                            </Typography>
+                            </p>
                         ) : (
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
                                 {auditEntries.map((entry, i) => (
-                                    <Paper
+                                    <div
                                         key={i}
-                                        variant="outlined"
-                                        sx={{
-                                            p: 1.5,
-                                            borderLeft: 4,
-                                            borderColor: entry.query_valid ? 'success.main' : 'error.main',
+                                        style={{
+                                            padding: '0.75rem',
+                                            border: '1px solid var(--app-border)',
+                                            borderLeft: `4px solid ${entry.query_valid ? 'var(--app-success)' : 'var(--app-error)'}`,
                                         }}
                                     >
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                                            <Typography variant="caption" color="text.secondary">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
                                                 {new Date(entry.generated_at).toLocaleString()}
-                                            </Typography>
-                                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                                {entry.row_count != null && (
-                                                    <Chip size="small" label={`${entry.row_count} rows`} color="default" variant="outlined" />
-                                                )}
-                                                {entry.execution_time_ms != null && (
-                                                    <Chip size="small" label={`${entry.execution_time_ms}ms`} color="default" variant="outlined" />
-                                                )}
-                                            </Box>
-                                        </Box>
-                                        <Typography variant="body2" gutterBottom>
+                                            </span>
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                {entry.row_count != null && <Chip label={`${entry.row_count} rows`} />}
+                                                {entry.execution_time_ms != null && <Chip label={`${entry.execution_time_ms}ms`} />}
+                                            </div>
+                                        </div>
+                                        <p style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
                                             <em>"{entry.user_query}"</em>
-                                        </Typography>
-                                        <Typography
-                                            variant="body2"
-                                            fontFamily="monospace"
-                                            sx={{
-                                                bgcolor: 'action.hover',
-                                                p: 0.75,
-                                                borderRadius: 1,
+                                        </p>
+                                        <pre
+                                            style={{
+                                                background: 'var(--app-bg-surface)',
+                                                padding: '0.5rem',
                                                 whiteSpace: 'pre-wrap',
                                                 wordBreak: 'break-all',
                                                 fontSize: '0.75rem',
+                                                fontFamily: 'monospace',
+                                                margin: 0,
                                             }}
                                         >
                                             {entry.sql_query}
-                                        </Typography>
+                                        </pre>
                                         {entry.error_message && (
-                                            <Alert severity="error" sx={{ mt: 1, py: 0 }}>
-                                                {entry.error_message}
-                                            </Alert>
+                                            <div style={{ marginTop: '0.5rem' }}>
+                                                <Notification type="error" defaultOpen>
+                                                    {entry.error_message}
+                                                </Notification>
+                                            </div>
                                         )}
-                                    </Paper>
+                                    </div>
                                 ))}
                                 {auditTotal > AUDIT_LIMIT && (
-                                    <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '0.5rem' }}>
                                         <Pagination
                                             count={Math.ceil(auditTotal / AUDIT_LIMIT)}
                                             page={auditPage}
                                             onChange={(_, p) => setAuditPage(p)}
                                             size="small"
                                         />
-                                    </Box>
+                                    </div>
                                 )}
-                            </Box>
+                            </div>
                         )}
-                    </Collapse>
-                </Paper>
+                    </Accordion>
+                </div>
             )}
 
             {/* ── Delete confirmation dialog ── */}
-            <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-                <DialogTitle>Delete Database Connection?</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        This will permanently remove the database connection and all cached schema data for this project. This action cannot be undone.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-                    <Button
-                        color="error"
-                        variant="contained"
-                        onClick={handleDelete}
-                        disabled={deleting}
-                        startIcon={deleting ? <CircularProgress size={16} /> : <DeleteIcon />}
-                    >
-                        Delete
-                    </Button>
-                </DialogActions>
+            <Dialog
+                title="Delete Database Connection?"
+                modal
+                open={deleteDialogOpen}
+                onClose={() => setDeleteDialogOpen(false)}
+                onConfirm={handleDelete}
+                onCancel={() => setDeleteDialogOpen(false)}
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="warning"
+                confirmButton={{ disabled: deleting }}
+            >
+                This will permanently remove the database connection and all cached schema data for this project. This action cannot be undone.
             </Dialog>
-        </Box>
+        </div>
     );
 };
 

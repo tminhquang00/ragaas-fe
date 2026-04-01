@@ -1,31 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { Skeleton } from '@mui/material';
 import {
-    Box,
-    Typography,
     Button,
-    Grid,
-    Menu,
-    MenuItem,
-    ListItemIcon,
-    Skeleton,
-    Alert,
-    Tabs,
+    TabNavigation,
     Tab,
-    useTheme,
-} from '@mui/material';
-import {
-    Add as AddIcon,
-    Delete as DeleteIcon,
-    Archive as ArchiveIcon,
-    PlayArrow as ActivateIcon,
-} from '@mui/icons-material';
+    Notification,
+    Popover,
+} from '@bosch/react-frok';
+import { FrokIcon } from '../utils/iconAdapter';
 import { ProjectCard, CreateProjectDialog } from '../components/projects';
 import { ApiKeyModal } from '../components/common';
 import { useAuth } from '../context';
 import { Project, CreateProjectRequest, getUserRole } from '../types';
 
 export const ProjectsPage: React.FC = () => {
-    const theme = useTheme();
     const { apiClient, tenantId } = useAuth();
 
     const [projects, setProjects] = useState<Project[]>([]);
@@ -159,78 +147,82 @@ export const ProjectsPage: React.FC = () => {
     const filteredProjects = projects;
 
     return (
-        <Box>
+        <div>
             {/* Header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Box>
-                    <Typography variant="h4" fontWeight={700} gutterBottom>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <div>
+                    <h4 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>
                         Projects
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary">
+                    </h4>
+                    <p style={{ color: 'var(--app-text-secondary)' }}>
                         Manage your RAG knowledge bases
-                    </Typography>
-                </Box>
+                    </p>
+                </div>
                 <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
+                    mode="primary"
+                    icon="add"
                     onClick={() => setCreateDialogOpen(true)}
                 >
                     Create Project
                 </Button>
-            </Box>
+            </div>
 
             {/* Filters */}
-            <Tabs
-                value={statusFilter}
-                onChange={(_, v) => setStatusFilter(v)}
-                sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
-            >
-                <Tab label="All" value="all" />
-                <Tab label="Active" value="active" />
-                <Tab label="Draft" value="draft" />
-                <Tab label="Archived" value="archived" />
-            </Tabs>
+            <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--app-border)' }}>
+                <TabNavigation
+                    selectedValue={statusFilter}
+                    onTabSelect={(_ev, data) => setStatusFilter(data.value as string)}
+                >
+                    <Tab value="all">All</Tab>
+                    <Tab value="active">Active</Tab>
+                    <Tab value="draft">Draft</Tab>
+                    <Tab value="archived">Archived</Tab>
+                </TabNavigation>
+            </div>
 
             {/* Error */}
             {error && (
-                <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
-                    {error}
-                </Alert>
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <Notification
+                        type="error"
+                        variant="banner"
+                        open={!!error}
+                        onCloseClick={() => setError('')}
+                    >
+                        {error}
+                    </Notification>
+                </div>
             )}
 
             {/* Projects Grid */}
             {loading ? (
-                <Grid container spacing={3}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                     {[...Array(6)].map((_, i) => (
-                        <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={i}>
-                            <Skeleton variant="rounded" height={200} />
-                        </Grid>
+                        <Skeleton key={i} variant="rounded" height={200} />
                     ))}
-                </Grid>
+                </div>
             ) : filteredProjects.length === 0 ? (
-                <Box
-                    sx={{
+                <div
+                    style={{
                         textAlign: 'center',
-                        py: 8,
-                        px: 4,
-                        borderRadius: 0,
-                        border: `1px dashed ${theme.palette.divider}`,
+                        padding: '4rem 2rem',
+                        border: `1px dashed var(--app-border)`,
                     }}
                 >
-                    <Typography variant="h6" color="text.secondary" gutterBottom>
+                    <h6 style={{ color: 'var(--app-text-secondary)', marginBottom: '0.5rem' }}>
                         No projects yet
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    </h6>
+                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
                         Create your first project to get started with AI-powered document Q&A
-                    </Typography>
+                    </p>
                     <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
+                        mode="primary"
+                        icon="add"
                         onClick={() => setCreateDialogOpen(true)}
                     >
                         Create Project
                     </Button>
-                </Box>
+                </div>
             ) : (
                 (() => {
                     const myProjects = filteredProjects.filter(
@@ -243,75 +235,88 @@ export const ProjectsPage: React.FC = () => {
                             (p.visibility === 'public' || p.members?.some((m) => m.user_id === tenantId))
                     );
                     return (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                             {/* My Projects */}
-                            <Box>
+                            <div>
                                 {sharedProjects.length > 0 && (
-                                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }} color="text.secondary">
+                                    <p style={{ fontWeight: 600, marginBottom: '1rem', color: 'var(--app-text-secondary)' }}>
                                         My Projects
-                                    </Typography>
+                                    </p>
                                 )}
                                 {myProjects.length === 0 && sharedProjects.length > 0 ? (
-                                    <Typography variant="body2" color="text.secondary">No owned projects.</Typography>
+                                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>No owned projects.</p>
                                 ) : (
-                                    <Grid container spacing={3}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                                         {myProjects.map((project) => (
-                                            <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={project.project_id}>
-                                                <ProjectCard project={project} currentUserId={tenantId} onMenuClick={handleMenuClick} />
-                                            </Grid>
+                                            <ProjectCard key={project.project_id} project={project} currentUserId={tenantId} onMenuClick={handleMenuClick} />
                                         ))}
-                                    </Grid>
+                                    </div>
                                 )}
-                            </Box>
+                            </div>
                             {/* Shared with me */}
                             {sharedProjects.length > 0 && (
-                                <Box>
-                                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }} color="text.secondary">
+                                <div>
+                                    <p style={{ fontWeight: 600, marginBottom: '1rem', color: 'var(--app-text-secondary)' }}>
                                         Shared with me
-                                    </Typography>
-                                    <Grid container spacing={3}>
+                                    </p>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                                         {sharedProjects.map((project) => (
-                                            <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={project.project_id}>
-                                                <ProjectCard project={project} currentUserId={tenantId} onMenuClick={handleMenuClick} />
-                                            </Grid>
+                                            <ProjectCard key={project.project_id} project={project} currentUserId={tenantId} onMenuClick={handleMenuClick} />
                                         ))}
-                                    </Grid>
-                                </Box>
+                                    </div>
+                                </div>
                             )}
-                        </Box>
+                        </div>
                     );
                 })()
             )}
 
             {/* Context Menu */}
-            <Menu
-                anchorEl={menuAnchor}
+            <Popover
                 open={Boolean(menuAnchor)}
-                onClose={handleMenuClose}
+                trigger={<span ref={(el) => { if (menuAnchor && el) el.style.display = 'none'; }} />}
+                position="bottom-left"
+                onOutsideClick={handleMenuClose}
+                onCloseKeyPressed={handleMenuClose}
+                isPopoverArrowMissing
+                style={menuAnchor ? {
+                    position: 'fixed',
+                    left: menuAnchor.getBoundingClientRect().left,
+                    top: menuAnchor.getBoundingClientRect().bottom,
+                    zIndex: 1300,
+                } : undefined}
             >
-                {selectedProject?.status === 'draft' && (
-                    <MenuItem onClick={handleActivate}>
-                        <ListItemIcon>
-                            <ActivateIcon fontSize="small" />
-                        </ListItemIcon>
-                        Activate
-                    </MenuItem>
-                )}
-                {selectedProject?.status === 'active' && (
-                    <MenuItem onClick={handleArchive}>
-                        <ListItemIcon>
-                            <ArchiveIcon fontSize="small" />
-                        </ListItemIcon>
-                        Archive
-                    </MenuItem>
-                )}
-                <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
-                    <ListItemIcon>
-                        <DeleteIcon fontSize="small" color="error" />
-                    </ListItemIcon>
-                    Delete
-                </MenuItem>
-            </Menu>
+                <div style={{ minWidth: 160, padding: '0.5rem 0' }}>
+                    {selectedProject?.status === 'draft' && (
+                        <div
+                            onClick={handleActivate}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 1rem', cursor: 'pointer' }}
+                            role="menuitem"
+                        >
+                            <FrokIcon name="PlayArrow" />
+                            <span>Activate</span>
+                        </div>
+                    )}
+                    {selectedProject?.status === 'active' && (
+                        <div
+                            onClick={handleArchive}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 1rem', cursor: 'pointer' }}
+                            role="menuitem"
+                        >
+                            <FrokIcon name="Archive" />
+                            <span>Archive</span>
+                        </div>
+                    )}
+                    <div
+                        onClick={handleDelete}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 1rem', cursor: 'pointer', color: 'var(--app-error)' }}
+                        role="menuitem"
+                    >
+                        <FrokIcon name="Delete" />
+                        <span>Delete</span>
+                    </div>
+                </div>
+            </Popover>
 
             {/* Create Project Dialog */}
             <CreateProjectDialog
@@ -329,6 +334,6 @@ export const ProjectsPage: React.FC = () => {
                 projectName={apiKeyModal.name}
                 onClose={() => setApiKeyModal({ open: false, key: '', name: '' })}
             />
-        </Box>
+        </div>
     );
 };

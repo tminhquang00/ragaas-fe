@@ -1,36 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import {
-    Box,
-    Typography,
     Button,
-    List,
-    ListItem,
-    ListItemText,
-    ListItemIcon,
-    IconButton,
     Chip,
     Tooltip,
-    Alert,
-    Skeleton,
+    Notification,
     Divider,
-    alpha,
-    useTheme,
-} from '@mui/material';
-import {
-    PersonAdd as PersonAddIcon,
-    Person as PersonIcon,
-    PersonRemove as PersonRemoveIcon,
-} from '@mui/icons-material';
+} from '@bosch/react-frok';
+import { Skeleton } from '@mui/material';
+import { FrokIcon } from '../../utils/iconAdapter';
+
 import { ProjectMemberResponse, ProjectRole } from '../../types';
 import { ShareDialog } from './ShareDialog';
 
 // ── Role badge colours ────────────────────────────────────────────────────────
-const ROLE_COLORS: Record<ProjectRole, string> = {
-    owner: '#7c3aed',
-    editor: '#2563eb',
-    viewer: '#6b7280',
-};
-
 const ROLE_LABEL: Record<ProjectRole, string> = {
     owner: 'Owner',
     editor: 'Editor',
@@ -41,17 +23,7 @@ interface RoleBadgeProps {
     role: ProjectRole;
 }
 export const RoleBadge: React.FC<RoleBadgeProps> = ({ role }) => (
-    <Chip
-        label={ROLE_LABEL[role]}
-        size="small"
-        sx={{
-            bgcolor: alpha(ROLE_COLORS[role], 0.12),
-            color: ROLE_COLORS[role],
-            fontWeight: 600,
-            borderRadius: 1,
-            fontSize: '0.72rem',
-        }}
-    />
+    <Chip label={ROLE_LABEL[role]} />
 );
 
 // ── MembersPanel ─────────────────────────────────────────────────────────────
@@ -72,7 +44,6 @@ export const MembersPanel: React.FC<MembersPanelProps> = ({
     onRevoke,
     fetchMembers,
 }) => {
-    const theme = useTheme();
     const [members, setMembers] = useState<ProjectMemberResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -116,109 +87,96 @@ export const MembersPanel: React.FC<MembersPanelProps> = ({
         new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
     return (
-        <Box>
+        <div>
             {/* Header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6" fontWeight={600}>
-                    Team Members
-                </Typography>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 style={{ fontWeight: 600, margin: 0 }}>Team Members</h3>
                 {isOwner && (
-                    <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<PersonAddIcon />}
-                        onClick={() => setShareOpen(true)}
-                    >
-                        Share
+                    <Button mode="secondary" onClick={() => setShareOpen(true)}>
+                        <FrokIcon name="PersonAdd" /> Share
                     </Button>
                 )}
-            </Box>
+            </div>
 
             {error && (
-                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-                    {error}
-                </Alert>
+                <div style={{ marginBottom: '1rem' }}>
+                    <Notification type="error" defaultOpen onCloseClick={() => setError('')}>
+                        {error}
+                    </Notification>
+                </div>
             )}
 
             {/* Member list */}
-            <Box
-                sx={{
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 1,
+            <div
+                style={{
+                    border: '1px solid var(--app-border)',
                     overflow: 'hidden',
                 }}
             >
                 {loading ? (
                     [...Array(3)].map((_, i) => (
-                        <Box key={i} sx={{ px: 2, py: 1.5 }}>
+                        <div key={i} style={{ padding: '0.75rem 1rem' }}>
                             <Skeleton variant="text" width="60%" />
-                        </Box>
+                        </div>
                     ))
                 ) : members.length === 0 ? (
-                    <Box sx={{ p: 4, textAlign: 'center' }}>
-                        <Typography variant="body2" color="text.secondary">
+                    <div style={{ padding: '2rem', textAlign: 'center' }}>
+                        <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>
                             No members yet. Share this project with your team.
-                        </Typography>
-                    </Box>
+                        </p>
+                    </div>
                 ) : (
-                    <List disablePadding>
+                    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                         {members.map((member, idx) => (
                             <React.Fragment key={member.user_id}>
-                                {idx > 0 && <Divider component="li" />}
-                                <ListItem
-                                    sx={{
-                                        py: 1.5,
-                                        '&:hover': {
-                                            background: alpha(theme.palette.primary.main, 0.04),
-                                        },
+                                {idx > 0 && <Divider />}
+                                <li
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '0.75rem 1rem',
+                                        gap: '0.75rem',
                                     }}
-                                    secondaryAction={
-                                        isOwner && member.role !== 'owner' ? (
-                                            <Tooltip title="Remove access">
-                                                <span>
-                                                    <IconButton
-                                                        size="small"
-                                                        color="error"
-                                                        disabled={removingId === member.user_id}
-                                                        onClick={() => handleRevoke(member.user_id)}
-                                                    >
-                                                        <PersonRemoveIcon fontSize="small" />
-                                                    </IconButton>
-                                                </span>
-                                            </Tooltip>
-                                        ) : undefined
-                                    }
                                 >
-                                    <ListItemIcon sx={{ minWidth: 36 }}>
-                                        <PersonIcon fontSize="small" color="action" />
-                                    </ListItemIcon>
-                                    <ListItemText
-                                        primary={
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <Typography variant="body2" fontWeight={500}>
-                                                    {member.user_id}
-                                                </Typography>
-                                                <RoleBadge role={member.role} />
-                                            </Box>
-                                        }
-                                        secondary={
-                                            member.added_at
-                                                ? `Added ${formatDate(member.added_at)}${member.added_by ? ` by ${member.added_by}` : ''}`
-                                                : undefined
-                                        }
-                                    />
-                                </ListItem>
+                                    <span style={{ display: 'flex', alignItems: 'center', minWidth: 28 }}>
+                                        <FrokIcon name="Person" />
+                                    </span>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                                                {member.user_id}
+                                            </span>
+                                            <RoleBadge role={member.role} />
+                                        </div>
+                                        {member.added_at && (
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
+                                                Added {formatDate(member.added_at)}{member.added_by ? ` by ${member.added_by}` : ''}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {isOwner && member.role !== 'owner' && (
+                                        <Tooltip content="Remove access">
+                                            <Button
+                                                mode="integrated"
+                                                disabled={removingId === member.user_id}
+                                                onClick={() => handleRevoke(member.user_id)}
+                                            >
+                                                <FrokIcon name="PersonRemove" />
+                                            </Button>
+                                        </Tooltip>
+                                    )}
+                                </li>
                             </React.Fragment>
                         ))}
-                    </List>
+                    </ul>
                 )}
-            </Box>
+            </div>
 
             <ShareDialog
                 open={shareOpen}
                 onClose={() => setShareOpen(false)}
                 onShare={handleShare}
             />
-        </Box>
+        </div>
     );
 };

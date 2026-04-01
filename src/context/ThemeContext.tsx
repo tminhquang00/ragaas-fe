@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
-import { ThemeProvider as MuiThemeProvider, CssBaseline } from '@mui/material';
-import { darkTheme, lightTheme } from '../theme';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { useFrokTheme } from '../utils/frokTheme';
 
 type ThemeMode = 'dark' | 'light';
 
@@ -13,32 +12,17 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [mode, setMode] = useState<ThemeMode>(() => {
-        const saved = localStorage.getItem('ragaas_theme');
-        return (saved as ThemeMode) || 'dark';
-    });
-
-    const toggleTheme = () => {
-        setMode((prev) => {
-            const newMode = prev === 'dark' ? 'light' : 'dark';
-            localStorage.setItem('ragaas_theme', newMode);
-            return newMode;
-        });
-    };
+    const { mode, toggleTheme } = useFrokTheme();
 
     const handleSetMode = (newMode: ThemeMode) => {
-        setMode(newMode);
-        localStorage.setItem('ragaas_theme', newMode);
+        if (newMode !== mode) {
+            toggleTheme();
+        }
     };
-
-    const theme = useMemo(() => (mode === 'dark' ? darkTheme : lightTheme), [mode]);
 
     return (
         <ThemeContext.Provider value={{ mode, toggleTheme, setMode: handleSetMode }}>
-            <MuiThemeProvider theme={theme}>
-                <CssBaseline />
-                {children}
-            </MuiThemeProvider>
+            {children}
         </ThemeContext.Provider>
     );
 };

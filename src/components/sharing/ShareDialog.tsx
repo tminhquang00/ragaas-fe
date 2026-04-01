@@ -1,35 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    TextField,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    Typography,
-    Box,
-    Alert,
-    CircularProgress,
-    alpha,
-    useTheme,
-    List,
-    ListItem,
-    ListItemAvatar,
-    ListItemText,
-    Avatar,
-    Paper,
+    Notification,
     Chip,
-    InputAdornment,
-} from '@mui/material';
-import {
-    PersonAdd as PersonAddIcon,
-    Search as SearchIcon,
-    Person as PersonIcon,
-} from '@mui/icons-material';
+    TextField,
+    Dropdown,
+    ActivityIndicator,
+} from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
+import { alpha } from '../../utils/frokTheme';
 import { useAuth } from '../../context';
 
 interface GraphUser {
@@ -82,7 +61,6 @@ interface ShareDialogProps {
 }
 
 export const ShareDialog: React.FC<ShareDialogProps> = ({ open, onClose, onShare }) => {
-    const theme = useTheme();
     const { getGraphToken } = useAuth();
     const useGraphSearch = import.meta.env.VITE_USE_AZURE_AD?.toLowerCase() === 'true';
 
@@ -199,82 +177,66 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({ open, onClose, onShare
 
     return (
         <Dialog
+            title="Share Project"
+            modal
             open={open}
             onClose={handleClose}
-            maxWidth="sm"
-            fullWidth
-            PaperProps={{
-                sx: {
-                    background: alpha(theme.palette.background.paper, 0.97),
-                    backdropFilter: 'blur(20px)',
-                },
-            }}
+            onConfirm={handleShare}
+            onCancel={handleClose}
+            confirmLabel={loading ? 'Sharing…' : 'Share'}
+            cancelLabel="Cancel"
+            confirmButton={{ disabled: loading || !canShare }}
         >
-            <DialogTitle>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <PersonAddIcon sx={{ color: 'primary.main' }} />
-                    <Typography variant="h6" fontWeight={600}>
-                        Share Project
-                    </Typography>
-                </Box>
-            </DialogTitle>
-
-            <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 2 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {error && (
-                    <Alert severity="error" onClose={() => setError('')}>
+                    <Notification type="error" defaultOpen onCloseClick={() => setError('')}>
                         {error}
-                    </Alert>
+                    </Notification>
                 )}
 
                 {/* User search / input */}
-                <Box ref={containerRef} sx={{ position: 'relative' }}>
-                    <TextField
-                        label={useGraphSearch ? 'Search user *' : 'User ID *'}
-                        value={inputValue}
-                        onChange={(e) => handleInputChange(e.target.value)}
-                        fullWidth
-                        autoFocus
-                        placeholder={useGraphSearch ? 'Type a name or NTID…' : 'e.g. TQU3HC'}
-                        autoComplete="off"
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !dropdownOpen) handleShare();
-                            if (e.key === 'Escape') setDropdownOpen(false);
-                        }}
-                        slotProps={{
-                            input: {
-                                startAdornment: useGraphSearch ? (
-                                    <InputAdornment position="start">
-                                        {searching ? (
-                                            <CircularProgress size={16} />
-                                        ) : (
-                                            <SearchIcon fontSize="small" color="action" />
-                                        )}
-                                    </InputAdornment>
-                                ) : undefined,
-                                endAdornment: selectedUserId ? (
-                                    <InputAdornment position="end">
-                                        <Chip
-                                            size="small"
-                                            label={selectedUserId}
-                                            color="primary"
-                                            variant="outlined"
-                                            onDelete={() => {
-                                                setSelectedUserId('');
-                                                setInputValue('');
-                                            }}
-                                            sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}
-                                        />
-                                    </InputAdornment>
-                                ) : undefined,
-                            },
-                        }}
-                    />
+                <div ref={containerRef} style={{ position: 'relative' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {useGraphSearch && (
+                            <span style={{ display: 'flex', alignItems: 'center' }}>
+                                {searching ? (
+                                    <ActivityIndicator size="small" />
+                                ) : (
+                                    <FrokIcon name="Search" />
+                                )}
+                            </span>
+                        )}
+                        <div style={{ flex: 1 }}>
+                            <TextField
+                                id="share-user-input"
+                                label={useGraphSearch ? 'Search user *' : 'User ID *'}
+                                value={inputValue}
+                                onChange={(e) => handleInputChange(e.target.value)}
+                                autoFocus
+                                placeholder={useGraphSearch ? 'Type a name or NTID…' : 'e.g. TQU3HC'}
+                                autoComplete="off"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !dropdownOpen) handleShare();
+                                    if (e.key === 'Escape') setDropdownOpen(false);
+                                }}
+                            />
+                        </div>
+                        {selectedUserId && (
+                            <Chip
+                                label={selectedUserId}
+                                buttonClose
+                                onClose={() => {
+                                    setSelectedUserId('');
+                                    setInputValue('');
+                                }}
+                            />
+                        )}
+                    </div>
 
                     {/* Suggestions dropdown */}
                     {dropdownOpen && suggestions.length > 0 && (
-                        <Paper
-                            elevation={8}
-                            sx={{
+                        <div
+                            style={{
                                 position: 'absolute',
                                 top: '100%',
                                 left: 0,
@@ -282,107 +244,98 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({ open, onClose, onShare
                                 zIndex: 1400,
                                 maxHeight: 280,
                                 overflowY: 'auto',
-                                mt: 0.5,
-                                border: `1px solid ${theme.palette.divider}`,
+                                marginTop: '4px',
+                                border: '1px solid var(--app-border)',
+                                background: 'var(--app-bg)',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                             }}
                         >
-                            <List disablePadding>
+                            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                                 {suggestions.map((user) => (
-                                    <ListItem
+                                    <li
                                         key={user.id}
-                                        component="div"
                                         onClick={() => handleSelectUser(user)}
-                                        sx={{
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.75rem',
+                                            padding: '0.5rem 1rem',
                                             cursor: 'pointer',
-                                            py: 1,
-                                            '&:hover': {
-                                                background: alpha(theme.palette.primary.main, 0.08),
-                                            },
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            (e.currentTarget as HTMLElement).style.background = alpha('var(--app-primary)', 0.08);
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            (e.currentTarget as HTMLElement).style.background = '';
                                         }}
                                     >
-                                        <ListItemAvatar sx={{ minWidth: 40 }}>
-                                            <Avatar sx={{ width: 32, height: 32, bgcolor: alpha(theme.palette.primary.main, 0.15) }}>
-                                                <PersonIcon fontSize="small" sx={{ color: 'primary.main' }} />
-                                            </Avatar>
-                                        </ListItemAvatar>
-                                        <ListItemText
-                                            primary={
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        {user.displayName}
-                                                    </Typography>
-                                                    <Chip
-                                                        label={user.ntid}
-                                                        size="small"
-                                                        variant="outlined"
-                                                        sx={{ fontFamily: 'monospace', fontSize: '0.7rem', height: 18 }}
-                                                    />
-                                                </Box>
-                                            }
-                                            secondary={
-                                                <Typography variant="caption" color="text.secondary" noWrap>
-                                                    {user.mail ?? user.userPrincipalName}
-                                                </Typography>
-                                            }
-                                        />
-                                    </ListItem>
+                                        {/* Avatar */}
+                                        <div
+                                            style={{
+                                                width: 32,
+                                                height: 32,
+                                                borderRadius: '50%',
+                                                backgroundColor: alpha('var(--app-primary)', 0.15),
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0,
+                                            }}
+                                        >
+                                            <FrokIcon name="Person" />
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                                                    {user.displayName}
+                                                </span>
+                                                <Chip label={user.ntid} />
+                                            </div>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                                                {user.mail ?? user.userPrincipalName}
+                                            </span>
+                                        </div>
+                                    </li>
                                 ))}
-                            </List>
-                        </Paper>
+                            </ul>
+                        </div>
                     )}
 
                     {searchError && (
-                        <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--app-error)', marginTop: '0.25rem', display: 'block' }}>
                             {searchError}
-                        </Typography>
+                        </span>
                     )}
-                </Box>
+                </div>
 
-                <FormControl fullWidth>
-                    <InputLabel>Role</InputLabel>
-                    <Select
-                        value={role}
-                        label="Role"
-                        onChange={(e) => setRole(e.target.value as 'editor' | 'viewer')}
-                    >
-                        <MenuItem value="viewer">Viewer</MenuItem>
-                        <MenuItem value="editor">Editor</MenuItem>
-                    </Select>
-                </FormControl>
+                <Dropdown
+                    label="Role"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as 'editor' | 'viewer')}
+                    options={[
+                        { name: 'Viewer', value: 'viewer' },
+                        { name: 'Editor', value: 'editor' },
+                    ]}
+                />
 
-                <Box
-                    sx={{
-                        p: 2,
-                        borderRadius: 1,
-                        background: alpha(theme.palette.info.main, 0.06),
-                        border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
+                <div
+                    style={{
+                        padding: '1rem',
+                        background: alpha('var(--app-primary)', 0.06),
+                        border: `1px solid ${alpha('var(--app-primary)', 0.15)}`,
                     }}
                 >
-                    <Typography variant="body2" fontWeight={600} gutterBottom color="text.primary">
+                    <p style={{ fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.875rem' }}>
                         Role descriptions:
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                    </p>
+                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
                         • <strong>Viewer</strong> — Can chat and read documents (read-only)
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    </p>
+                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>
                         • <strong>Editor</strong> — Can also upload/delete documents and edit config
-                    </Typography>
-                </Box>
-            </DialogContent>
-
-            <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
-                <Button onClick={handleClose} disabled={loading}>
-                    Cancel
-                </Button>
-                <Button
-                    variant="contained"
-                    onClick={handleShare}
-                    disabled={loading || !canShare}
-                    startIcon={loading ? <CircularProgress size={18} /> : null}
-                >
-                    {loading ? 'Sharing…' : 'Share'}
-                </Button>
-            </DialogActions>
+                    </p>
+                </div>
+            </div>
         </Dialog>
     );
 };

@@ -1,27 +1,11 @@
 import React from 'react';
 import {
-    Box,
     Checkbox,
     Chip,
-    Collapse,
-    IconButton,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
     Tooltip,
-    Typography,
-} from '@mui/material';
-import {
-    CheckCircle as IngestedIcon,
-    ChevronRight as ChevronRightIcon,
-    Description as FileIcon,
-    Error as DeletedIcon,
-    ExpandMore as ExpandMoreIcon,
-    Folder as FolderIcon,
-    FolderOpen as FolderOpenIcon,
-    Warning as ModifiedIcon,
-} from '@mui/icons-material';
+    Button,
+} from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
 import { SharePointFileNode, SharePointFileStatus } from '../../types';
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -33,44 +17,23 @@ function StatusBadge({ status }: { status: SharePointFileStatus | undefined }) {
 
     if (!status.exists) {
         return (
-            <Tooltip title="File no longer exists on SharePoint">
-                <Chip
-                    icon={<DeletedIcon />}
-                    label="Deleted"
-                    size="small"
-                    color="error"
-                    variant="outlined"
-                    sx={{ ml: 1, height: 20, fontSize: '0.65rem' }}
-                />
+            <Tooltip content="File no longer exists on SharePoint">
+                <Chip label="Deleted" />
             </Tooltip>
         );
     }
 
     if (status.changed) {
         return (
-            <Tooltip title="File has been modified on SharePoint since last ingestion">
-                <Chip
-                    icon={<ModifiedIcon />}
-                    label="Modified"
-                    size="small"
-                    color="warning"
-                    variant="outlined"
-                    sx={{ ml: 1, height: 20, fontSize: '0.65rem' }}
-                />
+            <Tooltip content="File has been modified on SharePoint since last ingestion">
+                <Chip label="Modified" />
             </Tooltip>
         );
     }
 
     return (
-        <Tooltip title="File is up-to-date with the last ingestion">
-            <Chip
-                icon={<IngestedIcon />}
-                label="Ingested"
-                size="small"
-                color="success"
-                variant="outlined"
-                sx={{ ml: 1, height: 20, fontSize: '0.65rem' }}
-            />
+        <Tooltip content="File is up-to-date with the last ingestion">
+            <Chip label="Ingested" />
         </Tooltip>
     );
 }
@@ -106,45 +69,38 @@ const FileRow: React.FC<FileRowProps> = ({ node, depth, selected, statusMap, onT
     const status = statusMap[id];
 
     return (
-        <ListItem
-            disablePadding
-            sx={{ pl: depth * 3 }}
-            secondaryAction={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pr: 1 }}>
-                    {node.size !== undefined && (
-                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60, textAlign: 'right' }}>
-                            {formatBytes(node.size)}
-                        </Typography>
-                    )}
-                    {node.lastModified && (
-                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 90, textAlign: 'right' }}>
-                            {formatDate(node.lastModified)}
-                        </Typography>
-                    )}
-                    <StatusBadge status={status} />
-                </Box>
-            }
+        <li
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0.25rem 0.5rem',
+                paddingLeft: `${depth * 1.5 + 0.5}rem`,
+                gap: '0.5rem',
+            }}
         >
-            <ListItemIcon sx={{ minWidth: 36 }}>
-                <Checkbox
-                    edge="start"
-                    size="small"
-                    checked={selected.has(id)}
-                    onChange={() => onToggle(id)}
-                    disableRipple
-                />
-            </ListItemIcon>
-            <ListItemIcon sx={{ minWidth: 32 }}>
-                <FileIcon fontSize="small" color="action" />
-            </ListItemIcon>
-            <ListItemText
-                primary={
-                    <Typography variant="body2" noWrap sx={{ maxWidth: 280 }}>
-                        {node.name}
-                    </Typography>
-                }
+            <Checkbox
+                id={`checkbox-file-${id}`}
+                checked={selected.has(id)}
+                onChange={() => onToggle(id)}
             />
-        </ListItem>
+            <FrokIcon name="Description" />
+            <span style={{ flex: 1, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>
+                {node.name}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingRight: '0.5rem' }}>
+                {node.size !== undefined && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)', minWidth: 60, textAlign: 'right' }}>
+                        {formatBytes(node.size)}
+                    </span>
+                )}
+                {node.lastModified && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)', minWidth: 90, textAlign: 'right' }}>
+                        {formatDate(node.lastModified)}
+                    </span>
+                )}
+                <StatusBadge status={status} />
+            </div>
+        </li>
     );
 };
 
@@ -177,36 +133,33 @@ const FolderRow: React.FC<FolderRowProps> = ({ node, depth, selected, statusMap,
 
     return (
         <>
-            <ListItem disablePadding sx={{ pl: depth * 3 }}>
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                    <Checkbox
-                        edge="start"
-                        size="small"
-                        checked={isChecked}
-                        indeterminate={isIndeterminate}
-                        onChange={handleFolderCheck}
-                        disableRipple
-                    />
-                </ListItemIcon>
-                <IconButton size="small" onClick={() => setOpen(o => !o)} sx={{ mr: 0.5 }}>
-                    {open ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
-                </IconButton>
-                <ListItemIcon sx={{ minWidth: 28 }}>
-                    {open
-                        ? <FolderOpenIcon fontSize="small" color="primary" />
-                        : <FolderIcon fontSize="small" color="primary" />
-                    }
-                </ListItemIcon>
-                <ListItemText
-                    primary={
-                        <Typography variant="body2" fontWeight={500}>
-                            {node.name}
-                        </Typography>
-                    }
+            <li
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0.25rem 0.5rem',
+                    paddingLeft: `${depth * 1.5 + 0.5}rem`,
+                    gap: '0.25rem',
+                }}
+            >
+                <Checkbox
+                    id={`checkbox-folder-${node.name}-${depth}`}
+                    checked={isChecked}
+                    indeterminate={isIndeterminate}
+                    onChange={handleFolderCheck}
                 />
-            </ListItem>
+                <Button mode="integrated" onClick={() => setOpen(o => !o)} style={{ padding: '0.125rem' }}>
+                    {open ? <FrokIcon name="ExpandMore" /> : <FrokIcon name="ChevronRight" />}
+                </Button>
+                <span style={{ display: 'flex', alignItems: 'center', minWidth: 24 }}>
+                    {open ? <FrokIcon name="Folder" /> : <FrokIcon name="Folder" />}
+                </span>
+                <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                    {node.name}
+                </span>
+            </li>
 
-            <Collapse in={open} timeout="auto" unmountOnExit>
+            <div style={{ maxHeight: open ? '9999px' : '0px', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
                 {node.children && node.children.length > 0 ? (
                     <SharePointFileTree
                         nodes={node.children}
@@ -216,17 +169,13 @@ const FolderRow: React.FC<FolderRowProps> = ({ node, depth, selected, statusMap,
                         onToggle={onToggle}
                     />
                 ) : (
-                    <ListItem sx={{ pl: (depth + 1) * 3 + 4 }}>
-                        <ListItemText
-                            primary={
-                                <Typography variant="caption" color="text.disabled">
-                                    Empty folder
-                                </Typography>
-                            }
-                        />
-                    </ListItem>
+                    <li style={{ paddingLeft: `${(depth + 1) * 1.5 + 4}rem`, listStyle: 'none' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
+                            Empty folder
+                        </span>
+                    </li>
                 )}
-            </Collapse>
+            </div>
         </>
     );
 };
@@ -257,7 +206,7 @@ export const SharePointFileTree: React.FC<SharePointFileTreeProps> = ({
     statusMap,
     onToggle,
 }) => (
-    <List dense disablePadding>
+    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
         {nodes.map((node, idx) =>
             node.type === 'folder' ? (
                 <FolderRow
@@ -281,5 +230,5 @@ export const SharePointFileTree: React.FC<SharePointFileTreeProps> = ({
                 )
             )
         )}
-    </List>
+    </ul>
 );

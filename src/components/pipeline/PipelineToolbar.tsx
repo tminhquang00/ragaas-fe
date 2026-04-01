@@ -1,36 +1,15 @@
 import React, { useState } from 'react';
-import {
-    Box,
-    Paper,
-    Typography,
-    Tooltip,
-    IconButton,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
-} from '@mui/material';
-import {
-    Search as SearchIcon,
-    AutoGraph as GenerateIcon,
-    Label as ClassifyIcon,
-    CallSplit as RouteIcon,
-    Transform as TransformIcon,
-    Merge as ParallelIcon,
-    SmartToy as AgentIcon,
-    DragIndicator as DragIcon,
-    ChevronLeft as ChevronLeftIcon,
-    ChevronRight as ChevronRightIcon,
-} from '@mui/icons-material';
+import { Tile, Tooltip, Button } from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
 
 const STEP_TYPES = [
-    { type: 'retrieve', label: 'Retrieve', icon: <SearchIcon />, color: 'primary' },
-    { type: 'generate', label: 'Generate', icon: <GenerateIcon />, color: 'success' },
-    { type: 'classify', label: 'Classify', icon: <ClassifyIcon />, color: 'secondary' },
-    { type: 'route', label: 'Route', icon: <RouteIcon />, color: 'warning' },
-    { type: 'transform', label: 'Transform', icon: <TransformIcon />, color: 'info' },
-    { type: 'parallel', label: 'Parallel', icon: <ParallelIcon />, color: 'info' },
-    { type: 'agent', label: 'Agent', icon: <AgentIcon />, color: 'error' },
+    { type: 'retrieve', label: 'Retrieve', icon: 'Search', color: '#007bc0' },
+    { type: 'generate', label: 'Generate', icon: 'AutoGraph', color: '#18837e' },
+    { type: 'classify', label: 'Classify', icon: 'Label', color: '#9c27b0' },
+    { type: 'route', label: 'Route', icon: 'CallSplit', color: '#ed6c02' },
+    { type: 'transform', label: 'Transform', icon: 'Transform', color: '#0288d1' },
+    { type: 'parallel', label: 'Parallel', icon: 'Merge', color: '#0288d1' },
+    { type: 'agent', label: 'Agent', icon: 'SmartToy', color: '#d32f2f' },
 ];
 
 export const PipelineToolbar = () => {
@@ -42,88 +21,77 @@ export const PipelineToolbar = () => {
     };
 
     return (
-        <Paper
-            elevation={3}
-            sx={{
+        <Tile
+            background="primary"
+            style={{
                 width: collapsed ? 60 : 240,
                 transition: 'width 0.2s',
                 display: 'flex',
                 flexDirection: 'column',
-                borderRight: 1,
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
+                borderRight: '1px solid var(--bosch-gray-75)',
                 overflow: 'hidden',
                 zIndex: 2,
+                padding: 0,
             }}
         >
-            <Box
-                sx={{
-                    p: 1,
+            <div
+                style={{
+                    padding: '0.5rem',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: collapsed ? 'center' : 'space-between',
-                    borderBottom: 1,
-                    borderColor: 'divider',
+                    borderBottom: '1px solid var(--bosch-gray-75)',
                 }}
             >
                 {!collapsed && (
-                    <Typography variant="subtitle2" fontWeight="bold">
+                    <strong style={{ fontSize: '0.875rem' }}>
                         Pipeline Steps
-                    </Typography>
+                    </strong>
                 )}
-                <IconButton onClick={() => setCollapsed(!collapsed)} size="small">
-                    {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-                </IconButton>
-            </Box>
+                <Button mode="integrated" icon={collapsed ? 'right' : 'left'} onClick={() => setCollapsed(!collapsed)} />
+            </div>
 
-            <Box sx={{ overflowY: 'auto', flex: 1, p: 1 }}>
-                <List dense sx={{ p: 0 }}>
-                    {STEP_TYPES.map((step) => (
-                        <Tooltip
-                            key={step.type}
-                            title={collapsed ? step.label : ''}
-                            placement="right"
+            <div style={{ overflowY: 'auto', flex: 1, padding: '0.5rem' }}>
+                {STEP_TYPES.map((step) => (
+                    <Tooltip
+                        key={step.type}
+                        content={collapsed ? step.label : ''}
+                    >
+                        <div
+                            draggable
+                            onDragStart={(event) => onDragStart(event, step.type)}
+                            style={{
+                                marginBottom: '0.5rem',
+                                border: '1px solid var(--bosch-gray-75)',
+                                cursor: 'grab',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: collapsed ? 'center' : 'flex-start',
+                                padding: '0.5rem',
+                                gap: '0.5rem',
+                            }}
                         >
-                            <ListItem
-                                draggable
-                                onDragStart={(event) => onDragStart(event, step.type)}
-                                sx={{
-                                    mb: 1,
-                                    border: 1,
-                                    borderColor: 'divider',
-                                    borderRadius: 0,
-                                    bgcolor: 'background.default',
-                                    cursor: 'grab',
-                                    '&:hover': {
-                                        bgcolor: 'action.hover',
-                                        borderColor: `${step.color}.main`,
-                                    },
-                                    justifyContent: collapsed ? 'center' : 'flex-start',
-                                    p: 1,
-                                }}
-                            >
-                                <ListItemIcon sx={{ minWidth: collapsed ? 'auto' : 36, color: `${step.color}.main` }}>
-                                    {step.icon}
-                                </ListItemIcon>
-                                {!collapsed && (
-                                    <>
-                                        <ListItemText primary={step.label} />
-                                        <DragIcon fontSize="small" color="disabled" />
-                                    </>
-                                )}
-                            </ListItem>
-                        </Tooltip>
-                    ))}
-                </List>
-            </Box>
+                            <span style={{ color: step.color, display: 'flex', flexShrink: 0 }}>
+                                <FrokIcon name={step.icon} />
+                            </span>
+                            {!collapsed && (
+                                <>
+                                    <span style={{ flex: 1, fontSize: '0.875rem' }}>{step.label}</span>
+                                    <FrokIcon name="DragIndicator" style={{ color: '#bdbdbd' }} />
+                                </>
+                            )}
+                        </div>
+                    </Tooltip>
+                ))}
+            </div>
 
             {!collapsed && (
-                <Box sx={{ p: 2, bgcolor: 'background.default', borderTop: 1, borderColor: 'divider' }}>
-                    <Typography variant="caption" color="text.secondary">
+                <div style={{ padding: '1rem', borderTop: '1px solid var(--bosch-gray-75)' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#757575' }}>
                         Drag steps onto the canvas to add them to your pipeline.
-                    </Typography>
-                </Box>
+                    </span>
+                </div>
             )}
-        </Paper>
+        </Tile>
     );
 };

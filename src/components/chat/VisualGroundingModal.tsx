@@ -1,25 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import {
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    IconButton,
-    Box,
-    Typography,
-    CircularProgress,
-    Chip,
-    useTheme,
-    alpha,
-} from '@mui/material';
-import {
-    Close as CloseIcon,
-    OpenInNew as OpenInNewIcon,
-    ZoomIn as ZoomInIcon,
-    ZoomOut as ZoomOutIcon,
-    RestartAlt as ResetIcon,
-    NavigateBefore as PrevIcon,
-    NavigateNext as NextIcon,
-} from '@mui/icons-material';
+import { Dialog, Chip, ActivityIndicator, Button } from '@bosch/react-frok';
+import { alpha, cssVar } from '../../utils/frokTheme';
 import { getApiClient } from '../../services/api';
 import { SourceReference } from '../../types';
 
@@ -36,7 +17,6 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
     source,
     baseUrl = '',
 }) => {
-    const theme = useTheme();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [zoom, setZoom] = useState(1);
@@ -159,204 +139,158 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
     return (
         <Dialog
             open={open}
+            modal={true}
+            title={source.document_name}
             onClose={onClose}
-            maxWidth="lg"
-            fullWidth
-            PaperProps={{
-                sx: {
-                    maxHeight: '90vh',
-                    background: theme.palette.background.paper,
-                },
-            }}
+            className="visual-grounding-dialog"
         >
-            <DialogTitle
-                sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-                    py: 1.5,
-                }}
-            >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="h6" fontWeight={600}>
-                        {source.document_name}
-                    </Typography>
+            {/* Custom header with page controls and zoom */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {hasMultiplePages ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', ml: 1, p: 0.5, borderRadius: 1, background: alpha(theme.palette.divider, 0.05), border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
-                            <IconButton 
-                                size="small" 
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Button
+                                mode="integrated"
+                                icon="left"
                                 onClick={() => setCurrentPage(p => Math.max(minPage, p - 1))}
                                 disabled={currentPage <= minPage}
-                                sx={{ p: 0.5 }}
-                            >
-                                <PrevIcon fontSize="small" />
-                            </IconButton>
-                            <Typography variant="caption" sx={{ px: 1, minWidth: 60, textAlign: 'center', fontWeight: 500 }}>
+                                aria-label="Previous page"
+                            />
+                            <span style={{ padding: '0 8px', minWidth: 60, textAlign: 'center', fontWeight: 500, fontSize: '0.75rem' }}>
                                 Page {currentPage}
-                            </Typography>
-                            <IconButton 
-                                size="small" 
+                            </span>
+                            <Button
+                                mode="integrated"
+                                icon="right"
                                 onClick={() => setCurrentPage(p => Math.min(maxPage, p + 1))}
                                 disabled={currentPage >= maxPage}
-                                sx={{ p: 0.5 }}
-                            >
-                                <NextIcon fontSize="small" />
-                            </IconButton>
-                        </Box>
+                                aria-label="Next page"
+                            />
+                        </div>
                     ) : (
                         source.page_number !== undefined && (
-                            <Chip
-                                size="small"
-                                label={`Page ${source.page_number + 1}`}
-                                color="primary"
-                                variant="outlined"
-                            />
+                            <Chip label={`Page ${source.page_number + 1}`} />
                         )
                     )}
                     {source.source_type && (
-                        <Chip
-                            size="small"
-                            label={source.source_type.toUpperCase()}
-                            variant="outlined"
-                        />
+                        <Chip label={source.source_type.toUpperCase()} />
                     )}
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <IconButton size="small" onClick={handleZoomOut} disabled={zoom <= 0.5}>
-                        <ZoomOutIcon />
-                    </IconButton>
-                    <Typography variant="caption" sx={{ mx: 1, minWidth: 45, textAlign: 'center' }}>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Button mode="integrated" icon="zoom-out" onClick={handleZoomOut} disabled={zoom <= 0.5} aria-label="Zoom out" />
+                    <span style={{ margin: '0 8px', minWidth: 45, textAlign: 'center', fontSize: '0.75rem' }}>
                         {Math.round(zoom * 100)}%
-                    </Typography>
-                    <IconButton size="small" onClick={handleZoomIn} disabled={zoom >= 3}>
-                        <ZoomInIcon />
-                    </IconButton>
-                    <IconButton size="small" onClick={handleResetZoom}>
-                        <ResetIcon />
-                    </IconButton>
+                    </span>
+                    <Button mode="integrated" icon="zoom-in" onClick={handleZoomIn} disabled={zoom >= 3} aria-label="Zoom in" />
+                    <Button mode="integrated" icon="reset" onClick={handleResetZoom} aria-label="Reset zoom" />
                     {imageUrl && (
-                        <IconButton size="small" onClick={handleOpenInNewTab}>
-                            <OpenInNewIcon />
-                        </IconButton>
+                        <Button mode="integrated" icon={"open-in-new" as any} onClick={handleOpenInNewTab} aria-label="Open in new tab" />
                     )}
-                    <IconButton size="small" onClick={onClose}>
-                        <CloseIcon />
-                    </IconButton>
-                </Box>
-            </DialogTitle>
-            <DialogContent sx={{ p: 0 }}>
-                {/* Excerpt */}
-                <Box
-                    sx={{
-                        p: 2,
-                        background: alpha(theme.palette.primary.main, 0.05),
-                        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                    }}
-                >
-                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                        "{source.excerpt}"
-                    </Typography>
-                    <Box sx={{ mt: 1, display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <Chip
-                            size="small"
-                            label={`${Math.round(source.relevance_score * 100)}% match`}
-                            color="success"
-                            sx={{ height: 20, fontSize: '0.7rem' }}
-                        />
-                        {source.position && (
-                            <Typography variant="caption" color="text.secondary">
-                                {source.position}
-                            </Typography>
+                </div>
+            </div>
+
+            {/* Excerpt */}
+            <div
+                style={{
+                    padding: 16,
+                    background: alpha(cssVar('--g-blue-50'), 0.05),
+                    borderBottom: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
+                    marginBottom: 16,
+                }}
+            >
+                <p style={{ fontStyle: 'italic', color: 'var(--minor__enabled__default__front, #666)', margin: 0, fontSize: '0.875rem' }}>
+                    "{source.excerpt}"
+                </p>
+                <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <Chip label={`${Math.round(source.relevance_score * 100)}% match`} />
+                    {source.position && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--minor__enabled__default__front, #666)' }}>
+                            {source.position}
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            {/* Image container */}
+            <div
+                style={{
+                    padding: 16,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'flex-start',
+                    minHeight: 400,
+                    maxHeight: 'calc(90vh - 300px)',
+                    overflow: 'auto',
+                    background: alpha('var(--major__enabled__default__front, #999)', 0.05),
+                }}
+            >
+                {loading && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 0' }}>
+                        <ActivityIndicator size="medium" />
+                        <p style={{ marginTop: 16, color: 'var(--minor__enabled__default__front, #666)', fontSize: '0.875rem' }}>
+                            Loading page image...
+                        </p>
+                    </div>
+                )}
+
+                {error && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 0' }}>
+                        <p style={{ color: cssVar('--g-red-50'), marginBottom: 8 }}>
+                            {error}
+                        </p>
+                        <p style={{ color: 'var(--minor__enabled__default__front, #666)', fontSize: '0.875rem' }}>
+                            Visual grounding may not be available for this source.
+                        </p>
+                        {source.source_url && (
+                            <a
+                                href={source.source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ marginTop: 16, color: cssVar('--g-blue-50'), textDecoration: 'underline' }}
+                            >
+                                Open source document
+                            </a>
                         )}
-                    </Box>
-                </Box>
+                    </div>
+                )}
 
-                {/* Image container */}
-                <Box
-                    sx={{
-                        p: 2,
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'flex-start',
-                        minHeight: 400,
-                        maxHeight: 'calc(90vh - 200px)',
-                        overflow: 'auto',
-                        background: alpha(theme.palette.grey[500], 0.05),
-                    }}
-                >
-                    {loading && (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
-                            <CircularProgress size={48} />
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                                Loading page image...
-                            </Typography>
-                        </Box>
-                    )}
+                {imageUrl && (
+                    <img
+                        src={imageUrl}
+                        alt={`Page ${currentPage} of ${source.document_name}`}
+                        onLoad={handleImageLoad}
+                        onError={handleImageError}
+                        style={{
+                            maxWidth: '100%',
+                            height: 'auto',
+                            transform: `scale(${zoom})`,
+                            transformOrigin: 'top center',
+                            transition: 'transform 0.2s ease-in-out',
+                            willChange: 'transform',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                            display: loading ? 'none' : 'block',
+                        }}
+                    />
+                )}
 
-                    {error && (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
-                            <Typography variant="body1" color="error" gutterBottom>
-                                {error}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Visual grounding may not be available for this source.
-                            </Typography>
-                            {source.source_url && (
-                                <Typography
-                                    component="a"
-                                    href={source.source_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    sx={{ mt: 2, color: 'primary.main', textDecoration: 'underline' }}
-                                >
-                                    Open source document
-                                </Typography>
-                            )}
-                        </Box>
-                    )}
-
-                    {imageUrl && (
-                        <Box
-                            component="img"
-                            src={imageUrl}
-                            alt={`Page ${currentPage} of ${source.document_name}`}
-                            onLoad={handleImageLoad}
-                            onError={handleImageError}
-                            sx={{
-                                maxWidth: '100%',
-                                height: 'auto',
-                                transform: `scale(${zoom})`,
-                                transformOrigin: 'top center',
-                                transition: 'transform 0.2s ease-in-out',
-                                willChange: 'transform', // GPU acceleration for smooth zoom
-                                boxShadow: theme.shadows[4],
-                                borderRadius: 0,
-                                display: loading ? 'none' : 'block',
-                            }}
-                        />
-                    )}
-
-                    {!imageUrl && !loading && !error && (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
-                            <Typography variant="body1" color="text.secondary" gutterBottom>
-                                Visual grounding not available for this source.
-                            </Typography>
-                            {source.source_url && (
-                                <Typography
-                                    component="a"
-                                    href={source.source_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    sx={{ mt: 2, color: 'primary.main', textDecoration: 'underline' }}
-                                >
-                                    Open source document
-                                </Typography>
-                            )}
-                        </Box>
-                    )}
-                </Box>
-            </DialogContent>
+                {!imageUrl && !loading && !error && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 0' }}>
+                        <p style={{ color: 'var(--minor__enabled__default__front, #666)', marginBottom: 8 }}>
+                            Visual grounding not available for this source.
+                        </p>
+                        {source.source_url && (
+                            <a
+                                href={source.source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ marginTop: 16, color: cssVar('--g-blue-50'), textDecoration: 'underline' }}
+                            >
+                                Open source document
+                            </a>
+                        )}
+                    </div>
+                )}
+            </div>
         </Dialog>
     );
 };

@@ -1,25 +1,7 @@
 import { useEffect, useState } from 'react';
 import { PipelineNode } from '../../utils/pipelineFlowUtils';
-import {
-    Typography,
-    Box,
-    Chip,
-    IconButton,
-    Tooltip,
-    Paper,
-    TextField,
-    Select,
-    MenuItem,
-    FormControl,
-    InputLabel,
-    Divider
-} from '@mui/material';
-import {
-    Settings as SettingsIcon,
-    ChevronRight as ChevronRightIcon,
-    ChevronLeft as ChevronLeftIcon,
-    Delete as DeleteIcon
-} from '@mui/icons-material';
+import { Tile, Chip, Divider, Tooltip, TextField, TextArea, Dropdown, Button } from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
 
 interface PipelinePropertyPanelProps {
     selectedNode: PipelineNode | null;
@@ -43,49 +25,40 @@ const ConfigField = ({
 }) => {
     if (type === 'select') {
         return (
-            <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                <InputLabel>{label}</InputLabel>
-                <Select
-                    value={value || ''}
+            <div style={{ marginBottom: '1rem' }}>
+                <Dropdown
                     label={label}
-                    onChange={(e) => onChange(e.target.value)}
-                >
-                    {options.map((opt) => (
-                        <MenuItem key={opt} value={opt}>
-                            {opt}
-                        </MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
+                    value={value || ''}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
+                    options={options.map((opt) => ({ name: opt, value: opt }))}
+                />
+            </div>
         );
     }
 
     if (type === 'textarea') {
         return (
-            <TextField
-                fullWidth
-                label={label}
-                value={value || ''}
-                onChange={(e) => onChange(e.target.value)}
-                multiline
-                minRows={3}
-                maxRows={10}
-                size="small"
-                sx={{ mb: 2 }}
-            />
+            <div style={{ marginBottom: '1rem' }}>
+                <TextArea
+                    id={`config-textarea-${label}`}
+                    label={label}
+                    value={value || ''}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
+                    rows={3}
+                />
+            </div>
         );
     }
 
     return (
-        <TextField
-            fullWidth
-            label={label}
-            value={value || ''}
-            onChange={(e) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)}
-            type={type === 'number' ? 'number' : 'text'}
-            size="small"
-            sx={{ mb: 2 }}
-        />
+        <div style={{ marginBottom: '1rem' }}>
+            <TextField
+                id={`config-field-${label}`}
+                label={label}
+                value={value || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)}
+            />
+        </div>
     );
 };
 
@@ -129,19 +102,6 @@ const getConfigSchema = (type: string) => {
     }
 };
 
-// Get step type color
-const getStepTypeColor = (type: string): "primary" | "secondary" | "success" | "warning" | "info" | "error" => {
-    const colorMap: Record<string, "primary" | "secondary" | "success" | "warning" | "info" | "error"> = {
-        'retrieve': 'primary',
-        'generate': 'success',
-        'transform': 'warning',
-        'parallel': 'info',
-        'filter': 'secondary',
-        'tool_call': 'error',
-    };
-    return colorMap[type] || 'primary';
-};
-
 export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode }: PipelinePropertyPanelProps) => {
     const [collapsed, setCollapsed] = useState(false);
     const [config, setConfig] = useState<Record<string, any>>({});
@@ -178,110 +138,98 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
 
     if (!selectedNode) {
         return (
-            <Paper
-                elevation={3}
-                sx={{
+            <Tile
+                background="primary"
+                style={{
                     width: collapsed ? 50 : 360,
                     transition: 'width 0.2s',
-                    borderLeft: 1,
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
+                    borderLeft: '1px solid var(--bosch-gray-75)',
                     display: 'flex',
                     flexDirection: 'column',
                     zIndex: 2,
                     height: '100%',
+                    padding: 0,
                 }}
             >
-                <Box sx={{ p: 1, display: 'flex', justifyContent: collapsed ? 'center' : 'flex-start' }}>
-                    <IconButton onClick={() => setCollapsed(!collapsed)} size="small">
-                        {collapsed ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-                    </IconButton>
-                </Box>
+                <div style={{ padding: '0.5rem', display: 'flex', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+                    <Button mode="integrated" icon={collapsed ? 'left' : 'right'} onClick={() => setCollapsed(!collapsed)} />
+                </div>
                 {!collapsed && (
-                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3, gap: 2, opacity: 0.7 }}>
-                        <SettingsIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
-                        <Typography variant="body2" color="text.secondary" align="center">
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', gap: '1rem', opacity: 0.7 }}>
+                        <FrokIcon name="Settings" style={{ fontSize: 48, color: '#bdbdbd' }} />
+                        <span style={{ fontSize: '0.875rem', color: '#757575', textAlign: 'center' }}>
                             Select a node to edit properties
-                        </Typography>
-                    </Box>
+                        </span>
+                    </div>
                 )}
-            </Paper>
+            </Tile>
         );
     }
 
     const schema = getConfigSchema(selectedNode.data.type || 'transform');
 
     return (
-        <Paper
-            elevation={3}
-            sx={{
+        <Tile
+            background="primary"
+            style={{
                 width: collapsed ? 50 : 360,
                 transition: 'width 0.2s',
-                borderLeft: 1,
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
+                borderLeft: '1px solid var(--bosch-gray-75)',
                 display: 'flex',
                 flexDirection: 'column',
                 zIndex: 2,
                 height: '100%',
+                padding: 0,
             }}
         >
             {/* Header */}
-            <Box sx={{ p: 1, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--bosch-gray-75)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 {!collapsed && (
-                    <Typography variant="subtitle2" fontWeight="bold">
+                    <strong style={{ fontSize: '0.875rem' }}>
                         Properties
-                    </Typography>
+                    </strong>
                 )}
-                <IconButton onClick={() => setCollapsed(!collapsed)} size="small">
-                    {collapsed ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-                </IconButton>
-            </Box>
+                <Button mode="integrated" icon={collapsed ? 'left' : 'right'} onClick={() => setCollapsed(!collapsed)} />
+            </div>
 
             {!collapsed && (
-                <Box
-                    sx={{
+                <div
+                    style={{
                         flex: 1,
                         overflowY: 'auto',
-                        p: 2,
+                        padding: '1rem',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 2
+                        gap: '1rem'
                     }}
                 >
-                    <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
                         <Chip
-                            label={selectedNode.data.type}
-                            size="small"
-                            color={getStepTypeColor(selectedNode.data.type || 'transform')}
-                            sx={{
+                            label={selectedNode.data.type || 'unknown'}
+                            style={{
                                 textTransform: 'uppercase',
                                 fontWeight: 700,
                                 fontSize: 10,
-                                borderRadius: 0,
                             }}
                         />
-                        <Box sx={{ flex: 1 }} />
+                        <div style={{ flex: 1 }} />
                         {onDeleteNode && (
-                            <Tooltip title="Delete Step">
-                                <IconButton size="small" color="error" onClick={() => onDeleteNode(selectedNode.id)}>
-                                    <DeleteIcon fontSize="small" />
-                                </IconButton>
+                            <Tooltip content="Delete Step">
+                                <Button mode="integrated" icon="delete" onClick={() => onDeleteNode(selectedNode.id)} />
                             </Tooltip>
                         )}
-                    </Box>
+                    </div>
 
                     <TextField
-                        fullWidth
+                        id="pipeline-step-name"
                         label="Step Name"
                         value={label}
-                        onChange={(e) => handleLabelChange(e.target.value)}
-                        size="small"
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleLabelChange(e.target.value)}
                     />
 
-                    <Divider sx={{ my: 1 }}>
-                        <Typography variant="caption" color="text.secondary">CONFIGURATION</Typography>
-                    </Divider>
+                    <Divider />
+                    <span style={{ fontSize: '0.75rem', color: '#757575', textAlign: 'center' }}>CONFIGURATION</span>
+                    <Divider />
 
                     {schema.length > 0 ? (
                         schema.map((field) => (
@@ -295,37 +243,36 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
                             />
                         ))
                     ) : (
-                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        <span style={{ fontSize: '0.875rem', color: '#757575', fontStyle: 'italic' }}>
                             No specific configuration for this step type yet.
                             You can add custom properties below.
-                        </Typography>
+                        </span>
                     )}
 
                     {/* JSON Fallback for advanced usage or missing schema */}
-                    <Box sx={{ mt: 2 }}>
-                        <Typography variant="caption" color="text.secondary" gutterBottom>
+                    <div style={{ marginTop: '1rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#757575', display: 'block', marginBottom: '0.5rem' }}>
                             Raw Config (JSON)
-                        </Typography>
-                        <TextField
-                            fullWidth
-                            multiline
-                            minRows={4}
+                        </span>
+                        <TextArea
+                            id="pipeline-raw-config"
                             value={JSON.stringify(config, null, 2)}
-                            onChange={(e) => {
+                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
                                 try {
                                     const parsed = JSON.parse(e.target.value);
                                     setConfig(parsed);
                                     onUpdateNode(selectedNode.id, { ...selectedNode.data, config: parsed });
-                                } catch (err) {
+                                } catch {
                                     // Ignored
                                 }
                             }}
-                            sx={{ fontFamily: 'monospace', fontSize: 12 }}
+                            rows={4}
+                            style={{ fontFamily: 'monospace', fontSize: 12 }}
                         />
-                    </Box>
+                    </div>
 
-                </Box>
+                </div>
             )}
-        </Paper>
+        </Tile>
     );
 };

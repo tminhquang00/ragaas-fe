@@ -1,32 +1,18 @@
 import React, { useState } from 'react';
 import {
-    Alert,
-    Box,
+    Notification,
     Button,
     Checkbox,
-    CircularProgress,
-    Collapse,
+    ActivityIndicator,
     Divider,
-    FormControlLabel,
-    IconButton,
-    InputAdornment,
-    LinearProgress,
-    MenuItem,
-    Select,
-    Slider,
+    Dropdown,
     TextField,
     Tooltip,
-    Typography,
     Chip,
-} from '@mui/material';
-import {
-    Article as DocupediaIcon,
-    FileUpload as IngestIcon,
-    Key as TokenIcon,
-    Link as LinkIcon,
-    Visibility as ShowIcon,
-    VisibilityOff as HideIcon,
-} from '@mui/icons-material';
+    ProgressIndicator,
+} from '@bosch/react-frok';
+import { Slider } from '@mui/material';
+import { FrokIcon } from '../../utils/iconAdapter';
 
 import { RAGaaSClient } from '../../services/api';
 import { UploadTaskStatus } from '../../types';
@@ -106,111 +92,85 @@ export const DocupediaIngest: React.FC<DocupediaIngestProps> = ({
     // Render
 
     return (
-        <Box>
+        <div>
             {/* Info banner */}
-            <Box
-                sx={{
+            <div
+                style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 2,
-                    p: 2,
-                    mb: 2,
-                    bgcolor: 'background.paper',
-                    border: 1,
-                    borderColor: 'divider',
-                    borderRadius: 0,
+                    gap: '1rem',
+                    padding: '1rem',
+                    marginBottom: '1rem',
+                    background: 'var(--app-bg)',
+                    border: '1px solid var(--app-border)',
                 }}
             >
-                <DocupediaIcon color="primary" />
-                <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" fontWeight={600}>
+                <FrokIcon name="Article" />
+                <div style={{ flex: 1 }}>
+                    <p style={{ fontWeight: 600, fontSize: '0.875rem', margin: 0 }}>
                         Ingest from Docupedia / Confluence
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    </p>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
                         Paste a page URL and your personal access token. Pages are fetched,
                         converted to Markdown, and processed through the RAG pipeline in the
                         background.
-                    </Typography>
-                </Box>
-            </Box>
+                    </span>
+                </div>
+            </div>
 
             {/* Form */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
 
                 {/* URL */}
-                <TextField
-                    label="Docupedia / Confluence Page URL"
-                    placeholder="https://inside-docupedia.bosch.com/confluence/pages/viewpage.action?pageId=123456"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    size="small"
-                    fullWidth
-                    InputProps={{
-                        startAdornment: (
-                            <InputAdornment position="start">
-                                <LinkIcon fontSize="small" sx={{ color: 'action.active' }} />
-                            </InputAdornment>
-                        ),
-                    }}
-                    helperText="Supported: viewpage?pageId=..., spaces/.../pages/..., display/..."
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FrokIcon name="Link" />
+                    <div style={{ flex: 1 }}>
+                        <TextField
+                            id="docupedia-url"
+                            label="Docupedia / Confluence Page URL"
+                            placeholder="https://inside-docupedia.bosch.com/confluence/pages/viewpage.action?pageId=123456"
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                        />
+                    </div>
+                </div>
 
                 {/* Token */}
-                <TextField
-                    label="Personal Access Token"
-                    placeholder="Your Confluence PAT"
-                    type={showToken ? 'text' : 'password'}
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                    size="small"
-                    fullWidth
-                    InputProps={{
-                        startAdornment: (
-                            <InputAdornment position="start">
-                                <TokenIcon fontSize="small" sx={{ color: 'action.active' }} />
-                            </InputAdornment>
-                        ),
-                        endAdornment: (
-                            <InputAdornment position="end">
-                                <IconButton
-                                    size="small"
-                                    onClick={() => setShowToken((v) => !v)}
-                                    edge="end"
-                                    aria-label={showToken ? 'Hide token' : 'Show token'}
-                                >
-                                    {showToken
-                                        ? <HideIcon fontSize="small" />
-                                        : <ShowIcon fontSize="small" />
-                                    }
-                                </IconButton>
-                            </InputAdornment>
-                        ),
-                    }}
-                    helperText="Create a token at Docupedia Profile > Personal Access Tokens (Read permission)"
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FrokIcon name="Key" />
+                    <div style={{ flex: 1 }}>
+                        <TextField
+                            id="docupedia-token"
+                            label="Personal Access Token"
+                            placeholder="Your Confluence PAT"
+                            type={showToken ? 'text' : 'password'}
+                            value={token}
+                            onChange={(e) => setToken(e.target.value)}
+                        />
+                    </div>
+                    <Button
+                        mode="integrated"
+                        onClick={() => setShowToken((v) => !v)}
+                        aria-label={showToken ? 'Hide token' : 'Show token'}
+                    >
+                        {showToken ? <FrokIcon name="VisibilityOff" /> : <FrokIcon name="Visibility" />}
+                    </Button>
+                </div>
 
                 {/* Include children */}
-                <Box>
-                    <FormControlLabel
-                        control={
-                            <Checkbox
-                                checked={includeChildren}
-                                onChange={(e) => setIncludeChildren(e.target.checked)}
-                                size="small"
-                            />
-                        }
-                        label={
-                            <Typography variant="body2">
-                                Include child pages recursively
-                            </Typography>
-                        }
+                <div>
+                    <Checkbox
+                        id="include-children"
+                        label="Include child pages recursively"
+                        checked={includeChildren}
+                        onChange={(e) => setIncludeChildren((e.target as HTMLInputElement).checked)}
                     />
 
-                    <Collapse in={includeChildren}>
-                        <Box sx={{ pl: 4, pr: 2, pt: 1 }}>
-                            <Typography variant="caption" color="text.secondary" gutterBottom>
+                    <div style={{ maxHeight: includeChildren ? '200px' : '0px', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
+                        <div style={{ paddingLeft: '2rem', paddingRight: '1rem', paddingTop: '0.5rem' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
                                 Max depth: <strong>{maxDepth}</strong>
-                            </Typography>
+                            </span>
                             <Slider
                                 value={maxDepth}
                                 onChange={(_, val) => setMaxDepth(val as number)}
@@ -222,30 +182,31 @@ export const DocupediaIngest: React.FC<DocupediaIngestProps> = ({
                                 valueLabelDisplay="auto"
                                 aria-label="Max depth"
                             />
-                        </Box>
-                    </Collapse>
-                </Box>
+                        </div>
+                    </div>
+                </div>
 
                 {/* Image handling */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 120 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', minWidth: 120 }}>
                         Image handling
-                    </Typography>
-                    <Select
-                        value={imageHandling}
-                        onChange={(e) => setImageHandling(e.target.value as ImageHandling)}
-                        size="small"
-                        sx={{ minWidth: 220 }}
-                    >
-                        <MenuItem value="llm_describe">Describe images with AI</MenuItem>
-                        <MenuItem value="skip">Skip images</MenuItem>
-                    </Select>
-                </Box>
+                    </span>
+                    <div style={{ minWidth: 220 }}>
+                        <Dropdown
+                            value={imageHandling}
+                            onChange={(e) => setImageHandling(e.target.value as ImageHandling)}
+                            options={[
+                                { name: 'Describe images with AI', value: 'llm_describe' },
+                                { name: 'Skip images', value: 'skip' },
+                            ]}
+                        />
+                    </div>
+                </div>
 
                 {/* Action button */}
-                <Box>
+                <div>
                     <Tooltip
-                        title={
+                        content={
                             !url.trim() || !token.trim()
                                 ? 'Enter a page URL and personal access token to continue'
                                 : ''
@@ -253,89 +214,90 @@ export const DocupediaIngest: React.FC<DocupediaIngestProps> = ({
                     >
                         <span>
                             <Button
-                                variant="contained"
-                                startIcon={
-                                    ingesting
-                                        ? <CircularProgress size={16} color="inherit" />
-                                        : <IngestIcon />
-                                }
+                                mode="primary"
                                 onClick={handleIngest}
                                 disabled={!canIngest}
                             >
-                                {ingesting ? 'Starting...' : 'Start Ingestion'}
+                                {ingesting
+                                    ? <><ActivityIndicator size="small" /> Starting...</>
+                                    : <><FrokIcon name="FileUpload" /> Start Ingestion</>
+                                }
                             </Button>
                         </span>
                     </Tooltip>
-                </Box>
-            </Box>
+                </div>
+            </div>
 
             {/* Error */}
             {error && (
-                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-                    {error}
-                </Alert>
+                <div style={{ marginBottom: '1rem' }}>
+                    <Notification type="error" defaultOpen onCloseClick={() => setError(null)}>
+                        {error}
+                    </Notification>
+                </div>
             )}
 
             {/* Progress */}
             {showProgress && (
                 <>
-                    <Divider sx={{ mb: 2 }} />
-                    <Box
-                        sx={{
-                            p: 2,
-                            bgcolor: 'background.paper',
-                            border: 1,
-                            borderColor: 'divider',
-                            borderRadius: 0,
+                    <Divider />
+                    <div
+                        style={{
+                            padding: '1rem',
+                            marginTop: '1rem',
+                            background: 'var(--app-bg)',
+                            border: '1px solid var(--app-border)',
                         }}
                     >
-                        <Box
-                            sx={{
+                        <div
+                            style={{
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center',
-                                mb: 1,
+                                marginBottom: '0.5rem',
                             }}
                         >
-                            <Typography variant="subtitle2" color="primary">
+                            <span style={{ fontWeight: 600, color: 'var(--app-primary)', fontSize: '0.875rem' }}>
                                 Processing Docupedia Pages
-                            </Typography>
+                            </span>
                             <Chip
-                                size="small"
                                 label={`${uploadTaskStatus!.processed_files}/${uploadTaskStatus!.total_files} pages`}
-                                color="primary"
-                                variant="outlined"
                             />
-                        </Box>
-                        <LinearProgress
-                            variant="determinate"
+                        </div>
+                        <ProgressIndicator
+                            type="determinate"
                             value={progressPct}
-                            sx={{ height: 8, borderRadius: 0 }}
                         />
-                    </Box>
+                    </div>
                 </>
             )}
 
             {uploadTaskStatus?.status === 'completed' && (
-                <Alert severity="success" sx={{ mt: 2 }}>
-                    Ingestion complete —{' '}
-                    {uploadTaskStatus.processed_files} page
-                    {uploadTaskStatus.processed_files !== 1 ? 's' : ''} processed.
-                </Alert>
+                <div style={{ marginTop: '1rem' }}>
+                    <Notification type="success" defaultOpen>
+                        Ingestion complete —{' '}
+                        {uploadTaskStatus.processed_files} page
+                        {uploadTaskStatus.processed_files !== 1 ? 's' : ''} processed.
+                    </Notification>
+                </div>
             )}
 
             {uploadTaskStatus?.status === 'completed_with_errors' && (
-                <Alert severity="warning" sx={{ mt: 2 }}>
-                    Ingestion completed with errors —{' '}
-                    {uploadTaskStatus.results.filter((r) => r.status === 'failed').length} page(s) failed.
-                </Alert>
+                <div style={{ marginTop: '1rem' }}>
+                    <Notification type="warning" defaultOpen>
+                        Ingestion completed with errors —{' '}
+                        {uploadTaskStatus.results.filter((r) => r.status === 'failed').length} page(s) failed.
+                    </Notification>
+                </div>
             )}
 
             {uploadTaskStatus?.status === 'failed' && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                    Ingestion failed. {uploadTaskStatus.errors.join(' ')}
-                </Alert>
+                <div style={{ marginTop: '1rem' }}>
+                    <Notification type="error" defaultOpen>
+                        Ingestion failed. {uploadTaskStatus.errors.join(' ')}
+                    </Notification>
+                </div>
             )}
-        </Box>
+        </div>
     );
 };

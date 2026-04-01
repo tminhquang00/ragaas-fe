@@ -13,7 +13,6 @@ import {
     useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Box } from '@mui/material';
 
 import { StepNode } from './StepNode';
 import { PipelinePropertyPanel } from './PipelinePropertyPanel';
@@ -139,21 +138,18 @@ function PipelineEditorContent({ initialConfig, onConfigChange }: PipelineEditor
     }, [setNodes, setEdges]);
 
     return (
-        <Box
-            sx={{
+        <div
+            style={{
                 display: 'flex',
                 width: '100%',
                 height: 600,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 0,
-                bgcolor: 'background.default',
-                overflow: 'hidden'
+                border: '1px solid var(--bosch-gray-75)',
+                overflow: 'hidden',
             }}
         >
             <PipelineToolbar />
 
-            <Box sx={{ flex: 1, height: '100%', position: 'relative' }} ref={reactFlowWrapper}>
+            <div style={{ flex: 1, height: '100%', position: 'relative' }} ref={reactFlowWrapper}>
                 <ReactFlow
                     nodes={nodes}
                     edges={edges}
@@ -170,14 +166,14 @@ function PipelineEditorContent({ initialConfig, onConfigChange }: PipelineEditor
                     <Background gap={12} size={1} />
                     <Controls />
                 </ReactFlow>
-            </Box>
+            </div>
 
             <PipelinePropertyPanel
                 selectedNode={selectedNode}
                 onUpdateNode={onUpdateNode}
                 onDeleteNode={onDeleteNode}
             />
-        </Box>
+        </div>
     );
 }
 

@@ -1,33 +1,20 @@
 import React, { useState } from 'react';
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    TextField,
-    Box,
-    Typography,
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
     Slider,
-    Tabs,
-    Tab,
-    Alert,
-    useTheme,
-    alpha,
-    CircularProgress,
 } from '@mui/material';
 import {
-    ExpandMore as ExpandMoreIcon,
-    Add as AddIcon,
-    Upload as UploadIcon,
-} from '@mui/icons-material';
+    Dialog,
+    TextField,
+    TextArea,
+    Accordion,
+    Dropdown,
+    TabNavigation,
+    Tab,
+    Notification,
+    ActivityIndicator,
+} from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
+import { alpha } from '../../utils/frokTheme';
 import { CreateProjectRequest } from '../../types';
 
 interface CreateProjectDialogProps {
@@ -121,8 +108,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
     onUploadYaml,
     loading = false,
 }) => {
-    const theme = useTheme();
-    const [tab, setTab] = useState(0);
+    const [tab, setTab] = useState<string>('manual');
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [llmModel, setLlmModel] = useState('gpt-5-mini');
@@ -183,7 +169,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
         setSystemPrompt('');
         setYamlFile(null);
         setError('');
-        setTab(0);
+        setTab('manual');
     };
 
     const handleClose = () => {
@@ -201,183 +187,149 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
 
     return (
         <Dialog
+            title="Create New Project"
+            modal={true}
             open={open}
             onClose={handleClose}
-            maxWidth="sm"
-            fullWidth
-            PaperProps={{
-                sx: {
-                    background: alpha(theme.palette.background.paper, 0.95),
-                    backdropFilter: 'blur(20px)',
-                },
-            }}
+            onConfirm={tab === 'manual' ? handleSubmit : handleYamlUpload}
+            onCancel={handleClose}
+            confirmLabel={loading ? 'Creating...' : 'Create Project'}
+            cancelLabel="Cancel"
+            confirmButton={{ disabled: loading || (tab === 'manual' ? !name.trim() : !yamlFile) }}
+            cancelButton={{ disabled: loading }}
         >
-            <DialogTitle>
-                <Typography variant="h5" fontWeight={600}>
-                    Create New Project
-                </Typography>
-            </DialogTitle>
-
-            <DialogContent>
-                <Tabs
-                    value={tab}
-                    onChange={(_, v) => setTab(v)}
-                    sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+            <div style={{ minWidth: 400 }}>
+                <TabNavigation
+                    selectedValue={tab}
+                    onTabSelect={(_ev, data) => setTab(data.value as string)}
                 >
-                    <Tab label="Manual Setup" icon={<AddIcon />} iconPosition="start" />
-                    <Tab label="Upload YAML" icon={<UploadIcon />} iconPosition="start" />
-                </Tabs>
+                    <Tab value="manual" icon={{ iconName: 'add' }}>Manual Setup</Tab>
+                    <Tab value="yaml" icon={{ iconName: 'upload' }}>Upload YAML</Tab>
+                </TabNavigation>
 
-                {error && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
-                        {error}
-                    </Alert>
-                )}
+                <div style={{ marginTop: 16 }}>
+                    {error && (
+                        <Notification type="error" defaultOpen>
+                            {error}
+                        </Notification>
+                    )}
 
-                {tab === 0 ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <TextField
-                            label="Project Name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            fullWidth
-                            autoFocus
-                            placeholder="My RAG Project"
-                        />
+                    {loading && (
+                        <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
+                            <ActivityIndicator size="small" />
+                        </div>
+                    )}
 
-                        <TextField
-                            label="Description"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            fullWidth
-                            multiline
-                            rows={2}
-                            placeholder="A document Q&A system for..."
-                        />
+                    {tab === 'manual' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <TextField
+                                id="project-name"
+                                label="Project Name"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                autoFocus
+                                placeholder="My RAG Project"
+                            />
 
-                        <Accordion
-                            sx={{
-                                background: 'transparent',
-                                boxShadow: 'none',
-                                '&:before': { display: 'none' },
-                            }}
-                        >
-                            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                <Typography fontWeight={500}>Advanced Settings</Typography>
-                            </AccordionSummary>
-                            <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                <FormControl fullWidth>
-                                    <InputLabel>LLM Model</InputLabel>
-                                    <Select
-                                        value={llmModel}
+                            <TextArea
+                                id="project-description"
+                                label="Description"
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                rows={2}
+                                placeholder="A document Q&A system for..."
+                            />
+
+                            <Accordion headline="Advanced Settings">
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '8px 0' }}>
+                                    <Dropdown
                                         label="LLM Model"
+                                        value={llmModel}
                                         onChange={(e) => handleModelChange(e.target.value)}
-                                    >
-                                        {AVAILABLE_MODELS.map((model) => (
-                                            <MenuItem key={model.name} value={model.model_name}>
-                                                {model.description}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-
-                                <Box>
-                                    <Typography gutterBottom>Temperature: {temperature}</Typography>
-                                    <Slider
-                                        value={temperature}
-                                        onChange={(_, v) => setTemperature(v as number)}
-                                        min={0}
-                                        max={2}
-                                        step={0.1}
-                                        marks={[
-                                            { value: 0, label: '0' },
-                                            { value: 1, label: '1' },
-                                            { value: 2, label: '2' },
-                                        ]}
-                                        valueLabelDisplay="auto"
+                                        options={AVAILABLE_MODELS.map((model) => ({
+                                            name: model.description,
+                                            value: model.model_name,
+                                        }))}
                                     />
-                                </Box>
 
-                                <Box>
-                                    <Typography gutterBottom>Top K Results: {topK}</Typography>
-                                    <Slider
-                                        value={topK}
-                                        onChange={(_, v) => setTopK(v as number)}
-                                        min={1}
-                                        max={20}
-                                        step={1}
-                                        marks={[
-                                            { value: 1, label: '1' },
-                                            { value: 10, label: '10' },
-                                            { value: 20, label: '20' },
-                                        ]}
-                                        valueLabelDisplay="auto"
+                                    <div>
+                                        <p style={{ marginBottom: 8 }}>Temperature: {temperature}</p>
+                                        <Slider
+                                            value={temperature}
+                                            onChange={(_, v) => setTemperature(v as number)}
+                                            min={0}
+                                            max={2}
+                                            step={0.1}
+                                            marks={[
+                                                { value: 0, label: '0' },
+                                                { value: 1, label: '1' },
+                                                { value: 2, label: '2' },
+                                            ]}
+                                            valueLabelDisplay="auto"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <p style={{ marginBottom: 8 }}>Top K Results: {topK}</p>
+                                        <Slider
+                                            value={topK}
+                                            onChange={(_, v) => setTopK(v as number)}
+                                            min={1}
+                                            max={20}
+                                            step={1}
+                                            marks={[
+                                                { value: 1, label: '1' },
+                                                { value: 10, label: '10' },
+                                                { value: 20, label: '20' },
+                                            ]}
+                                            valueLabelDisplay="auto"
+                                        />
+                                    </div>
+
+                                    <TextArea
+                                        id="project-system-prompt"
+                                        label="System Prompt"
+                                        value={systemPrompt}
+                                        onChange={(e) => setSystemPrompt(e.target.value)}
+                                        rows={4}
+                                        placeholder="You are a helpful assistant that answers questions based on the provided documents..."
                                     />
-                                </Box>
-
-                                <TextField
-                                    label="System Prompt"
-                                    value={systemPrompt}
-                                    onChange={(e) => setSystemPrompt(e.target.value)}
-                                    fullWidth
-                                    multiline
-                                    rows={4}
-                                    placeholder="You are a helpful assistant that answers questions based on the provided documents..."
-                                />
-                            </AccordionDetails>
-                        </Accordion>
-                    </Box>
-                ) : (
-                    <Box sx={{ py: 2 }}>
-                        <input
-                            type="file"
-                            accept=".yaml,.yml"
-                            style={{ display: 'none' }}
-                            id="yaml-upload"
-                            onChange={(e) => setYamlFile(e.target.files?.[0] || null)}
-                        />
-                        <label htmlFor="yaml-upload">
-                            <Box
-                                sx={{
-                                    border: `2px dashed ${alpha(theme.palette.primary.main, 0.3)}`,
-                                    borderRadius: 0,
-                                    p: 4,
-                                    textAlign: 'center',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s',
-                                    '&:hover': {
-                                        borderColor: theme.palette.primary.main,
-                                        background: alpha(theme.palette.primary.main, 0.05),
-                                    },
-                                }}
-                            >
-                                <UploadIcon sx={{ fontSize: 48, color: 'action.active', mb: 2 }} />
-                                <Typography variant="body1" gutterBottom>
-                                    {yamlFile ? yamlFile.name : 'Click to upload YAML configuration'}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Supported: .yaml, .yml
-                                </Typography>
-                            </Box>
-                        </label>
-                    </Box>
-                )}
-            </DialogContent>
-
-            <DialogActions sx={{ px: 3, pb: 3 }}>
-                <Button onClick={handleClose} disabled={loading}>
-                    Cancel
-                </Button>
-                <Button
-                    variant="contained"
-                    onClick={tab === 0 ? handleSubmit : handleYamlUpload}
-                    disabled={loading || (tab === 0 ? !name.trim() : !yamlFile)}
-                    startIcon={loading ? <CircularProgress size={20} /> : null}
-                >
-                    {loading ? 'Creating...' : 'Create Project'}
-                </Button>
-            </DialogActions>
+                                </div>
+                            </Accordion>
+                        </div>
+                    ) : (
+                        <div style={{ padding: '16px 0' }}>
+                            <input
+                                type="file"
+                                accept=".yaml,.yml"
+                                style={{ display: 'none' }}
+                                id="yaml-upload"
+                                onChange={(e) => setYamlFile(e.target.files?.[0] || null)}
+                            />
+                            <label htmlFor="yaml-upload">
+                                <div
+                                    style={{
+                                        border: `2px dashed ${alpha('var(--g-blue-50, #007bc0)', 0.3)}`,
+                                        padding: 32,
+                                        textAlign: 'center',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                    }}
+                                >
+                                    <FrokIcon name="Upload" style={{ fontSize: 48, marginBottom: 16 }} />
+                                    <p style={{ marginBottom: 4 }}>
+                                        {yamlFile ? yamlFile.name : 'Click to upload YAML configuration'}
+                                    </p>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--major__enabled__default__front-secondary, #70757a)' }}>
+                                        Supported: .yaml, .yml
+                                    </span>
+                                </div>
+                            </label>
+                        </div>
+                    )}
+                </div>
+            </div>
         </Dialog>
     );
 };

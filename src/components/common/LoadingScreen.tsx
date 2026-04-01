@@ -1,77 +1,66 @@
 import React from 'react';
-import {
-    Box,
-    CircularProgress,
-    Typography,
-    alpha,
-    useTheme,
-} from '@mui/material';
-import { AutoAwesome as LogoIcon } from '@mui/icons-material';
+import { ActivityIndicator } from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
 
 interface LoadingScreenProps {
     message?: string;
 }
 
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({ message = 'Loading...' }) => {
-    const theme = useTheme();
-
     return (
-        <Box
-            sx={{
-                minHeight: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: theme.palette.background.default,
-                gap: 4,
-            }}
-        >
-            {/* Animated Logo */}
-            <Box
-                sx={{
-                    position: 'relative',
-                    '@keyframes pulse': {
-                        '0%, 100%': {
-                            transform: 'scale(1)',
-                            boxShadow: `0 0 30px ${alpha(theme.palette.primary.main, 0.4)}`,
-                        },
-                        '50%': {
-                            transform: 'scale(1.05)',
-                            boxShadow: `0 0 50px ${alpha(theme.palette.primary.main, 0.6)}`,
-                        },
-                    },
-                    animation: 'pulse 2s ease-in-out infinite',
+        <>
+            <style>{`
+                @keyframes loading-pulse {
+                    0%, 100% {
+                        transform: scale(1);
+                        box-shadow: 0 0 30px color-mix(in srgb, var(--app-primary) 40%, transparent);
+                    }
+                    50% {
+                        transform: scale(1.05);
+                        box-shadow: 0 0 50px color-mix(in srgb, var(--app-primary) 60%, transparent);
+                    }
+                }
+            `}</style>
+            <div
+                style={{
+                    minHeight: '100vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'var(--app-bg)',
+                    gap: '2rem',
                 }}
             >
-                <Box
-                    sx={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 0,
-                        background: theme.palette.primary.main,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                {/* Animated Logo */}
+                <div
+                    style={{
+                        position: 'relative',
+                        animation: 'loading-pulse 2s ease-in-out infinite',
                     }}
                 >
-                    <LogoIcon sx={{ color: 'white', fontSize: 48 }} />
-                </Box>
-            </Box>
+                    <div
+                        style={{
+                            width: 80,
+                            height: 80,
+                            background: 'var(--app-primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <FrokIcon name="AutoAwesome" style={{ color: 'white', fontSize: 48 }} />
+                    </div>
+                </div>
 
-            {/* Spinner */}
-            <CircularProgress
-                size={40}
-                thickness={4}
-                sx={{
-                    color: theme.palette.primary.main,
-                }}
-            />
+                {/* Spinner */}
+                <ActivityIndicator size="large" />
 
-            {/* Message */}
-            <Typography variant="body1" color="text.secondary">
-                {message}
-            </Typography>
-        </Box>
+                {/* Message */}
+                <p style={{ color: 'var(--app-text-secondary)' }}>
+                    {message}
+                </p>
+            </div>
+        </>
     );
 };

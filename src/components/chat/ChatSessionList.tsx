@@ -1,33 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import {
-    Box,
-    Typography,
-    List,
-    ListItem,
-    ListItemButton,
-    ListItemText,
-    ListItemSecondaryAction,
-    IconButton,
-    TextField,
-    Button,
-    useTheme,
-    alpha,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Menu,
-    MenuItem,
-    ListItemIcon,
-} from '@mui/material';
-import {
-    Add as AddIcon,
-    MoreVert as MoreIcon,
-    Chat as ChatIcon,
-    Edit as EditIcon,
-    Delete as DeleteIcon,
-    Search as SearchIcon,
-} from '@mui/icons-material';
+import React, { useState, useEffect, useRef } from 'react';
+import { Button, TextField, Dialog, Popover } from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
+import { alpha, cssVar } from '../../utils/frokTheme';
 import { ChatSession } from '../../types';
 
 interface ChatSessionListProps {
@@ -49,11 +23,11 @@ export const ChatSessionList: React.FC<ChatSessionListProps> = ({
     onUpdateSession,
     onSearch,
 }) => {
-    const theme = useTheme();
     const [searchQuery, setSearchQuery] = useState('');
     const [editingSession, setEditingSession] = useState<{ id: string; title: string } | null>(null);
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [menuOpen, setMenuOpen] = useState(false);
     const [menuSessionId, setMenuSessionId] = useState<string | null>(null);
+    const menuTriggerRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         if (onSearch) {
@@ -72,12 +46,13 @@ export const ChatSessionList: React.FC<ChatSessionListProps> = ({
 
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, sessionId: string) => {
         event.stopPropagation();
-        setAnchorEl(event.currentTarget);
+        menuTriggerRef.current = event.currentTarget as HTMLButtonElement;
         setMenuSessionId(sessionId);
+        setMenuOpen(true);
     };
 
     const handleMenuClose = () => {
-        setAnchorEl(null);
+        setMenuOpen(false);
         setMenuSessionId(null);
     };
 
@@ -133,128 +108,148 @@ export const ChatSessionList: React.FC<ChatSessionListProps> = ({
     }, {} as Record<string, ChatSession[]>);
 
     return (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${theme.palette.divider}` }}>
-            <Box sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6" fontWeight={600}>
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--major__enabled__default__front, #e0e0e0)' }}>
+            <div style={{ padding: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h3 style={{ margin: 0, fontWeight: 600, fontSize: '1.1rem' }}>
                         Chat History
-                    </Typography>
+                    </h3>
                     <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<AddIcon />}
+                        mode="primary"
+                        icon="add"
+                        label="New Chat"
                         onClick={onCreateSession}
-                    >
-                        New Chat
-                    </Button>
-                </Box>
+                    />
+                </div>
                 <TextField
-                    fullWidth
-                    size="small"
+                    id="session-search"
                     placeholder="Search chats..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    InputProps={{
-                        startAdornment: <SearchIcon color="action" fontSize="small" sx={{ mr: 1 }} />,
-                    }}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                 />
-            </Box>
+            </div>
 
-            <List sx={{ flex: 1, overflowY: 'auto', px: 1 }}>
+            <ul style={{ flex: 1, overflowY: 'auto', padding: '0 8px', margin: 0, listStyle: 'none' }}>
                 {Object.entries(groupedSessions).map(([label, groupSessions]) => (
                     <React.Fragment key={label}>
-                        <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ px: 2, py: 1, display: 'block', fontWeight: 600 }}
-                        >
+                        <li style={{ padding: '8px 16px', fontWeight: 600, fontSize: '0.75rem', color: 'var(--minor__enabled__default__front, #666)' }}>
                             {label}
-                        </Typography>
-                        {groupSessions.map((session) => (
-                            <ListItem
-                                key={session.session_id}
-                                disablePadding
-                                sx={{ mb: 0.5 }}
-                            >
-                                <ListItemButton
-                                    selected={session.session_id === currentSessionId}
-                                    onClick={() => onSelectSession(session.session_id)}
-                                    sx={{
-                                        borderRadius: 0,
-                                        '&.Mui-selected': {
-                                            backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                                            '&:hover': {
-                                                backgroundColor: alpha(theme.palette.primary.main, 0.15),
-                                            },
-                                        },
-                                    }}
+                        </li>
+                        {groupSessions.map((session) => {
+                            const isSelected = session.session_id === currentSessionId;
+                            return (
+                                <li
+                                    key={session.session_id}
+                                    style={{ marginBottom: 4 }}
                                 >
-                                    <ListItemIcon sx={{ minWidth: 32 }}>
-                                        <ChatIcon fontSize="small" color={session.session_id === currentSessionId ? 'primary' : 'disabled'} />
-                                    </ListItemIcon>
-                                    <ListItemText
-                                        primary={session.title || 'Untitled Session'}
-                                        primaryTypographyProps={{
-                                            variant: 'body2',
-                                            noWrap: true,
-                                            fontWeight: session.session_id === currentSessionId ? 500 : 400,
+                                    <div
+                                        onClick={() => onSelectSession(session.session_id)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            padding: '8px 12px',
+                                            cursor: 'pointer',
+                                            background: isSelected ? alpha(cssVar('--g-blue-50'), 0.1) : 'transparent',
+                                            transition: 'background 0.15s',
                                         }}
-                                    />
-                                    <ListItemSecondaryAction>
-                                        <IconButton
-                                            size="small"
-                                            onClick={(e) => handleMenuOpen(e, session.session_id)}
-                                            sx={{ opacity: 0.6, '&:hover': { opacity: 1 } }}
+                                        onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = alpha(cssVar('--g-blue-50'), 0.05); }}
+                                        onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                                    >
+                                        <span style={{ minWidth: 24, display: 'flex', alignItems: 'center' }}>
+                                            <FrokIcon
+                                                name="Chat"
+                                                style={{
+                                                    fontSize: 18,
+                                                    color: isSelected ? cssVar('--g-blue-50') : 'var(--minor__enabled__default__front, #999)',
+                                                }}
+                                            />
+                                        </span>
+                                        <span
+                                            style={{
+                                                flex: 1,
+                                                fontSize: '0.875rem',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                                fontWeight: isSelected ? 500 : 400,
+                                                marginLeft: 8,
+                                            }}
                                         >
-                                            <MoreIcon fontSize="small" />
-                                        </IconButton>
-                                    </ListItemSecondaryAction>
-                                </ListItemButton>
-                            </ListItem>
-                        ))}
+                                            {session.title || 'Untitled Session'}
+                                        </span>
+                                        <button
+                                            onClick={(e) => handleMenuOpen(e, session.session_id)}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                opacity: 0.6,
+                                                padding: 4,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                            }}
+                                        >
+                                            <FrokIcon name="MoreVert" style={{ fontSize: 18 }} />
+                                        </button>
+                                    </div>
+                                </li>
+                            );
+                        })}
                     </React.Fragment>
                 ))}
-            </List>
+            </ul>
 
-            {/* Menu for Edit/Delete */}
-            <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleMenuClose}
-            >
-                <MenuItem onClick={handleEditClick}>
-                    <ListItemIcon>
-                        <EditIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Rename</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={handleDeleteClick}>
-                    <ListItemIcon>
-                        <DeleteIcon fontSize="small" color="error" />
-                    </ListItemIcon>
-                    <ListItemText sx={{ color: 'error.main' }}>Delete</ListItemText>
-                </MenuItem>
-            </Menu>
+            {/* Context Menu via Popover */}
+            {menuOpen && menuTriggerRef.current && (
+                <Popover
+                    open={menuOpen}
+                    trigger={<span ref={menuTriggerRef as React.RefObject<HTMLSpanElement>} />}
+                    position="bottom-right"
+                    onOutsideClick={handleMenuClose}
+                    onCloseKeyPressed={handleMenuClose}
+                >
+                    <div style={{ minWidth: 150, padding: '4px 0' }}>
+                        <div
+                            onClick={handleEditClick}
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', cursor: 'pointer' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = alpha(cssVar('--g-blue-50'), 0.05); }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            <FrokIcon name="Edit" style={{ fontSize: 18 }} />
+                            <span style={{ fontSize: '0.875rem' }}>Rename</span>
+                        </div>
+                        <div
+                            onClick={handleDeleteClick}
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', cursor: 'pointer', color: cssVar('--g-red-50') }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = alpha(cssVar('--g-red-50'), 0.05); }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            <FrokIcon name="Delete" style={{ fontSize: 18 }} />
+                            <span style={{ fontSize: '0.875rem' }}>Delete</span>
+                        </div>
+                    </div>
+                </Popover>
+            )}
 
             {/* Rename Dialog */}
-            <Dialog open={!!editingSession} onClose={() => setEditingSession(null)}>
-                <DialogTitle>Rename Chat</DialogTitle>
-                <DialogContent>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Chat Title"
-                        fullWidth
-                        variant="outlined"
-                        value={editingSession?.title || ''}
-                        onChange={(e) => setEditingSession(prev => prev ? { ...prev, title: e.target.value } : null)}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setEditingSession(null)}>Cancel</Button>
-                    <Button onClick={handleSaveTitle} variant="contained">Save</Button>
-                </DialogActions>
+            <Dialog
+                open={!!editingSession}
+                modal={true}
+                title="Rename Chat"
+                onClose={() => setEditingSession(null)}
+                onConfirm={handleSaveTitle}
+                confirmLabel="Save"
+                onCancel={() => setEditingSession(null)}
+                cancelLabel="Cancel"
+            >
+                <TextField
+                    id="session-title-edit"
+                    autoFocus
+                    label="Chat Title"
+                    value={editingSession?.title || ''}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingSession(prev => prev ? { ...prev, title: e.target.value } : null)}
+                />
             </Dialog>
-        </Box>
+        </div>
     );
 };

@@ -1,27 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Box,
     TextField,
-    Typography,
-    Switch,
-    FormControlLabel,
+    TextArea,
+    Toggle,
     Accordion,
-    AccordionSummary,
-    AccordionDetails,
     Button,
-    IconButton,
-    Paper,
-    Tabs,
+    Tile,
+    TabNavigation,
     Tab,
-} from '@mui/material';
-import {
-    ExpandMore as ExpandMoreIcon,
-    Add as AddIcon,
-    Delete as DeleteIcon,
-    Save as SaveIcon,
-    Code as CodeIcon,
-    ViewList as ViewListIcon,
-} from '@mui/icons-material';
+} from '@bosch/react-frok';
 
 interface ConfigEditorProps {
     config: Record<string, any>;
@@ -50,126 +37,105 @@ const ConfigField: React.FC<{
     // String / Number
     if (type === 'string' || type === 'number' || type === 'null') {
         return (
-            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <TextField
-                    fullWidth
-                    label={label} // Shows schema key as label
+                    id={`config-field-${path.join('-')}`}
+                    label={label}
                     value={value ?? ''}
-                    type={type === 'number' ? 'number' : 'text'}
                     onChange={(e) => {
                         const val = e.target.value;
                         onChange(path, type === 'number' ? Number(val) : val);
                     }}
-                    size="small"
-                    variant="outlined"
-                    sx={{ backgroundColor: 'background.paper' }}
                 />
                 {onDelete && (
-                    <IconButton onClick={() => onDelete(path)} size="small" color="error">
-                        <DeleteIcon />
-                    </IconButton>
+                    <Button
+                        mode="integrated"
+                        icon="delete"
+                        aria-label="Delete"
+                        onClick={() => onDelete(path)}
+                    />
                 )}
-            </Box>
+            </div>
         );
     }
 
     // Boolean
     if (type === 'boolean') {
         return (
-            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <FormControlLabel
-                    control={
-                        <Switch
-                            checked={value}
-                            onChange={(e) => onChange(path, e.target.checked)}
-                            size="small"
-                        />
-                    }
-                    label={<Typography variant="body2">{label}</Typography>}
+            <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Toggle
+                    id={`toggle-${path.join('-')}`}
+                    leftLabel={label}
+                    checked={value}
+                    onChange={(e) => onChange(path, (e.target as HTMLInputElement).checked)}
                 />
                 {onDelete && (
-                    <IconButton onClick={() => onDelete(path)} size="small" color="error">
-                        <DeleteIcon />
-                    </IconButton>
+                    <Button
+                        mode="integrated"
+                        icon="delete"
+                        aria-label="Delete"
+                        onClick={() => onDelete(path)}
+                    />
                 )}
-            </Box>
+            </div>
         );
     }
 
     // Object
     if (type === 'object') {
-        // Don't use accordion for root object, just render children directly if we want a cleaner look,
-        // but for nested objects, accordions work well.
         const content = (
-            <Box sx={{ pl: isRoot ? 0 : 0, width: '100%' }}>
+            <div style={{ width: '100%' }}>
                 {Object.entries(value).map(([key, val]) => (
                     <ConfigField
                         key={key}
                         path={[...path, key]}
                         value={val}
-                        label={key} // Pass the key as the label
+                        label={key}
                         onChange={onChange}
-                        // Only allow deleting properties if we are not at root (optional rule)
-                        // onDelete={onDelete} 
                         depth={depth + 1}
                     />
                 ))}
-
-                {/* Add Property Button (Simple implementation) */}
-                {/* <Button startIcon={<AddIcon />} size="small" sx={{ mt: 1 }}>Add Property</Button> */}
-            </Box>
+            </div>
         );
 
         if (isRoot) return content;
 
         return (
-            <Accordion defaultExpanded elevation={0} variant="outlined" sx={{ mb: 2, '&:before': { display: 'none' } }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: 'action.hover' }}>
-                    <Typography fontWeight="medium">{label}</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                    {content}
-                </AccordionDetails>
+            <Accordion headline={label} defaultOpen style={{ marginBottom: 16 }}>
+                {content}
             </Accordion>
         );
     }
 
-    // Array (Simplified: only supporting arrays of primitives or objects, not mixed for now)
+    // Array
     if (type === 'array') {
         return (
-            <Accordion defaultExpanded elevation={0} variant="outlined" sx={{ mb: 2 }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: 'action.hover' }}>
-                    <Typography fontWeight="medium">{label} [{value.length}]</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                    {value.map((item: any, index: number) => (
-                        <Box key={index} sx={{ pl: 2, borderLeft: 1, borderColor: 'divider', mb: 1 }}>
-                            <ConfigField
-                                path={[...path, index.toString()]}
-                                value={item}
-                                label={`${label}[${index}]`}
-                                onChange={onChange}
-                                onDelete={() => {
-                                    // Handle array deletion
-                                    const newArray = [...value];
-                                    newArray.splice(index, 1);
-                                    onChange(path, newArray);
-                                }}
-                                depth={depth + 1}
-                            />
-                        </Box>
-                    ))}
-                    <Button
-                        startIcon={<AddIcon />}
-                        size="small"
-                        onClick={() => {
-                            const newArray = [...value, ""]; // Default to empty string
-                            onChange(path, newArray);
-                        }}
-                    >
-                        Add Item
-                    </Button>
-                </AccordionDetails>
+            <Accordion headline={`${label} [${value.length}]`} defaultOpen style={{ marginBottom: 16 }}>
+                {value.map((item: any, index: number) => (
+                    <div key={index} style={{ paddingLeft: 16, borderLeft: '1px solid var(--major__enabled__default__line, #ccc)', marginBottom: 8 }}>
+                        <ConfigField
+                            path={[...path, index.toString()]}
+                            value={item}
+                            label={`${label}[${index}]`}
+                            onChange={onChange}
+                            onDelete={() => {
+                                const newArray = [...value];
+                                newArray.splice(index, 1);
+                                onChange(path, newArray);
+                            }}
+                            depth={depth + 1}
+                        />
+                    </div>
+                ))}
+                <Button
+                    mode="tertiary"
+                    icon="add"
+                    label="Add Item"
+                    onClick={() => {
+                        const newArray = [...value, ""];
+                        onChange(path, newArray);
+                    }}
+                />
             </Accordion>
         );
     }
@@ -231,40 +197,36 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({ config, onSave }) =>
     };
 
     return (
-        <Paper variant="outlined" sx={{ p: 0, overflow: 'hidden' }}>
+        <Tile style={{ padding: 0, overflow: 'hidden' }}>
             {/* Toolbar */}
-            <Box sx={{
-                p: 2,
-                borderBottom: 1,
-                borderColor: 'divider',
+            <div style={{
+                padding: 16,
+                borderBottom: '1px solid var(--major__enabled__default__line, #ccc)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                bgcolor: 'background.default'
             }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="h6">Project Configuration</Typography>
-                    <Tabs
-                        value={mode}
-                        onChange={(_, v) => setMode(v)}
-                        sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, py: 0 } }}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <h6 style={{ margin: 0 }}>Project Configuration</h6>
+                    <TabNavigation
+                        selectedValue={mode}
+                        onTabSelect={(_ev, data) => setMode(data.value as 'visual' | 'json')}
                     >
-                        <Tab icon={<ViewListIcon fontSize="small" />} iconPosition="start" label="Visual" value="visual" />
-                        <Tab icon={<CodeIcon fontSize="small" />} iconPosition="start" label="JSON" value="json" />
-                    </Tabs>
-                </Box>
+                        <Tab value="visual" icon={{ iconName: 'list' }}>Visual</Tab>
+                        <Tab value="json" icon={{ iconName: 'code' }}>JSON</Tab>
+                    </TabNavigation>
+                </div>
                 <Button
-                    variant="contained"
-                    startIcon={<SaveIcon />}
+                    mode="primary"
+                    icon="save"
+                    label={saving ? 'Saving...' : 'Save Changes'}
                     onClick={handleSave}
                     disabled={saving || (mode === 'json' && !!jsonError)}
-                >
-                    {saving ? 'Saving...' : 'Save Changes'}
-                </Button>
-            </Box>
+                />
+            </div>
 
             {/* Content */}
-            <Box sx={{ p: 3 }}>
+            <div style={{ padding: 24 }}>
                 {mode === 'visual' ? (
                     <ConfigField
                         path={[]}
@@ -273,26 +235,21 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({ config, onSave }) =>
                         onChange={handleFieldChange}
                     />
                 ) : (
-                    <Box>
-                        <TextField
-                            fullWidth
-                            multiline
-                            minRows={20}
-                            maxRows={40}
+                    <div>
+                        <TextArea
+                            id="config-json-editor"
+                            label="JSON Configuration"
+                            rows={20}
                             value={JSON.stringify(localConfig, null, 2)}
                             onChange={(e) => handleJsonChange(e.target.value)}
-                            error={!!jsonError}
-                            helperText={jsonError}
-                            sx={{ fontFamily: 'monospace' }}
-                            slotProps={{
-                                input: {
-                                    sx: { fontFamily: 'monospace', fontSize: '0.875rem' }
-                                }
-                            }}
+                            style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
                         />
-                    </Box>
+                        {jsonError && (
+                            <p style={{ color: 'var(--app-error, #e00)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{jsonError}</p>
+                        )}
+                    </div>
                 )}
-            </Box>
-        </Paper>
+            </div>
+        </Tile>
     );
 };

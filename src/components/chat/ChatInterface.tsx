@@ -1,46 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import {
-    Box,
-    TextField,
-    IconButton,
-    Typography,
-    Paper,
-    Avatar,
-    Chip,
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
-    CircularProgress,
-    Tooltip,
-    useTheme,
-    alpha,
-    InputAdornment,
-    Modal,
-    Fade,
-    Backdrop,
-} from '@mui/material';
-import {
-    Send as SendIcon,
-    AttachFile as AttachIcon,
-    ExpandMore as ExpandMoreIcon,
-    Person as PersonIcon,
-    SmartToy as BotIcon,
-    Description as DocIcon,
-    AutoAwesome as SuggestIcon,
-    CloudUpload as UploadIcon,
-    Close as CloseIcon,
-    InsertDriveFile as FileIcon,
-    Visibility as VisibilityIcon,
-    PictureAsPdf as PdfIcon,
-    Article as DocxIcon,
-    TableChart as ExcelIcon,
-    Link as LinkIcon,
-    Image as ImageIcon,
-} from '@mui/icons-material';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ErrorIcon from '@mui/icons-material/Error';
-import PendingIcon from '@mui/icons-material/Pending';
-import BuildIcon from '@mui/icons-material/Build';
+import { Tooltip, Chip, Accordion, ActivityIndicator, Button } from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
+import { alpha, cssVar } from '../../utils/frokTheme';
 import { useDropzone } from 'react-dropzone';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -105,38 +66,19 @@ interface SourceCitationProps {
 const getSourceTypeIcon = (sourceType?: string) => {
     switch (sourceType) {
         case 'pdf':
-            return <PdfIcon fontSize="small" color="error" />;
+            return <FrokIcon name="PictureAsPdf" style={{ fontSize: 18, color: cssVar('--g-red-50') }} />;
         case 'docx':
-            return <DocxIcon fontSize="small" color="primary" />;
+            return <FrokIcon name="Article" style={{ fontSize: 18, color: cssVar('--g-blue-50') }} />;
         case 'excel':
-            return <ExcelIcon fontSize="small" color="success" />;
+            return <FrokIcon name="TableChart" style={{ fontSize: 18, color: cssVar('--g-green-50') }} />;
         case 'confluence':
-            return <LinkIcon fontSize="small" color="info" />;
+            return <FrokIcon name="Link" style={{ fontSize: 18, color: cssVar('--g-blue-50') }} />;
         default:
-            return <DocIcon fontSize="small" color="primary" />;
+            return <FrokIcon name="Description" style={{ fontSize: 18, color: cssVar('--g-blue-50') }} />;
     }
 };
-
-// Helper to get icon based on mime type for uploaded files from chat history
-const getFileIconByMimeType = (mimeType: string) => {
-    if (mimeType === 'application/pdf') {
-        return <PdfIcon fontSize="small" color="error" />;
-    }
-    if (mimeType.includes('word') || mimeType.includes('document')) {
-        return <DocxIcon fontSize="small" color="primary" />;
-    }
-    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
-        return <ExcelIcon fontSize="small" color="success" />;
-    }
-    if (mimeType.startsWith('image/')) {
-        return <ImageIcon fontSize="small" color="info" />;
-    }
-    return <FileIcon fontSize="small" color="action" />;
-};
-
 // Memoized source citation component - prevents re-renders when parent updates
 const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onViewVisualGrounding }) => {
-    const theme = useTheme();
     const hasStructuredGrounding = (source.elements_detail && source.elements_detail.length > 0) || false;
     const hasBoundingBoxPoints = source.bounding_box_points != null;
     const hasLegacyGrounding = source.bounding_box != null;
@@ -149,90 +91,73 @@ const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onVi
     );
 
     return (
-        <Box
-            sx={{
-                p: 1.5,
-                borderRadius: 0,
-                background: alpha(theme.palette.background.default, 0.5),
-                border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+        <div
+            style={{
+                padding: 12,
+                background: alpha('var(--major__enabled__default__fill, #fff)', 0.5),
+                border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.5)}`,
                 cursor: hasVisualGrounding ? 'pointer' : 'default',
                 transition: 'all 0.2s ease-in-out',
-                '&:hover': hasVisualGrounding ? {
-                    background: alpha(theme.palette.divider, 0.02),
-                    borderColor: theme.palette.primary.main,
-                } : {},
             }}
             onClick={() => hasVisualGrounding && onViewVisualGrounding?.(source)}
         >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 {getSourceTypeIcon(source.source_type)}
-                <Typography variant="body2" fontWeight={500}>
+                <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>
                     {source.document_name}
-                </Typography>
+                </span>
                 {source.headings && source.headings.length > 0 && (
-                    <Typography variant="body2" color="text.secondary" sx={{ display: 'block', width: '100%', mb: 0.5, fontSize: '0.75rem' }}>
+                    <span style={{ display: 'block', width: '100%', marginBottom: 4, fontSize: '0.75rem', color: 'var(--minor__enabled__default__front, #666)' }}>
                         {source.headings.join(' > ')}
-                    </Typography>
+                    </span>
                 )}
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 {source.page_range && source.page_range.length === 2 ? (
                     <Chip
-                        size="small"
                         label={`Pages ${source.page_range[0]}-${source.page_range[1]}`}
-                        variant="outlined"
-                        sx={{ height: 18, fontSize: '0.65rem' }}
                     />
                 ) : source.page_number !== undefined && (
                     <Chip
-                        size="small"
                         label={`Page ${source.page_number + 1}`}
-                        variant="outlined"
-                        sx={{ height: 18, fontSize: '0.65rem' }}
                     />
                 )}
                 {source.position && (
-                    <Typography variant="caption" color="text.secondary">
+                    <span style={{ fontSize: '0.75rem', color: 'var(--minor__enabled__default__front, #666)' }}>
                         {source.position}
-                    </Typography>
+                    </span>
                 )}
-                <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
                     {hasVisualGrounding && (
-                        <Tooltip title="View highlighted source">
-                            <VisibilityIcon fontSize="small" color="primary" />
+                        <Tooltip content="View highlighted source">
+                            <span><FrokIcon name="Visibility" style={{ fontSize: 18, color: cssVar('--g-blue-50') }} /></span>
                         </Tooltip>
                     )}
                     {source.source_url && (
-                        <Tooltip title="Open source document">
-                            <IconButton
-                                size="small"
+                        <Tooltip content="Open source document">
+                            <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     window.open(source.source_url, '_blank');
                                 }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
                             >
-                                <LinkIcon fontSize="small" />
-                            </IconButton>
+                                <FrokIcon name="Link" style={{ fontSize: 18 }} />
+                            </button>
                         </Tooltip>
                     )}
-                    <Chip
-                        size="small"
-                        label={`${Math.round(source.relevance_score * 100)}%`}
-                        color="success"
-                        sx={{ height: 20, fontSize: '0.7rem' }}
-                    />
-                </Box>
-            </Box>
-            <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                    <Chip label={`${Math.round(source.relevance_score * 100)}%`} />
+                </div>
+            </div>
+            <span style={{ fontSize: '0.75rem', fontStyle: 'italic', color: 'var(--minor__enabled__default__front, #666)' }}>
                 "{source.excerpt}"
-            </Typography>
-        </Box>
+            </span>
+        </div>
     );
 });
 
 // Memoized image attachment component with click-to-view modal
 const ImageAttachment: React.FC<{ file: File }> = React.memo(({ file }) => {
-    const theme = useTheme();
     const [imageUrl, setImageUrl] = useState<string>('');
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -244,128 +169,88 @@ const ImageAttachment: React.FC<{ file: File }> = React.memo(({ file }) => {
 
     return (
         <>
-            <Box
-                sx={{
+            <div
+                style={{
                     position: 'relative',
-                    borderRadius: 0,
                     overflow: 'hidden',
-                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                    border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
                     cursor: 'pointer',
                     transition: 'all 0.2s ease-in-out',
-                    '&:hover': {
-                        borderColor: theme.palette.primary.main,
-                        transform: 'scale(1.02)',
-                        '& .image-overlay': {
-                            opacity: 1,
-                        },
-                    },
                 }}
                 onClick={() => setIsModalOpen(true)}
             >
-                <Box
-                    component="img"
+                <img
                     src={imageUrl}
                     alt={file.name}
-                    sx={{
+                    style={{
                         width: 120,
                         height: 80,
                         objectFit: 'cover',
                         display: 'block',
                     }}
                 />
-                <Box
-                    className="image-overlay"
-                    sx={{
-                        position: 'absolute',
+            </div>
+
+            {/* Full-size image modal */}
+            {isModalOpen && (
+                <div
+                    style={{
+                        position: 'fixed',
                         top: 0,
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        background: alpha(theme.palette.common.black, 0.5),
+                        background: 'rgba(0,0,0,0.85)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        opacity: 0,
-                        transition: 'opacity 0.2s ease-in-out',
+                        zIndex: 1300,
                     }}
+                    onClick={() => setIsModalOpen(false)}
                 >
-                    <ImageIcon sx={{ color: 'white', fontSize: 28 }} />
-                </Box>
-            </Box>
-
-            {/* Full-size image modal */}
-            <Modal
-                open={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                closeAfterTransition
-                slots={{ backdrop: Backdrop }}
-                slotProps={{
-                    backdrop: {
-                        timeout: 300,
-                        sx: { backgroundColor: alpha(theme.palette.common.black, 0.85) },
-                    },
-                }}
-            >
-                <Fade in={isModalOpen}>
-                    <Box
-                        sx={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            maxWidth: '90vw',
-                            maxHeight: '90vh',
-                            outline: 'none',
-                        }}
-                    >
-                        <IconButton
+                    <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+                        <Button
+                            mode="integrated"
+                            icon="close"
                             onClick={() => setIsModalOpen(false)}
-                            sx={{
+                            aria-label="Close"
+                            style={{
                                 position: 'absolute',
                                 top: -40,
                                 right: 0,
                                 color: 'white',
-                                background: alpha(theme.palette.common.white, 0.1),
-                                '&:hover': {
-                                    background: alpha(theme.palette.common.white, 0.2),
-                                },
                             }}
-                        >
-                            <CloseIcon />
-                        </IconButton>
-                        <Box
-                            component="img"
+                        />
+                        <img
                             src={imageUrl}
                             alt={file.name}
-                            sx={{
+                            style={{
                                 maxWidth: '90vw',
                                 maxHeight: '85vh',
                                 objectFit: 'contain',
-                                borderRadius: 0,
-                                boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.4)}`,
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
                             }}
                         />
-                        <Typography
-                            variant="caption"
-                            sx={{
+                        <span
+                            style={{
                                 display: 'block',
                                 textAlign: 'center',
-                                mt: 1,
+                                marginTop: 8,
                                 color: 'rgba(255,255,255,0.7)',
+                                fontSize: '0.75rem',
                             }}
                         >
                             {file.name}
-                        </Typography>
-                    </Box>
-                </Fade>
-            </Modal>
+                        </span>
+                    </div>
+                </div>
+            )}
         </>
     );
 });
 
 // Memoized base64 image component
 const Base64ImageAttachment: React.FC<{ image: ImageContent }> = React.memo(({ image }) => {
-    const theme = useTheme();
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Construct data URL if data is present, otherwise use url if available
@@ -377,245 +262,201 @@ const Base64ImageAttachment: React.FC<{ image: ImageContent }> = React.memo(({ i
 
     return (
         <>
-            <Box
-                sx={{
+            <div
+                style={{
                     position: 'relative',
-                    borderRadius: 0,
                     overflow: 'hidden',
-                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                    border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
                     cursor: 'pointer',
                     transition: 'all 0.2s ease-in-out',
-                    '&:hover': {
-                        borderColor: theme.palette.primary.main,
-                        transform: 'scale(1.02)',
-                        '& .image-overlay': {
-                            opacity: 1,
-                        },
-                    },
                 }}
                 onClick={() => setIsModalOpen(true)}
             >
-                <Box
-                    component="img"
+                <img
                     src={imageUrl}
                     alt="Attached image"
-                    sx={{
+                    style={{
                         width: 120,
                         height: 80,
                         objectFit: 'cover',
                         display: 'block',
                     }}
                 />
-                <Box
-                    className="image-overlay"
-                    sx={{
-                        position: 'absolute',
+            </div>
+
+            {isModalOpen && (
+                <div
+                    style={{
+                        position: 'fixed',
                         top: 0,
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        background: alpha(theme.palette.common.black, 0.5),
+                        background: 'rgba(0,0,0,0.85)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        opacity: 0,
-                        transition: 'opacity 0.2s ease-in-out',
+                        zIndex: 1300,
                     }}
+                    onClick={() => setIsModalOpen(false)}
                 >
-                    <ImageIcon sx={{ color: 'white', fontSize: 28 }} />
-                </Box>
-            </Box>
-
-            <Modal
-                open={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                closeAfterTransition
-                slots={{ backdrop: Backdrop }}
-                slotProps={{
-                    backdrop: {
-                        timeout: 300,
-                        sx: { backgroundColor: alpha(theme.palette.common.black, 0.85) },
-                    },
-                }}
-            >
-                <Fade in={isModalOpen}>
-                    <Box
-                        sx={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            maxWidth: '90vw',
-                            maxHeight: '90vh',
-                            outline: 'none',
-                        }}
-                    >
-                        <IconButton
+                    <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+                        <Button
+                            mode="integrated"
+                            icon="close"
                             onClick={() => setIsModalOpen(false)}
-                            sx={{
+                            aria-label="Close"
+                            style={{
                                 position: 'absolute',
                                 top: -40,
                                 right: 0,
                                 color: 'white',
-                                background: alpha(theme.palette.common.white, 0.1),
-                                '&:hover': {
-                                    background: alpha(theme.palette.common.white, 0.2),
-                                },
                             }}
-                        >
-                            <CloseIcon />
-                        </IconButton>
-                        <Box
-                            component="img"
+                        />
+                        <img
                             src={imageUrl}
                             alt="Full size attachment"
-                            sx={{
+                            style={{
                                 maxWidth: '90vw',
                                 maxHeight: '85vh',
                                 objectFit: 'contain',
-                                borderRadius: 0,
-                                boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.4)}`,
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
                             }}
                         />
-                    </Box>
-                </Fade>
-            </Modal>
+                    </div>
+                </div>
+            )}
         </>
     );
 });
 
 // Memoized markdown renderer - prevents re-parsing on parent re-renders
 const MarkdownRenderer: React.FC<{ content: string }> = React.memo(({ content }) => {
-    const theme = useTheme();
-
     return (
         <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
-                // Custom styling for markdown elements
                 p: ({ children }) => (
-                    <Typography variant="body1" sx={{ mb: 1, '&:last-child': { mb: 0 } }}>
+                    <p style={{ marginBottom: 8, marginTop: 0, lineHeight: 1.6 }}>
                         {children}
-                    </Typography>
+                    </p>
                 ),
                 h1: ({ children }) => (
-                    <Typography variant="h5" fontWeight={600} sx={{ mt: 2, mb: 1 }}>
+                    <h2 style={{ fontWeight: 600, marginTop: 16, marginBottom: 8, fontSize: '1.25rem' }}>
                         {children}
-                    </Typography>
+                    </h2>
                 ),
                 h2: ({ children }) => (
-                    <Typography variant="h6" fontWeight={600} sx={{ mt: 2, mb: 1 }}>
+                    <h3 style={{ fontWeight: 600, marginTop: 16, marginBottom: 8, fontSize: '1.1rem' }}>
                         {children}
-                    </Typography>
+                    </h3>
                 ),
                 h3: ({ children }) => (
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 1.5, mb: 0.5 }}>
+                    <h4 style={{ fontWeight: 600, marginTop: 12, marginBottom: 4, fontSize: '1rem' }}>
                         {children}
-                    </Typography>
+                    </h4>
                 ),
                 ul: ({ children }) => (
-                    <Box component="ul" sx={{ pl: 2, my: 1 }}>
+                    <ul style={{ paddingLeft: 16, margin: '8px 0' }}>
                         {children}
-                    </Box>
+                    </ul>
                 ),
                 ol: ({ children }) => (
-                    <Box component="ol" sx={{ pl: 2, my: 1 }}>
+                    <ol style={{ paddingLeft: 16, margin: '8px 0' }}>
                         {children}
-                    </Box>
+                    </ol>
                 ),
                 li: ({ children }) => (
-                    <Typography component="li" variant="body1" sx={{ mb: 0.5 }}>
+                    <li style={{ marginBottom: 4, lineHeight: 1.6 }}>
                         {children}
-                    </Typography>
+                    </li>
                 ),
                 code: ({ className, children, ...props }) => {
                     const isInline = !className;
                     return isInline ? (
-                        <Box
-                            component="code"
-                            sx={{
-                                px: 0.75,
-                                py: 0.25,
-                                borderRadius: 0,
-                                background: alpha(theme.palette.divider, 0.05),
+                        <code
+                            style={{
+                                padding: '2px 6px',
+                                background: alpha('var(--major__enabled__default__front, #ccc)', 0.05),
                                 fontFamily: 'monospace',
                                 fontSize: '0.9em',
                             }}
                         >
                             {children}
-                        </Box>
+                        </code>
                     ) : (
-                        <Box
-                            component="pre"
-                            sx={{
-                                p: 2,
-                                my: 1,
-                                borderRadius: 0,
-                                background: alpha(theme.palette.background.default, 0.8),
-                                border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                        <pre
+                            style={{
+                                padding: 16,
+                                margin: '8px 0',
+                                background: alpha('var(--major__enabled__default__fill, #fff)', 0.8),
+                                border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
                                 overflow: 'auto',
-                                '& code': {
-                                    fontFamily: 'monospace',
-                                    fontSize: '0.85em',
-                                },
                             }}
                         >
-                            <code className={className} {...props}>
+                            <code className={className} {...props} style={{ fontFamily: 'monospace', fontSize: '0.85em' }}>
                                 {children}
                             </code>
-                        </Box>
+                        </pre>
                     );
                 },
                 blockquote: ({ children }) => (
-                    <Box
-                        component="blockquote"
-                        sx={{
-                            pl: 2,
-                            py: 0.5,
-                            my: 1,
-                            borderLeft: `3px solid ${theme.palette.primary.main}`,
-                            background: alpha(theme.palette.divider, 0.02),
+                    <blockquote
+                        style={{
+                            paddingLeft: 16,
+                            padding: '4px 0 4px 16px',
+                            margin: '8px 0',
+                            borderLeft: `3px solid ${cssVar('--g-blue-50')}`,
+                            background: alpha('var(--major__enabled__default__front, #ccc)', 0.02),
                             fontStyle: 'italic',
                         }}
                     >
                         {children}
-                    </Box>
+                    </blockquote>
                 ),
                 a: ({ children, href }) => (
-                    <Typography
-                        component="a"
+                    <a
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        sx={{
-                            color: 'primary.main',
+                        style={{
+                            color: cssVar('--g-blue-50'),
                             textDecoration: 'underline',
-                            '&:hover': { color: 'primary.light' },
                         }}
                     >
                         {children}
-                    </Typography>
+                    </a>
                 ),
                 table: ({ children }) => (
-                    <Box
-                        component="table"
-                        sx={{
+                    <table
+                        style={{
                             width: '100%',
-                            my: 1,
+                            margin: '8px 0',
                             borderCollapse: 'collapse',
-                            '& th, & td': {
-                                border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                                p: 1,
-                                textAlign: 'left',
-                            },
-                            '& th': {
-                                background: alpha(theme.palette.divider, 0.05),
-                                fontWeight: 600,
-                            },
                         }}
                     >
                         {children}
-                    </Box>
+                    </table>
+                ),
+                th: ({ children }) => (
+                    <th style={{
+                        border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
+                        padding: 8,
+                        textAlign: 'left',
+                        background: alpha('var(--major__enabled__default__front, #ccc)', 0.05),
+                        fontWeight: 600,
+                    }}>
+                        {children}
+                    </th>
+                ),
+                td: ({ children }) => (
+                    <td style={{
+                        border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
+                        padding: 8,
+                        textAlign: 'left',
+                    }}>
+                        {children}
+                    </td>
                 ),
             }}
         >
@@ -643,7 +484,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     onUpdateSession,
     onSearch,
 }) => {
-    const theme = useTheme();
     const [input, setInput] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -732,21 +572,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     };
 
     return (
-        <Box
-            sx={{
+        <div
+            style={{
                 height: '100%',
                 display: 'flex',
                 maxHeight: 'calc(100vh - 200px)',
                 position: 'relative',
                 flexDirection: 'row',
                 overflow: 'hidden',
-                borderRadius: 0,
-                border: `1px solid ${theme.palette.divider}`,
+                border: '1px solid var(--major__enabled__default__front, #e0e0e0)',
             }}
         >
-            <Box
+            <div
                 {...getRootProps()}
-                sx={{
+                style={{
                     flex: 1,
                     height: '100%',
                     display: 'flex',
@@ -759,16 +598,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
                 {/* Drag overlay */}
                 {isDragActive && (
-                    <Box
-                        sx={{
+                    <div
+                        style={{
                             position: 'absolute',
                             top: 0,
                             left: 0,
                             right: 0,
                             bottom: 0,
-                            background: alpha(theme.palette.divider, 0.05),
-                            border: `2px dashed ${theme.palette.primary.main}`,
-                            borderRadius: 0,
+                            background: alpha('var(--major__enabled__default__front, #ccc)', 0.05),
+                            border: `2px dashed ${cssVar('--g-blue-50')}`,
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
@@ -777,94 +615,98 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             backdropFilter: 'blur(4px)',
                         }}
                     >
-                        <UploadIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
-                        <Typography variant="h6" color="primary">
+                        <FrokIcon name="CloudUpload" style={{ fontSize: 64, color: cssVar('--g-blue-50'), marginBottom: 16 }} />
+                        <h3 style={{ color: cssVar('--g-blue-50'), margin: 0 }}>
                             Drop files to attach
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        </h3>
+                        <p style={{ color: 'var(--minor__enabled__default__front, #666)', fontSize: '0.875rem' }}>
                             PDF, Word, Excel, PowerPoint, CSV, TXT, Markdown, HTML, RTF, or Images
-                        </Typography>
-                    </Box>
+                        </p>
+                    </div>
                 )}
 
                 {/* Messages Area */}
-                <Box
-                    sx={{
+                <div
+                    style={{
                         flex: 1,
                         overflowY: 'auto',
-                        p: 2,
+                        padding: 16,
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 2,
+                        gap: 16,
                     }}
                 >
                     {messages.length === 0 && !streamingContent && (
-                        <Box
-                            sx={{
+                        <div
+                            style={{
                                 flex: 1,
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: 2,
+                                gap: 16,
                                 opacity: 0.7,
                             }}
                         >
-                            <BotIcon sx={{ fontSize: 64, color: 'primary.main' }} />
-                            <Typography variant="h6" color="text.secondary">
+                            <FrokIcon name="SmartToy" style={{ fontSize: 64, color: cssVar('--g-blue-50') }} />
+                            <h3 style={{ color: 'var(--minor__enabled__default__front, #666)', margin: 0 }}>
                                 Ask me anything about your documents
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            </h3>
+                            <p style={{ color: 'var(--minor__enabled__default__front, #666)', fontSize: '0.875rem', margin: 0 }}>
                                 I'll search through your knowledge base to find answers
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ mt: 2 }}>
+                            </p>
+                            <span style={{ color: 'var(--minor__enabled__default__front, #666)', fontSize: '0.75rem', marginTop: 16 }}>
                                 💡 Tip: Drag and drop files to include them in your question
-                            </Typography>
-                        </Box>
+                            </span>
+                        </div>
                     )}
 
                     {messages.map((message) => (
-                        <Box
+                        <div
                             key={message.id}
-                            sx={{
+                            style={{
                                 display: 'flex',
-                                gap: 2,
+                                gap: 16,
                                 alignItems: 'flex-start',
                                 flexDirection: message.role === 'user' ? 'row-reverse' : 'row',
                             }}
                         >
-                            <Avatar
-                                sx={{
+                            <div
+                                style={{
                                     width: 36,
                                     height: 36,
-                                    background:
-                                        message.role === 'user'
-                                            ? theme.palette.secondary.main
-                                            : theme.palette.primary.main,
+                                    borderRadius: '50%',
+                                    background: message.role === 'user'
+                                        ? 'var(--minor__enabled__default__fill, #555)'
+                                        : cssVar('--g-blue-50'),
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                    color: 'white',
                                 }}
                             >
-                                {message.role === 'user' ? <PersonIcon /> : <BotIcon />}
-                            </Avatar>
+                                {message.role === 'user'
+                                    ? <FrokIcon name="Person" style={{ fontSize: 20, color: 'white' }} />
+                                    : <FrokIcon name="SmartToy" style={{ fontSize: 20, color: 'white' }} />
+                                }
+                            </div>
 
-                            <Paper
-                                elevation={0}
-                                sx={{
-                                    p: 2,
+                            <div
+                                style={{
+                                    padding: 16,
                                     maxWidth: '75%',
-                                    background:
-                                        message.role === 'user'
-                                            ? alpha(theme.palette.secondary.main, 0.1)
-                                            : alpha(theme.palette.background.paper, 0.8),
-                                    borderRadius: 0,
-                                    borderTopRightRadius: message.role === 'user' ? 0 : 16,
-                                    borderTopLeftRadius: message.role === 'assistant' ? 0 : 16,
+                                    background: message.role === 'user'
+                                        ? alpha('var(--minor__enabled__default__fill, #555)', 0.1)
+                                        : alpha('var(--major__enabled__default__fill, #fff)', 0.8),
+                                    border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.2)}`,
                                 }}
                             >
                                 {/* Attached files and images for user messages */}
                                 {((message.attachments && message.attachments.length > 0) ||
                                     (message.images && message.images.length > 0) ||
                                     (message.metadata?.uploaded_files && message.metadata.uploaded_files.length > 0)) && (
-                                        <Box sx={{ mb: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                        <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                                             {/* Render Base64 Images from History/State */}
                                             {message.images?.map((image, idx) => (
                                                 <Base64ImageAttachment key={`bs64-${idx}`} image={image} />
@@ -881,10 +723,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                 return (
                                                     <Chip
                                                         key={idx}
-                                                        icon={<FileIcon />}
                                                         label={file.name}
-                                                        size="small"
-                                                        variant="outlined"
                                                     />
                                                 );
                                             })}
@@ -893,18 +732,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                             {message.metadata?.uploaded_files?.map((file, idx) => (
                                                 <Chip
                                                     key={`history-file-${idx}`}
-                                                    icon={getFileIconByMimeType(file.mime_type)}
                                                     label={file.filename}
-                                                    size="small"
-                                                    variant="outlined"
-                                                    sx={{
-                                                        '& .MuiChip-icon': {
-                                                            marginLeft: '8px',
-                                                        },
-                                                    }}
                                                 />
                                             ))}
-                                        </Box>
+                                        </div>
                                     )}
 
                                 {/* Message content with markdown for assistant, plain text for user */}
@@ -915,36 +746,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         <MarkdownRenderer content={message.content} />
                                     )
                                 ) : (
-                                    <Typography
-                                        variant="body1"
-                                        sx={{
+                                    <p
+                                        style={{
                                             whiteSpace: 'pre-wrap',
                                             wordBreak: 'break-word',
+                                            margin: 0,
+                                            lineHeight: 1.6,
                                         }}
                                     >
                                         {message.content}
-                                    </Typography>
+                                    </p>
                                 )}
 
                                 {/* Sources */}
                                 {message.sources && message.sources.length > 0 && (
                                     <Accordion
-                                        sx={{
-                                            mt: 2,
-                                            background: 'transparent',
-                                            boxShadow: 'none',
-                                            '&:before': { display: 'none' },
-                                        }}
+                                        headline={`📄 ${message.sources.length} Source${message.sources.length > 1 ? 's' : ''}`}
+                                        size="small"
                                     >
-                                        <AccordionSummary
-                                            expandIcon={<ExpandMoreIcon />}
-                                            sx={{ px: 0, minHeight: 'auto' }}
-                                        >
-                                            <Typography variant="body2" color="primary" fontWeight={500}>
-                                                📄 {message.sources.length} Source{message.sources.length > 1 ? 's' : ''}
-                                            </Typography>
-                                        </AccordionSummary>
-                                        <AccordionDetails sx={{ px: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                             {message.sources.map((source, idx) => (
                                                 <SourceCitation
                                                     key={idx}
@@ -952,112 +772,114 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     onViewVisualGrounding={handleOpenVisualGrounding}
                                                 />
                                             ))}
-                                        </AccordionDetails>
+                                        </div>
                                     </Accordion>
                                 )}
-                            </Paper>
-                        </Box>
+                            </div>
+                        </div>
                     ))}
 
                     {/* Pipeline Progress */}
                     {(isLoading || steps.length > 0) && (
-                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                            <Avatar
-                                sx={{
+                        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                            <div
+                                style={{
                                     width: 36,
                                     height: 36,
-                                    background: theme.palette.primary.main,
+                                    borderRadius: '50%',
+                                    background: cssVar('--g-blue-50'),
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                    color: 'white',
                                 }}
                             >
-                                <BotIcon />
-                            </Avatar>
-                            <Box sx={{ flex: 1, maxWidth: '75%' }}>
+                                <FrokIcon name="SmartToy" style={{ fontSize: 20, color: 'white' }} />
+                            </div>
+                            <div style={{ flex: 1, maxWidth: '75%' }}>
                                 {/* Step Progress */}
                                 {steps.length > 0 && (
-                                    <Paper
-                                        elevation={0}
-                                        sx={{
-                                            p: 1.5,
-                                            mb: 1,
-                                            background: alpha(theme.palette.background.paper, 0.6),
-                                            borderRadius: 0,
-                                            border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                                    <div
+                                        style={{
+                                            padding: 12,
+                                            marginBottom: 8,
+                                            background: alpha('var(--major__enabled__default__fill, #fff)', 0.6),
+                                            border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
                                         }}
                                     >
-                                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--minor__enabled__default__front, #666)', display: 'block', marginBottom: 8 }}>
                                             Pipeline Progress
-                                        </Typography>
-                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        </span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                             {steps.map((step, idx) => (
-                                                <Box
+                                                <div
                                                     key={`${step.name}-${idx}`}
-                                                    sx={{
+                                                    style={{
                                                         display: 'flex',
                                                         alignItems: 'center',
-                                                        gap: 1,
-                                                        py: 0.25,
+                                                        gap: 8,
+                                                        padding: '2px 0',
                                                     }}
                                                 >
                                                     {step.status === 'completed' && (
-                                                        <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                                                        <FrokIcon name="CheckCircle" style={{ fontSize: 16, color: cssVar('--g-green-50') }} />
                                                     )}
                                                     {step.status === 'running' && (
-                                                        <CircularProgress size={14} thickness={4} />
+                                                        <ActivityIndicator size="small" />
                                                     )}
                                                     {step.status === 'error' && (
-                                                        <ErrorIcon sx={{ fontSize: 16, color: 'error.main' }} />
+                                                        <FrokIcon name="Error" style={{ fontSize: 16, color: cssVar('--g-red-50') }} />
                                                     )}
                                                     {step.status === 'pending' && (
-                                                        <PendingIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                                                        <FrokIcon name="Pending" style={{ fontSize: 16, color: 'var(--minor__enabled__default__front, #999)' }} />
                                                     )}
-                                                    <Typography
-                                                        variant="body2"
-                                                        sx={{
-                                                            color: step.status === 'pending' ? 'text.disabled' : 'text.primary',
+                                                    <span
+                                                        style={{
+                                                            color: step.status === 'pending' ? 'var(--minor__enabled__default__front, #999)' : 'inherit',
                                                             flex: 1,
+                                                            fontSize: '0.875rem',
                                                         }}
                                                     >
                                                         {step.name}
-                                                    </Typography>
+                                                    </span>
                                                     {step.duration_ms !== undefined && (
-                                                        <Typography variant="caption" color="text.secondary">
+                                                        <span style={{ fontSize: '0.75rem', color: 'var(--minor__enabled__default__front, #666)' }}>
                                                             {step.duration_ms.toFixed(0)}ms
-                                                        </Typography>
+                                                        </span>
                                                     )}
-                                                </Box>
+                                                </div>
                                             ))}
-                                        </Box>
-                                    </Paper>
+                                        </div>
+                                    </div>
                                 )}
 
                                 {/* Agent Action Indicator */}
                                 {agentAction && (
-                                    <Paper
-                                        elevation={0}
-                                        sx={{
-                                            p: 1.5,
-                                            mb: 1,
-                                            background: alpha(theme.palette.info.main, 0.08),
-                                            borderRadius: 0,
-                                            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                                    <div
+                                        style={{
+                                            padding: 12,
+                                            marginBottom: 8,
+                                            background: alpha(cssVar('--g-blue-50'), 0.08),
+                                            border: `1px solid ${alpha(cssVar('--g-blue-50'), 0.2)}`,
                                         }}
                                     >
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <BuildIcon sx={{ fontSize: 16, color: 'info.main' }} />
-                                            <Typography variant="body2" fontWeight={500} color="info.main">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <FrokIcon name="Build" style={{ fontSize: 16, color: cssVar('--g-blue-50') }} />
+                                            <span style={{ fontSize: '0.875rem', fontWeight: 500, color: cssVar('--g-blue-50') }}>
                                                 {agentAction.action === 'tool_call' ? 'Calling: ' : 'Agent: '}
                                                 {agentAction.tool || agentAction.action}
-                                            </Typography>
-                                        </Box>
+                                            </span>
+                                        </div>
                                         {agentAction.input && (
-                                            <Typography
-                                                variant="caption"
-                                                color="text.secondary"
-                                                sx={{
+                                            <span
+                                                style={{
                                                     display: 'block',
-                                                    mt: 0.5,
-                                                    pl: 3,
+                                                    marginTop: 4,
+                                                    paddingLeft: 24,
                                                     fontStyle: 'italic',
+                                                    fontSize: '0.75rem',
+                                                    color: 'var(--minor__enabled__default__front, #666)',
                                                     maxWidth: 300,
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis',
@@ -1065,173 +887,157 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                 }}
                                             >
                                                 {agentAction.input}
-                                            </Typography>
+                                            </span>
                                         )}
-                                    </Paper>
+                                    </div>
                                 )}
 
                                 {/* Streaming content or general loading */}
                                 {streamingContent ? (
-                                    <Paper
-                                        elevation={0}
-                                        sx={{
-                                            p: 2,
-                                            background: alpha(theme.palette.background.paper, 0.8),
-                                            borderRadius: 0,
-                                            borderTopLeftRadius: 0,
+                                    <div
+                                        style={{
+                                            padding: 16,
+                                            background: alpha('var(--major__enabled__default__fill, #fff)', 0.8),
+                                            border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.2)}`,
                                         }}
                                     >
                                         <MarkdownRenderer content={streamingContent} />
-                                        <Box
-                                            component="span"
-                                            sx={{
+                                        <span
+                                            style={{
                                                 display: 'inline-block',
                                                 width: 8,
                                                 height: 16,
-                                                background: theme.palette.primary.main,
-                                                ml: 0.5,
+                                                background: cssVar('--g-blue-50'),
+                                                marginLeft: 4,
                                                 animation: 'blink 1s infinite',
-                                                '@keyframes blink': {
-                                                    '0%, 100%': { opacity: 1 },
-                                                    '50%': { opacity: 0 },
-                                                },
                                             }}
                                         />
-                                    </Paper>
+                                        <style>{`@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }`}</style>
+                                    </div>
                                 ) : isLoading && steps.length === 0 && !agentAction ? (
-                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                        <CircularProgress size={16} />
-                                        <Typography variant="body2" color="text.secondary">
+                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                        <ActivityIndicator size="small" />
+                                        <span style={{ fontSize: '0.875rem', color: 'var(--minor__enabled__default__front, #666)' }}>
                                             Thinking...
-                                        </Typography>
-                                    </Box>
+                                        </span>
+                                    </div>
                                 ) : null}
-                            </Box>
-                        </Box>
+                            </div>
+                        </div>
                     )}
 
                     <div ref={messagesEndRef} />
-                </Box>
+                </div>
 
                 {/* Input Area */}
-                <Paper
-                    elevation={0}
-                    sx={{
-                        p: 2,
-                        borderTop: `1px solid ${theme.palette.divider}`,
-                        background: alpha(theme.palette.background.paper, 0.8),
-                        backdropFilter: 'none',
+                <div
+                    style={{
+                        padding: 16,
+                        borderTop: '1px solid var(--major__enabled__default__front, #e0e0e0)',
+                        background: alpha('var(--major__enabled__default__fill, #fff)', 0.8),
                     }}
                 >
                     {attachedFiles.length > 0 && (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                             {attachedFiles.map((file, idx) => (
                                 <Chip
                                     key={idx}
                                     label={`${file.name} (${formatFileSize(file.size)})`}
-                                    onDelete={() => removeFile(idx)}
-                                    size="small"
-                                    variant="outlined"
+                                    buttonClose
+                                    onClose={() => removeFile(idx)}
                                 />
                             ))}
-                        </Box>
+                        </div>
                     )}
 
                     {suggestions.length > 0 && messages.length > 0 && !isLoading && (
-                        <Box sx={{ display: 'flex', gap: 1, mb: 1.5, overflowX: 'auto', pb: 0.5 }}>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 12, overflowX: 'auto', paddingBottom: 4 }}>
                             {suggestions.map((suggestion, idx) => (
                                 <Chip
                                     key={idx}
-                                    icon={<SuggestIcon fontSize="small" />}
                                     label={suggestion}
                                     onClick={() => handleSuggestionClick(suggestion)}
-                                    variant="outlined"
-                                    clickable
-                                    color="primary"
-                                    sx={{
-                                        borderColor: alpha(theme.palette.primary.main, 0.5),
-                                        '&:hover': {
-                                            borderColor: theme.palette.primary.main,
-                                            backgroundColor: alpha(theme.palette.primary.main, 0.05),
-                                        },
-                                    }}
                                 />
                             ))}
-                        </Box>
+                        </div>
                     )}
 
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <IconButton
-                            color="primary"
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <Button
+                            mode="integrated"
+                            icon={"attachment" as any}
                             onClick={open}
                             disabled={isLoading}
-                        >
-                            <AttachIcon />
-                        </IconButton>
-                        <TextField
-                            fullWidth
-                            variant="outlined"
-                            placeholder="Type a message..."
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyPress}
-                            disabled={isLoading}
-                            inputRef={inputRef}
-                            size="small"
-                            sx={{
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: 0,
-                                    backgroundColor: theme.palette.background.paper,
-                                },
-                            }}
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <IconButton
-                                            color="primary"
-                                            onClick={handleSend}
-                                            disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
-                                        >
-                                            <SendIcon />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
-                            }}
+                            aria-label="Attach file"
                         />
-                    </Box>
-                </Paper>
-            </Box>
+                        <div style={{ flex: 1 }}>
+                            <input
+                                type="text"
+                                placeholder="Type a message..."
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={handleKeyPress}
+                                disabled={isLoading}
+                                ref={inputRef}
+                                className="a-text-field__input"
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 12px',
+                                    border: '1px solid var(--major__enabled__default__front, #ccc)',
+                                    background: 'var(--major__enabled__default__fill, #fff)',
+                                    fontSize: '0.875rem',
+                                    outline: 'none',
+                                }}
+                            />
+                        </div>
+                        <Button
+                            mode="integrated"
+                            icon="forward-right"
+                            onClick={handleSend}
+                            disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
+                            aria-label="Send message"
+                        />
+                    </div>
+                </div>
+            </div>
 
             {/* Session Sidebar */}
             {sessions.length > 0 && (
-                <Box
-                    sx={{
+                <div
+                    style={{
                         width: isSidebarOpen ? 300 : 0,
                         transition: 'width 0.3s ease',
-                        borderLeft: isSidebarOpen ? `1px solid ${theme.palette.divider}` : 'none',
+                        borderLeft: isSidebarOpen ? '1px solid var(--major__enabled__default__front, #e0e0e0)' : 'none',
                         position: 'relative',
-                        bgcolor: 'background.paper',
+                        background: 'var(--major__enabled__default__fill, #fff)',
+                        overflow: 'hidden',
                     }}
                 >
-                    <IconButton
+                    <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        size="small"
-                        sx={{
+                        style={{
                             position: 'absolute',
                             left: -12,
                             top: '50%',
                             transform: 'translateY(-50%)',
                             zIndex: 10,
-                            bgcolor: 'background.paper',
-                            boxShadow: 1,
-                            border: `1px solid ${theme.palette.divider}`,
+                            background: 'var(--major__enabled__default__fill, #fff)',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                            border: '1px solid var(--major__enabled__default__front, #e0e0e0)',
                             width: 24,
                             height: 24,
-                            '&:hover': { bgcolor: 'action.hover' },
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            padding: 0,
                         }}
                     >
-                        {isSidebarOpen ? <ExpandMoreIcon sx={{ transform: 'rotate(-90deg)', fontSize: 16 }} /> : <ExpandMoreIcon sx={{ transform: 'rotate(90deg)', fontSize: 16 }} />}
-                    </IconButton>
+                        <FrokIcon
+                            name={isSidebarOpen ? 'ChevronRight' : 'ChevronLeft'}
+                            style={{ fontSize: 16 }}
+                        />
+                    </button>
 
                     {isSidebarOpen && onSelectSession && onCreateSession && onDeleteSession && onUpdateSession && (
                         <ChatSessionList
@@ -1244,7 +1050,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             onSearch={onSearch}
                         />
                     )}
-                </Box>
+                </div>
             )}
 
             {/* Visual Grounding Modal */}
@@ -1254,6 +1060,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 source={visualGroundingSource}
                 baseUrl={apiBaseUrl}
             />
-        </Box>
+        </div>
     );
 };

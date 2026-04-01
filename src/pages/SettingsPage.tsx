@@ -1,21 +1,14 @@
 import React from 'react';
 import {
-    Box,
-    Typography,
-    Card,
-    CardContent,
-    TextField,
+    Tile,
+    TextField as FrokTextField,
     Button,
-
-    Switch,
-    FormControlLabel,
-    Alert,
-    useTheme,
-} from '@mui/material';
+    Toggle,
+    Notification,
+} from '@bosch/react-frok';
 import { useAuth, useTheme as useAppTheme } from '../context';
 
 export const SettingsPage: React.FC = () => {
-    useTheme();
     const { tenantId, setTenantId } = useAuth();
     const { mode, toggleTheme } = useAppTheme();
     const [localTenantId, setLocalTenantId] = React.useState(tenantId);
@@ -25,102 +18,94 @@ export const SettingsPage: React.FC = () => {
     };
 
     return (
-        <Box>
-            <Typography variant="h4" fontWeight={700} gutterBottom>
+        <div>
+            <h4 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>
                 Settings
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+            </h4>
+            <p style={{ color: 'var(--app-text-secondary)', marginBottom: '2rem' }}>
                 Configure your application preferences
-            </Typography>
+            </p>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: 600 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 600 }}>
                 {/* Tenant Configuration */}
-                <Card>
-                    <CardContent>
-                        <Typography variant="h6" fontWeight={600} gutterBottom>
-                            Tenant Configuration
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                            Your tenant ID is used to identify your organization in API requests.
-                        </Typography>
+                <Tile>
+                    <h6 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
+                        Tenant Configuration
+                    </h6>
+                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                        Your tenant ID is used to identify your organization in API requests.
+                    </p>
 
-                        <TextField
-                            label="Tenant ID"
+                    <div style={{ marginBottom: '1rem' }}>
+                        <label htmlFor="tenant-id" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Tenant ID</label>
+                        <FrokTextField
+                            id="tenant-id"
                             value={localTenantId}
-                            onChange={(e) => setLocalTenantId(e.target.value)}
-                            fullWidth
-                            sx={{ mb: 2 }}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalTenantId(e.target.value)}
                         />
+                    </div>
 
+                    <div style={{ marginTop: '1rem' }}>
                         <Button
-                            variant="contained"
+                            mode="primary"
                             onClick={handleSaveTenant}
                             disabled={localTenantId === tenantId}
                         >
                             Save Tenant ID
                         </Button>
-                    </CardContent>
-                </Card>
+                    </div>
+                </Tile>
 
                 {/* Theme Settings */}
-                <Card>
-                    <CardContent>
-                        <Typography variant="h6" fontWeight={600} gutterBottom>
-                            Appearance
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                            Customize the look and feel of the application.
-                        </Typography>
+                <Tile>
+                    <h6 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
+                        Appearance
+                    </h6>
+                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                        Customize the look and feel of the application.
+                    </p>
 
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={mode === 'dark'}
-                                    onChange={toggleTheme}
-                                />
-                            }
-                            label="Dark Mode"
-                        />
-                    </CardContent>
-                </Card>
+                    <Toggle
+                        id="dark-mode-toggle"
+                        leftLabel="Dark Mode"
+                        checked={mode === 'dark'}
+                        onChange={toggleTheme}
+                    />
+                </Tile>
 
                 {/* API Configuration */}
-                <Card>
-                    <CardContent>
-                        <Typography variant="h6" fontWeight={600} gutterBottom>
-                            API Configuration
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                            Backend API connection settings.
-                        </Typography>
+                <Tile>
+                    <h6 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
+                        API Configuration
+                    </h6>
+                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                        Backend API connection settings.
+                    </p>
 
-                        <Alert severity="info" sx={{ mb: 2 }}>
-                            API URL: <code>{import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}</code>
-                        </Alert>
+                    <Notification type="neutral" icon="alert-info" defaultOpen>
+                        API URL: <code>{import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}</code>
+                    </Notification>
 
-                        <Typography variant="caption" color="text.secondary">
-                            To change the API URL, set the <code>VITE_API_BASE_URL</code> environment variable.
-                        </Typography>
-                    </CardContent>
-                </Card>
+                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.75rem', marginTop: '0.75rem' }}>
+                        To change the API URL, set the <code>VITE_API_BASE_URL</code> environment variable.
+                    </p>
+                </Tile>
 
                 {/* Azure AD Settings */}
-                <Card>
-                    <CardContent>
-                        <Typography variant="h6" fontWeight={600} gutterBottom>
-                            Authentication
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                            Azure AD authentication settings.
-                        </Typography>
+                <Tile>
+                    <h6 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
+                        Authentication
+                    </h6>
+                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                        Azure AD authentication settings.
+                    </p>
 
-                        <Alert severity="info">
-                            Azure AD is currently {import.meta.env.VITE_USE_AZURE_AD === 'true' ? 'enabled' : 'disabled'}.
-                            Set <code>VITE_USE_AZURE_AD=true</code> to enable Azure AD authentication.
-                        </Alert>
-                    </CardContent>
-                </Card>
-            </Box>
-        </Box>
+                    <Notification type="neutral" icon="alert-info" defaultOpen>
+                        Azure AD is currently {import.meta.env.VITE_USE_AZURE_AD === 'true' ? 'enabled' : 'disabled'}.
+                        Set <code>VITE_USE_AZURE_AD=true</code> to enable Azure AD authentication.
+                    </Notification>
+                </Tile>
+            </div>
+        </div>
     );
 };

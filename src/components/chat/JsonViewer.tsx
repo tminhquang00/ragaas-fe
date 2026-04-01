@@ -1,21 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import {
-    Box,
-    Typography,
-    IconButton,
-    Tooltip,
-    Collapse,
-    useTheme,
-    alpha,
-} from '@mui/material';
-import {
-    ContentCopy as CopyIcon,
-    Check as CheckIcon,
-    ExpandMore as ExpandMoreIcon,
-    ChevronRight as ChevronRightIcon,
-    DataObject as JsonIcon,
-    Code as CodeIcon,
-} from '@mui/icons-material';
+import { Tooltip } from '@bosch/react-frok';
+import { FrokIcon } from '../../utils/iconAdapter';
+import { alpha, cssVar } from '../../utils/frokTheme';
 
 // Utility to detect if a string is valid JSON
 export const isJsonString = (str: string): boolean => {
@@ -48,8 +34,18 @@ interface JsonNodeProps {
     isLast: boolean;
 }
 
+const VALUE_COLORS = {
+    null: cssVar('--g-yellow-85'),
+    boolean: cssVar('--g-blue-50'),
+    number: cssVar('--g-green-50'),
+    string: cssVar('--g-red-50'),
+    key: cssVar('--g-blue-50'),
+    bracket: 'var(--major__enabled__default__front, #333)',
+    disabled: 'var(--minor__enabled__default__front, #999)',
+    secondary: 'var(--major__enabled__default__front, #666)',
+};
+
 const JsonNode: React.FC<JsonNodeProps> = ({ keyName, value, depth, maxDepth, isLast }) => {
-    const theme = useTheme();
     const [isExpanded, setIsExpanded] = useState(depth < maxDepth);
 
     const isObject = value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -58,11 +54,11 @@ const JsonNode: React.FC<JsonNodeProps> = ({ keyName, value, depth, maxDepth, is
     const isEmpty = isExpandable && (isArray ? value.length === 0 : Object.keys(value as object).length === 0);
 
     const getValueColor = (val: unknown): string => {
-        if (val === null) return theme.palette.warning.main;
-        if (typeof val === 'boolean') return theme.palette.info.main;
-        if (typeof val === 'number') return theme.palette.success.main;
-        if (typeof val === 'string') return theme.palette.error.light;
-        return theme.palette.text.primary;
+        if (val === null) return VALUE_COLORS.null;
+        if (typeof val === 'boolean') return VALUE_COLORS.boolean;
+        if (typeof val === 'number') return VALUE_COLORS.number;
+        if (typeof val === 'string') return VALUE_COLORS.string;
+        return VALUE_COLORS.secondary;
     };
 
     const renderValue = () => {
@@ -76,8 +72,8 @@ const JsonNode: React.FC<JsonNodeProps> = ({ keyName, value, depth, maxDepth, is
     const renderKey = () => {
         if (keyName === undefined) return null;
         return (
-            <span style={{ color: theme.palette.primary.main }}>
-                "{keyName}"<span style={{ color: theme.palette.text.secondary }}>: </span>
+            <span style={{ color: VALUE_COLORS.key }}>
+                "{keyName}"<span style={{ color: VALUE_COLORS.secondary }}>: </span>
             </span>
         );
     };
@@ -86,9 +82,9 @@ const JsonNode: React.FC<JsonNodeProps> = ({ keyName, value, depth, maxDepth, is
 
     if (!isExpandable) {
         return (
-            <Box sx={{ pl: depth * 2, fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 1.6 }}>
+            <div style={{ paddingLeft: depth * 16, fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 1.6 }}>
                 {renderKey()}{renderValue()}{comma}
-            </Box>
+            </div>
         );
     }
 
@@ -99,52 +95,52 @@ const JsonNode: React.FC<JsonNodeProps> = ({ keyName, value, depth, maxDepth, is
 
     if (isEmpty) {
         return (
-            <Box sx={{ pl: depth * 2, fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 1.6 }}>
-                {renderKey()}<span style={{ color: theme.palette.text.secondary }}>{openBracket}{closeBracket}</span>{comma}
-            </Box>
+            <div style={{ paddingLeft: depth * 16, fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                {renderKey()}<span style={{ color: VALUE_COLORS.bracket }}>{openBracket}{closeBracket}</span>{comma}
+            </div>
         );
     }
 
     return (
-        <Box>
-            <Box
-                sx={{
-                    pl: depth * 2,
+        <div>
+            <div
+                style={{
+                    paddingLeft: depth * 16,
                     fontFamily: 'monospace',
                     fontSize: '0.85rem',
                     lineHeight: 1.6,
                     display: 'flex',
                     alignItems: 'center',
                     cursor: 'pointer',
-                    '&:hover': {
-                        background: alpha(theme.palette.primary.main, 0.05),
-                    },
-                    borderRadius: 0,
-                    py: 0.1,
+                    padding: '1px 0',
                 }}
                 onClick={() => setIsExpanded(!isExpanded)}
             >
-                <Box sx={{ width: 16, display: 'flex', alignItems: 'center', mr: 0.5 }}>
+                <span style={{ width: 16, display: 'inline-flex', alignItems: 'center', marginRight: 4 }}>
                     {isExpanded ? (
-                        <ExpandMoreIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                        <FrokIcon name="ExpandMore" style={{ fontSize: 14, color: VALUE_COLORS.secondary }} />
                     ) : (
-                        <ChevronRightIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                        <FrokIcon name="ChevronRight" style={{ fontSize: 14, color: VALUE_COLORS.secondary }} />
                     )}
-                </Box>
-                <Box>
+                </span>
+                <span>
                     {renderKey()}
-                    <span style={{ color: theme.palette.text.secondary }}>{openBracket}</span>
+                    <span style={{ color: VALUE_COLORS.bracket }}>{openBracket}</span>
                     {!isExpanded && (
-                        <span style={{ color: theme.palette.text.disabled }}>
+                        <span style={{ color: VALUE_COLORS.disabled }}>
                             {' '}{itemCount} {isArray ? 'items' : 'keys'}{' '}
                         </span>
                     )}
-                    {!isExpanded && <span style={{ color: theme.palette.text.secondary }}>{closeBracket}</span>}
+                    {!isExpanded && <span style={{ color: VALUE_COLORS.bracket }}>{closeBracket}</span>}
                     {!isExpanded && comma}
-                </Box>
-            </Box>
-            <Collapse in={isExpanded}>
-                <Box>
+                </span>
+            </div>
+            <div style={{
+                maxHeight: isExpanded ? '2000px' : '0',
+                overflow: 'hidden',
+                transition: 'max-height 0.3s ease',
+            }}>
+                <div>
                     {isArray
                         ? (value as unknown[]).map((item, idx) => (
                             <JsonNode
@@ -165,12 +161,12 @@ const JsonNode: React.FC<JsonNodeProps> = ({ keyName, value, depth, maxDepth, is
                                 isLast={idx === itemCount - 1}
                             />
                         ))}
-                </Box>
-                <Box sx={{ pl: depth * 2, fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 1.6 }}>
-                    <span style={{ color: theme.palette.text.secondary }}>{closeBracket}</span>{comma}
-                </Box>
-            </Collapse>
-        </Box>
+                </div>
+                <div style={{ paddingLeft: depth * 16, fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                    <span style={{ color: VALUE_COLORS.bracket }}>{closeBracket}</span>{comma}
+                </div>
+            </div>
+        </div>
     );
 };
 
@@ -180,7 +176,6 @@ interface JsonViewerProps {
 }
 
 export const JsonViewer: React.FC<JsonViewerProps> = ({ content, maxDepth = 3 }) => {
-    const theme = useTheme();
     const [copied, setCopied] = useState(false);
     const [showRaw, setShowRaw] = useState(false);
 
@@ -199,74 +194,84 @@ export const JsonViewer: React.FC<JsonViewerProps> = ({ content, maxDepth = 3 })
     };
 
     if (parsedJson === null) {
-        return <Typography color="error">Invalid JSON</Typography>;
+        return <span style={{ color: cssVar('--g-red-50') }}>Invalid JSON</span>;
     }
 
     return (
-        <Box
-            sx={{
-                borderRadius: 0,
-                border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                background: alpha(theme.palette.background.default, 0.6),
+        <div
+            style={{
+                border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
+                background: alpha('var(--major__enabled__default__fill, #fff)', 0.6),
                 overflow: 'hidden',
             }}
         >
             {/* Header */}
-            <Box
-                sx={{
+            <div
+                style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    px: 1.5,
-                    py: 0.75,
-                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                    background: alpha(theme.palette.primary.main, 0.05),
+                    padding: '6px 12px',
+                    borderBottom: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
+                    background: alpha(cssVar('--g-blue-50'), 0.05),
                 }}
             >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <JsonIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                    <Typography variant="caption" fontWeight={500} color="primary">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <FrokIcon name="Code" style={{ fontSize: 16, color: cssVar('--g-blue-50') }} />
+                    <span style={{ fontSize: '0.75rem', fontWeight: 500, color: cssVar('--g-blue-50') }}>
                         JSON Response
-                    </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Tooltip title={showRaw ? 'Tree View' : 'Raw View'}>
-                        <IconButton size="small" onClick={() => setShowRaw(!showRaw)}>
-                            {showRaw ? <JsonIcon sx={{ fontSize: 16 }} /> : <CodeIcon sx={{ fontSize: 16 }} />}
-                        </IconButton>
+                    </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Tooltip content={showRaw ? 'Tree View' : 'Raw View'}>
+                        <button
+                            onClick={() => setShowRaw(!showRaw)}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: 4,
+                                display: 'flex',
+                                alignItems: 'center',
+                            }}
+                        >
+                            <FrokIcon name="Code" style={{ fontSize: 16 }} />
+                        </button>
                     </Tooltip>
-                    <Tooltip title={copied ? 'Copied!' : 'Copy JSON'}>
-                        <IconButton size="small" onClick={handleCopy}>
+                    <Tooltip content={copied ? 'Copied!' : 'Copy JSON'}>
+                        <button
+                            onClick={handleCopy}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: 4,
+                                display: 'flex',
+                                alignItems: 'center',
+                            }}
+                        >
                             {copied ? (
-                                <CheckIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                                <FrokIcon name="Check" style={{ fontSize: 16, color: cssVar('--g-green-50') }} />
                             ) : (
-                                <CopyIcon sx={{ fontSize: 16 }} />
+                                <FrokIcon name="ContentCopy" style={{ fontSize: 16 }} />
                             )}
-                        </IconButton>
+                        </button>
                     </Tooltip>
-                </Box>
-            </Box>
+                </div>
+            </div>
 
             {/* Content */}
-            <Box
-                sx={{
-                    p: 1.5,
+            <div
+                style={{
+                    padding: 12,
                     maxHeight: 400,
                     overflowY: 'auto',
-                    '&::-webkit-scrollbar': {
-                        width: 6,
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                        background: alpha(theme.palette.primary.main, 0.3),
-                        borderRadius: 0,
-                    },
                 }}
             >
                 {showRaw ? (
-                    <Box
-                        component="pre"
-                        sx={{
-                            m: 0,
+                    <pre
+                        style={{
+                            margin: 0,
                             fontFamily: 'monospace',
                             fontSize: '0.85rem',
                             lineHeight: 1.6,
@@ -275,7 +280,7 @@ export const JsonViewer: React.FC<JsonViewerProps> = ({ content, maxDepth = 3 })
                         }}
                     >
                         {JSON.stringify(parsedJson, null, 2)}
-                    </Box>
+                    </pre>
                 ) : (
                     <JsonNode
                         value={parsedJson}
@@ -284,8 +289,8 @@ export const JsonViewer: React.FC<JsonViewerProps> = ({ content, maxDepth = 3 })
                         isLast={true}
                     />
                 )}
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 };
 
