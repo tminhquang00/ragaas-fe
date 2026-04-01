@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
 import {
-    Slider,
-} from '@mui/material';
-import {
     Dialog,
     TextField,
     TextArea,
@@ -12,6 +9,7 @@ import {
     Tab,
     Notification,
     ActivityIndicator,
+    Slider,
 } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
 import { alpha } from '../../utils/frokTheme';
@@ -256,34 +254,32 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                                     <div>
                                         <p style={{ marginBottom: 8 }}>Temperature: {temperature}</p>
                                         <Slider
-                                            value={temperature}
-                                            onChange={(_, v) => setTemperature(v as number)}
-                                            min={0}
-                                            max={2}
-                                            step={0.1}
-                                            marks={[
-                                                { value: 0, label: '0' },
-                                                { value: 1, label: '1' },
-                                                { value: 2, label: '2' },
-                                            ]}
-                                            valueLabelDisplay="auto"
+                                            labelLeft="0"
+                                            labelRight="2"
+                                            tooltip
+                                            input={{
+                                                min: 0,
+                                                max: 2,
+                                                step: 0.1,
+                                                value: temperature,
+                                                onChange: (e) => setTemperature(Number(e.target.value)),
+                                            }}
                                         />
                                     </div>
 
                                     <div>
                                         <p style={{ marginBottom: 8 }}>Top K Results: {topK}</p>
                                         <Slider
-                                            value={topK}
-                                            onChange={(_, v) => setTopK(v as number)}
-                                            min={1}
-                                            max={20}
-                                            step={1}
-                                            marks={[
-                                                { value: 1, label: '1' },
-                                                { value: 10, label: '10' },
-                                                { value: 20, label: '20' },
-                                            ]}
-                                            valueLabelDisplay="auto"
+                                            labelLeft="1"
+                                            labelRight="20"
+                                            tooltip
+                                            input={{
+                                                min: 1,
+                                                max: 20,
+                                                step: 1,
+                                                value: topK,
+                                                onChange: (e) => setTopK(Number(e.target.value)),
+                                            }}
                                         />
                                     </div>
 

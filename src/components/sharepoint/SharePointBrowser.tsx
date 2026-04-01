@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     Notification,
     Button,
@@ -8,6 +8,7 @@ import {
     TextField,
     Tooltip,
     Divider,
+    Tile,
 } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
 import { useMsal } from '@azure/msal-react';
@@ -96,6 +97,33 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
     const [error, setError] = useState<string | null>(null);
 
     const isAzureADEnabled = useAzureAD;
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [treeHeight, setTreeHeight] = useState(420);
+
+    // Auto-calculate tree height based on available container space
+    useEffect(() => {
+        if (!containerRef.current || !tree) return;
+
+        const updateHeight = () => {
+            const container = containerRef.current;
+            if (!container) return;
+
+            const rect = container.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const headerHeight = 200; // Approximate header/form height
+            const padding = 48; // Container padding
+            const minHeight = 150;
+            const maxHeight = 600;
+
+            const available = viewportHeight - rect.top - headerHeight - padding;
+            const newHeight = Math.max(minHeight, Math.min(maxHeight, available));
+            setTreeHeight(newHeight);
+        };
+
+        updateHeight();
+        window.addEventListener('resize', updateHeight);
+        return () => window.removeEventListener('resize', updateHeight);
+    }, [tree, spAccessToken]);
 
     // ── MSAL helpers ──────────────────────────────────────────────────────────
 
@@ -300,7 +328,7 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
     // ── Render ────────────────────────────────────────────────────────────────
 
     return (
-        <div>
+        <Tile>
             {/* ── Auth banner ─────────────────────────────────────── */}
             <div
                 style={{
@@ -308,14 +336,14 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
                     alignItems: 'center',
                     gap: '1rem',
                     padding: '1rem',
-                    marginBottom: '1rem',
-                    background: 'var(--app-bg)',
-                    border: '1px solid var(--app-border)',
+                    marginBottom: '1.5rem',
+                    background: 'var(--app-bg-surface)',
+                    borderRadius: 8,
                 }}
             >
                 {spAccessToken ? (
                     <>
-                        <FrokIcon name="CheckCircle" />
+                        <FrokIcon name="CheckCircle" style={{ color: 'var(--app-success)' }} />
                         <span style={{ flex: 1, fontSize: '0.875rem' }}>
                             Connected{connectedAs ? ` as ${connectedAs}` : ''}
                         </span>
@@ -364,9 +392,9 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
 
             {/* ── URL / folder / extension form ───────────────────── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <FrokIcon name="Link" />
-                    <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <FrokIcon name="Link" style={{ marginBottom: '8px' }} />
+                    <div style={{ flex: '1 1 300px', minWidth: 200 }}>
                         <TextField
                             id="sp-url"
                             label="SharePoint URL"
@@ -376,15 +404,17 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
                             disabled={!spAccessToken}
                         />
                     </div>
+                    <div style={{ flex: '1 1 250px', minWidth: 180 }}>
+                        <TextField
+                            id="sp-folder-path"
+                            label="Folder Path (optional)"
+                            placeholder="Documents/ProjectA"
+                            value={folderPath}
+                            onChange={e => setFolderPath(e.target.value)}
+                            disabled={!spAccessToken}
+                        />
+                    </div>
                 </div>
-                <TextField
-                    id="sp-folder-path"
-                    label="Folder Path (optional)"
-                    placeholder="Documents/ProjectA"
-                    value={folderPath}
-                    onChange={e => setFolderPath(e.target.value)}
-                    disabled={!spAccessToken}
-                />
 
                 {/* Extension chips */}
                 <div>
@@ -450,9 +480,10 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
                     <Divider />
                     <div style={{ marginTop: '1rem' }}>
                         <div
+                            ref={containerRef}
                             style={{
                                 border: '1px solid var(--app-border)',
-                                maxHeight: 420,
+                                maxHeight: treeHeight,
                                 overflow: 'auto',
                                 background: 'var(--app-bg)',
                                 marginBottom: '1rem',
@@ -555,6 +586,6 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
                     </Notification>
                 </div>
             )}
-        </div>
+        </Tile>
     );
 };

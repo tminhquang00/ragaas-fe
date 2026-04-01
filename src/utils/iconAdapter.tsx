@@ -91,9 +91,10 @@ const iconMapping: Record<string, string> = {
     Archive: 'archive',
     PlayArrow: 'play',
     AutoGraph: 'chart-line',
-    CallSplit: 'split',
+    CallSplit: 'connection',
     Transform: 'refresh',
     Merge: 'connection',
+    Share: 'share',
 };
 
 interface FrokIconProps {

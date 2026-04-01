@@ -1,50 +1,90 @@
 import React from 'react';
-import { Tile } from '@bosch/react-frok';
+import { Tile, Layout } from '@bosch/react-frok';
 import { useNavigate } from 'react-router-dom';
 import { FrokIcon } from '../utils/iconAdapter';
-import { alpha } from '../utils/frokTheme';
 
 interface StatCardProps {
     title: string;
     value: string | number;
-    icon: React.ReactNode;
-    color: string;
+    icon: string;
+    iconColor: string;
     onClick?: () => void;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, onClick }) => {
-
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, iconColor, onClick }) => {
     return (
         <Tile
-            style={{
-                cursor: onClick ? 'pointer' : 'default',
-                transition: 'all 0.3s ease',
-            }}
             onClick={onClick}
+            style={{
+                padding: '1.5rem',
+                position: 'relative',
+                cursor: onClick ? 'pointer' : 'default',
+                transition: 'border-color 0.2s ease',
+                border: '1px solid var(--app-border)',
+            }}
+            onMouseEnter={(e) => {
+                if (onClick) e.currentTarget.style.borderColor = 'var(--app-primary)';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--app-border)';
+            }}
         >
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <div>
-                    <p style={{ color: 'var(--app-text-secondary)', marginBottom: '0.25rem', fontSize: '0.875rem' }}>
-                        {title}
-                    </p>
-                    <h4 style={{ fontWeight: 700, margin: 0 }}>
-                        {value}
-                    </h4>
-                </div>
+            <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
                 <div
                     style={{
-                        width: 48,
-                        height: 48,
-                        background: color,
+                        width: 56,
+                        height: 56,
+                        background: iconColor,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: `0 8px 20px ${alpha(color, 0.3)}`,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                     }}
                 >
-                    {icon}
+                    <FrokIcon name={icon} style={{ fontSize: '1.5rem', color: 'white' }} />
                 </div>
             </div>
+            <div>
+                <p style={{ margin: 0, marginBottom: '0.5rem', fontSize: '0.875rem', color: 'var(--app-text-secondary)' }}>
+                    {title}
+                </p>
+                <p style={{ margin: 0, fontSize: '2rem', fontWeight: 700, lineHeight: 1 }}>
+                    {value}
+                </p>
+            </div>
+        </Tile>
+    );
+};
+
+interface ActionCardProps {
+    title: string;
+    description: string;
+    onClick?: () => void;
+}
+
+const ActionCard: React.FC<ActionCardProps> = ({ title, description, onClick }) => {
+    return (
+        <Tile
+            onClick={onClick}
+            style={{
+                padding: '1.75rem',
+                cursor: onClick ? 'pointer' : 'default',
+                transition: 'border-color 0.2s ease',
+                border: '1px solid var(--app-border)',
+            }}
+            onMouseEnter={(e) => {
+                if (onClick) e.currentTarget.style.borderColor = 'var(--app-primary)';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--app-border)';
+            }}
+        >
+            <h3 style={{ margin: 0, marginBottom: '0.75rem', fontWeight: 600, fontSize: '1.125rem' }}>
+                {title}
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--app-text-secondary)', lineHeight: 1.6 }}>
+                {description}
+            </p>
         </Tile>
     );
 };
@@ -53,82 +93,73 @@ export const DashboardPage: React.FC = () => {
     const navigate = useNavigate();
 
     return (
-        <div>
+        <Layout>
             {/* Header */}
-            <div style={{ marginBottom: '2rem' }}>
-                <h4 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>
+            <div style={{ marginBottom: '2.5rem' }}>
+                <h1 style={{ margin: 0, marginBottom: '1rem', fontSize: '2.5rem', fontWeight: 700 }}>
                     Dashboard
-                </h4>
-                <p style={{ color: 'var(--app-text-secondary)' }}>
+                </h1>
+                <p style={{ margin: 0, fontSize: '1rem', color: 'var(--app-text-secondary)' }}>
                     Welcome to RAG-as-a-Service. Manage your AI-powered knowledge bases.
                 </p>
             </div>
 
             {/* Stats Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+            <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', 
+                gap: '1.25rem',
+                marginBottom: '2.5rem' 
+            }}>
                 <StatCard
                     title="Total Projects"
-                    value="--"
-                    icon={<FrokIcon name="Folder" style={{ color: 'white' }} />}
-                    color="var(--app-primary)"
+                    value={0}
+                    icon="Folder"
+                    iconColor="var(--g-blue-50)"
                     onClick={() => navigate('/projects')}
                 />
                 <StatCard
                     title="Documents"
-                    value="--"
-                    icon={<FrokIcon name="Description" style={{ color: 'white' }} />}
-                    color="var(--g-violet-60, #6d37c7)"
+                    value={0}
+                    icon="Description"
+                    iconColor="#9b51e0"
                 />
                 <StatCard
                     title="Chat Sessions"
-                    value="--"
-                    icon={<FrokIcon name="Chat" style={{ color: 'white' }} />}
-                    color="var(--app-success)"
+                    value={0}
+                    icon="Chat"
+                    iconColor="var(--g-green-50)"
                 />
                 <StatCard
                     title="Active Projects"
-                    value="--"
-                    icon={<FrokIcon name="TrendingUp" style={{ color: 'white' }} />}
-                    color="var(--app-warning)"
+                    value={0}
+                    icon="CheckCircle"
+                    iconColor="#f2994a"
                 />
             </div>
 
-            {/* Quick Actions */}
-            <h6 style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
-                Quick Start
-            </h6>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                <Tile
-                    style={{
-                        cursor: 'pointer',
-                        background: alpha('var(--app-primary)', 0.08),
-                        border: `1px solid ${alpha('var(--app-primary)', 0.2)}`,
-                    }}
-                    onClick={() => navigate('/projects')}
-                >
-                    <h6 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
-                        Create Your First Project
-                    </h6>
-                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>
-                        Set up a new RAG project to start building your AI-powered knowledge base.
-                        Upload documents, configure your LLM, and start chatting.
-                    </p>
-                </Tile>
-                <Tile
-                    style={{
-                        cursor: 'pointer',
-                    }}
-                    onClick={() => navigate('/settings')}
-                >
-                    <h6 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
-                        Configure Settings
-                    </h6>
-                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>
-                        Customize your tenant settings, manage API keys, and configure
-                        default options for new projects.
-                    </p>
-                </Tile>
+            {/* Quick Start */}
+            <div>
+                <h2 style={{ margin: 0, marginBottom: '1.25rem', fontSize: '1.25rem', fontWeight: 600 }}>
+                    Quick Start
+                </h2>
+                <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', 
+                    gap: '1.25rem' 
+                }}>
+                    <ActionCard
+                        title="Create Your First Project"
+                        description="Set up a new RAG project to start building your AI-powered knowledge base. Upload documents, configure your LLM, and start chatting."
+                        onClick={() => navigate('/projects')}
+                    />
+                    <ActionCard
+                        title="Configure Settings"
+                        description="Customize your tenant settings, manage API keys, and configure default options for new projects."
+                        onClick={() => navigate('/settings')}
+                    />
+                </div>
             </div>
-        </div>
+        </Layout>
     );
 };

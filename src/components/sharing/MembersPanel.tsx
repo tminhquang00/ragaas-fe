@@ -5,8 +5,8 @@ import {
     Tooltip,
     Notification,
     Divider,
+    ActivityIndicator,
 } from '@bosch/react-frok';
-import { Skeleton } from '@mui/material';
 import { FrokIcon } from '../../utils/iconAdapter';
 
 import { ProjectMemberResponse, ProjectRole } from '../../types';
@@ -114,11 +114,9 @@ export const MembersPanel: React.FC<MembersPanelProps> = ({
                 }}
             >
                 {loading ? (
-                    [...Array(3)].map((_, i) => (
-                        <div key={i} style={{ padding: '0.75rem 1rem' }}>
-                            <Skeleton variant="text" width="60%" />
-                        </div>
-                    ))
+                    <div style={{ padding: '2rem', textAlign: 'center' }}>
+                        <ActivityIndicator size="medium" />
+                    </div>
                 ) : members.length === 0 ? (
                     <div style={{ padding: '2rem', textAlign: 'center' }}>
                         <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>

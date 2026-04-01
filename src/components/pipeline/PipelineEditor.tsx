@@ -142,7 +142,7 @@ function PipelineEditorContent({ initialConfig, onConfigChange }: PipelineEditor
             style={{
                 display: 'flex',
                 width: '100%',
-                height: 600,
+                height: '100%',
                 border: '1px solid var(--bosch-gray-75)',
                 overflow: 'hidden',
             }}

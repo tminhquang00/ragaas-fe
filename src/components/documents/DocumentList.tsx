@@ -8,8 +8,8 @@ import {
     Tooltip,
     Badge,
     Button,
+    ActivityIndicator,
 } from '@bosch/react-frok';
-import { Skeleton } from '@mui/material';
 import { Document, ProcessingStatus } from '../../types';
 
 interface DocumentListProps {
@@ -66,16 +66,11 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {[...Array(3)].map((_, i) => (
-                            <TableRow key={i}>
-                                <TableCell><Skeleton width={200} /></TableCell>
-                                <TableCell><Skeleton width={80} /></TableCell>
-                                <TableCell><Skeleton width={40} /></TableCell>
-                                <TableCell><Skeleton width={60} /></TableCell>
-                                <TableCell><Skeleton width={100} /></TableCell>
-                                <TableCell><Skeleton width={80} /></TableCell>
-                            </TableRow>
-                        ))}
+                        <TableRow>
+                            <TableCell colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>
+                                <ActivityIndicator size="medium" />
+                            </TableCell>
+                        </TableRow>
                     </TableBody>
                 </Table>
             </div>

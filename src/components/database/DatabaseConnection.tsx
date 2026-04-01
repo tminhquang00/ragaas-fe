@@ -17,7 +17,6 @@ import {
     ActivityIndicator,
     RadioButton,
 } from '@bosch/react-frok';
-import { Pagination } from '@mui/material';
 import { FrokIcon } from '../../utils/iconAdapter';
 import { RAGaaSClient } from '../../services/api';
 import {
@@ -914,12 +913,23 @@ export const DatabaseConnection: React.FC<Props> = ({
                                     </div>
                                 ))}
                                 {auditTotal > AUDIT_LIMIT && (
-                                    <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '0.5rem' }}>
-                                        <Pagination
-                                            count={Math.ceil(auditTotal / AUDIT_LIMIT)}
-                                            page={auditPage}
-                                            onChange={(_, p) => setAuditPage(p)}
-                                            size="small"
+                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', paddingTop: '0.5rem' }}>
+                                        <Button
+                                            mode="integrated"
+                                            icon="chevron-left"
+                                            onClick={() => setAuditPage(p => Math.max(1, p - 1))}
+                                            disabled={auditPage === 1}
+                                            aria-label="Previous page"
+                                        />
+                                        <span style={{ fontSize: '0.875rem', color: 'var(--app-text-secondary)' }}>
+                                            Page {auditPage} of {Math.ceil(auditTotal / AUDIT_LIMIT)}
+                                        </span>
+                                        <Button
+                                            mode="integrated"
+                                            icon="chevron-right"
+                                            onClick={() => setAuditPage(p => Math.min(Math.ceil(auditTotal / AUDIT_LIMIT), p + 1))}
+                                            disabled={auditPage >= Math.ceil(auditTotal / AUDIT_LIMIT)}
+                                            aria-label="Next page"
                                         />
                                     </div>
                                 )}

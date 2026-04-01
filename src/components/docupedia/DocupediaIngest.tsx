@@ -10,8 +10,10 @@ import {
     Tooltip,
     Chip,
     ProgressIndicator,
+    Slider,
+    Tile,
+    Layout,
 } from '@bosch/react-frok';
-import { Slider } from '@mui/material';
 import { FrokIcon } from '../../utils/iconAdapter';
 
 import { RAGaaSClient } from '../../services/api';
@@ -92,7 +94,7 @@ export const DocupediaIngest: React.FC<DocupediaIngestProps> = ({
     // Render
 
     return (
-        <div>
+        <Tile>
             {/* Info banner */}
             <div
                 style={{
@@ -100,12 +102,12 @@ export const DocupediaIngest: React.FC<DocupediaIngestProps> = ({
                     alignItems: 'center',
                     gap: '1rem',
                     padding: '1rem',
-                    marginBottom: '1rem',
-                    background: 'var(--app-bg)',
-                    border: '1px solid var(--app-border)',
+                    marginBottom: '1.5rem',
+                    background: 'var(--app-bg-surface)',
+                    borderRadius: 8,
                 }}
             >
-                <FrokIcon name="Article" />
+                <FrokIcon name="Article" style={{ fontSize: 24, color: 'var(--app-primary)' }} />
                 <div style={{ flex: 1 }}>
                     <p style={{ fontWeight: 600, fontSize: '0.875rem', margin: 0 }}>
                         Ingest from Docupedia / Confluence
@@ -172,15 +174,16 @@ export const DocupediaIngest: React.FC<DocupediaIngestProps> = ({
                                 Max depth: <strong>{maxDepth}</strong>
                             </span>
                             <Slider
-                                value={maxDepth}
-                                onChange={(_, val) => setMaxDepth(val as number)}
-                                min={1}
-                                max={10}
-                                step={1}
-                                marks
-                                size="small"
-                                valueLabelDisplay="auto"
-                                aria-label="Max depth"
+                                labelLeft="1"
+                                labelRight="10"
+                                tooltip
+                                input={{
+                                    min: 1,
+                                    max: 10,
+                                    step: 1,
+                                    value: maxDepth,
+                                    onChange: (e) => setMaxDepth(Number(e.target.value)),
+                                }}
                             />
                         </div>
                     </div>
@@ -298,6 +301,6 @@ export const DocupediaIngest: React.FC<DocupediaIngestProps> = ({
                     </Notification>
                 </div>
             )}
-        </div>
+        </Tile>
     );
 };

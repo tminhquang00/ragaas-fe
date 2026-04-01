@@ -139,11 +139,11 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
     if (!selectedNode) {
         return (
             <Tile
-                background="primary"
                 style={{
                     width: collapsed ? 50 : 360,
                     transition: 'width 0.2s',
-                    borderLeft: '1px solid var(--bosch-gray-75)',
+                    background: 'var(--app-bg)',
+                    borderLeft: '1px solid var(--app-border)',
                     display: 'flex',
                     flexDirection: 'column',
                     zIndex: 2,
@@ -155,9 +155,9 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
                     <Button mode="integrated" icon={collapsed ? 'left' : 'right'} onClick={() => setCollapsed(!collapsed)} />
                 </div>
                 {!collapsed && (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', gap: '1rem', opacity: 0.7 }}>
-                        <FrokIcon name="Settings" style={{ fontSize: 48, color: '#bdbdbd' }} />
-                        <span style={{ fontSize: '0.875rem', color: '#757575', textAlign: 'center' }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', gap: '1rem' }}>
+                        <FrokIcon name="Settings" style={{ fontSize: 48, color: 'var(--app-text-secondary)' }} />
+                        <span style={{ fontSize: '0.875rem', color: 'var(--app-text-secondary)', textAlign: 'center' }}>
                             Select a node to edit properties
                         </span>
                     </div>
@@ -170,11 +170,11 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
 
     return (
         <Tile
-            background="primary"
             style={{
                 width: collapsed ? 50 : 360,
                 transition: 'width 0.2s',
-                borderLeft: '1px solid var(--bosch-gray-75)',
+                background: 'var(--app-bg)',
+                borderLeft: '1px solid var(--app-border)',
                 display: 'flex',
                 flexDirection: 'column',
                 zIndex: 2,
@@ -183,7 +183,7 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
             }}
         >
             {/* Header */}
-            <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--bosch-gray-75)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--app-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 {!collapsed && (
                     <strong style={{ fontSize: '0.875rem' }}>
                         Properties
@@ -228,7 +228,7 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
                     />
 
                     <Divider />
-                    <span style={{ fontSize: '0.75rem', color: '#757575', textAlign: 'center' }}>CONFIGURATION</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)', textAlign: 'center' }}>CONFIGURATION</span>
                     <Divider />
 
                     {schema.length > 0 ? (
@@ -243,7 +243,7 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
                             />
                         ))
                     ) : (
-                        <span style={{ fontSize: '0.875rem', color: '#757575', fontStyle: 'italic' }}>
+                        <span style={{ fontSize: '0.875rem', color: 'var(--app-text-secondary)', fontStyle: 'italic' }}>
                             No specific configuration for this step type yet.
                             You can add custom properties below.
                         </span>
@@ -251,7 +251,7 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
 
                     {/* JSON Fallback for advanced usage or missing schema */}
                     <div style={{ marginTop: '1rem' }}>
-                        <span style={{ fontSize: '0.75rem', color: '#757575', display: 'block', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)', display: 'block', marginBottom: '0.5rem' }}>
                             Raw Config (JSON)
                         </span>
                         <TextArea

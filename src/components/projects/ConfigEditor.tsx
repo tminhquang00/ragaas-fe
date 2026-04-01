@@ -197,18 +197,19 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({ config, onSave }) =>
     };
 
     return (
-        <Tile style={{ padding: 0, overflow: 'hidden' }}>
+        <Tile className="config-editor-tile" style={{ padding: 0, overflow: 'hidden' }}>
             {/* Toolbar */}
-            <div style={{
+            <div className="config-editor-toolbar" style={{
                 padding: 16,
                 borderBottom: '1px solid var(--major__enabled__default__line, #ccc)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div className="config-editor-toolbar-left" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                     <h6 style={{ margin: 0 }}>Project Configuration</h6>
                     <TabNavigation
+                        className="config-editor-mode-tabs"
                         selectedValue={mode}
                         onTabSelect={(_ev, data) => setMode(data.value as 'visual' | 'json')}
                     >
@@ -226,7 +227,7 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({ config, onSave }) =>
             </div>
 
             {/* Content */}
-            <div style={{ padding: 24 }}>
+            <div className="config-editor-content" style={{ padding: 24 }}>
                 {mode === 'visual' ? (
                     <ConfigField
                         path={[]}

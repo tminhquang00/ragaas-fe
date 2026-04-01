@@ -41,8 +41,8 @@ const VALUE_COLORS = {
     string: cssVar('--g-red-50'),
     key: cssVar('--g-blue-50'),
     bracket: 'var(--major__enabled__default__front, #333)',
-    disabled: 'var(--minor__enabled__default__front, #999)',
-    secondary: 'var(--major__enabled__default__front, #666)',
+    disabled: cssVar('--g-gray-50'),
+    secondary: cssVar('--g-gray-60'),
 };
 
 const JsonNode: React.FC<JsonNodeProps> = ({ keyName, value, depth, maxDepth, isLast }) => {
@@ -200,8 +200,8 @@ export const JsonViewer: React.FC<JsonViewerProps> = ({ content, maxDepth = 3 })
     return (
         <div
             style={{
-                border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
-                background: alpha('var(--major__enabled__default__fill, #fff)', 0.6),
+                border: `1px solid ${alpha('var(--app-border)', 0.3)}`,
+                background: alpha('var(--app-bg-surface)', 0.6),
                 overflow: 'hidden',
             }}
         >

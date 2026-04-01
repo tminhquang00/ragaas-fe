@@ -1,10 +1,9 @@
 import React from 'react';
-import { Tile, Chip, Tooltip, Button, ProgressIndicator } from '@bosch/react-frok';
+import { Tile, Tooltip, Button, ProgressIndicator } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
 
 import { Project, ProjectStatus, getUserRole } from '../../types';
 import { useNavigate } from 'react-router-dom';
-import { RoleBadge } from '../sharing';
 
 interface ProjectCardProps {
     project: Project;
@@ -12,16 +11,17 @@ interface ProjectCardProps {
     onMenuClick?: (event: React.MouseEvent<HTMLElement>, project: Project) => void;
 }
 
-const statusConfig: Record<ProjectStatus, { label: string }> = {
-    draft: { label: 'Draft' },
-    active: { label: 'Active' },
-    archived: { label: 'Archived' },
+const statusConfig: Record<ProjectStatus, { label: string; tone: string }> = {
+    draft: { label: 'Draft', tone: 'draft' },
+    active: { label: 'Active', tone: 'active' },
+    archived: { label: 'Archived', tone: 'archived' },
 };
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({ project, currentUserId, onMenuClick }) => {
     const navigate = useNavigate();
-    const { label } = statusConfig[project.status];
+    const { label, tone } = statusConfig[project.status];
     const userRole = currentUserId ? getUserRole(project, currentUserId) : null;
+    const roleLabel = userRole ? userRole.charAt(0).toUpperCase() + userRole.slice(1) : null;
 
     const handleClick = () => {
         navigate(`/projects/${project.project_id}`);
@@ -29,26 +29,18 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, currentUserId
 
     return (
         <Tile
-            style={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                padding: 0,
-            }}
-            className="project-card-tile"
+            className={`project-card-tile project-card-${tone}`}
             onClick={handleClick}
         >
-            <div style={{ flex: 1, padding: '16px 16px 8px' }}>
+            <div className="project-card-body">
                 {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Chip label={label} />
-                        {userRole && <RoleBadge role={userRole} />}
-                        {project.visibility === 'public' && (
-                            <Chip label="Public" />
-                        )}
+                <div className="project-card-header">
+                    <div className="project-card-chip-row">
+                        <span className={`project-badge project-badge-status project-badge-${tone}`}>
+                            {label}
+                        </span>
+                        {roleLabel && <span className="project-badge project-badge-role">{roleLabel}</span>}
+                        {project.visibility === 'public' && <span className="project-badge project-badge-public">Public</span>}
                     </div>
                     <Button
                         mode="integrated"
@@ -62,53 +54,33 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, currentUserId
                 </div>
 
                 {/* Title & Description */}
-                <h6 style={{ fontWeight: 600, margin: '0 0 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {project.name}
-                </h6>
-                <p
-                    style={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        minHeight: 40,
-                        marginBottom: 16,
-                        fontSize: '0.875rem',
-                        color: 'var(--major__enabled__default__front-secondary, #70757a)',
-                    }}
-                >
+                <h6 className="project-card-title">{project.name}</h6>
+                <p className="project-card-description">
                     {project.description || 'No description'}
                 </p>
 
                 {/* Stats */}
-                <div style={{ display: 'flex', gap: 24 }}>
+                <div className="project-card-stats">
                     <Tooltip content="Documents">
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <FrokIcon name="Description" style={{ fontSize: '1.25rem' }} />
-                            <span style={{ fontSize: '0.875rem', color: 'var(--major__enabled__default__front-secondary, #70757a)' }}>
-                                --
-                            </span>
+                        <span className="project-stat">
+                            <FrokIcon name="Description" style={{ fontSize: '1.1rem' }} />
+                            <span>--</span>
                         </span>
                     </Tooltip>
                     <Tooltip content="Chat Sessions">
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <FrokIcon name="Chat" style={{ fontSize: '1.25rem' }} />
-                            <span style={{ fontSize: '0.875rem', color: 'var(--major__enabled__default__front-secondary, #70757a)' }}>
-                                --
-                            </span>
+                        <span className="project-stat">
+                            <FrokIcon name="Chat" style={{ fontSize: '1.1rem' }} />
+                            <span>--</span>
                         </span>
                     </Tooltip>
                 </div>
             </div>
 
-            <div style={{ padding: '0 16px 16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--major__enabled__default__front-secondary, #70757a)' }}>
-                        LLM: {project.config?.llm_config?.config_name || 'Not set'}
-                    </span>
-                </div>
+            <div className="project-card-footer">
+                <span className="project-card-llm">LLM: {project.config?.llm_config?.config_name || 'Not set'}</span>
                 {project.status === 'draft' && (
                     <ProgressIndicator
+                        className="project-card-progress"
                         type="determinate"
                         value={30}
                     />

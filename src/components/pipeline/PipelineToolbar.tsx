@@ -4,12 +4,12 @@ import { FrokIcon } from '../../utils/iconAdapter';
 
 const STEP_TYPES = [
     { type: 'retrieve', label: 'Retrieve', icon: 'Search', color: '#007bc0' },
-    { type: 'generate', label: 'Generate', icon: 'AutoGraph', color: '#18837e' },
-    { type: 'classify', label: 'Classify', icon: 'Label', color: '#9c27b0' },
+    { type: 'generate', label: 'Generate', icon: 'SmartToy', color: '#18837e' },
+    { type: 'classify', label: 'Classify', icon: 'Description', color: '#9c27b0' },
     { type: 'route', label: 'Route', icon: 'CallSplit', color: '#ed6c02' },
-    { type: 'transform', label: 'Transform', icon: 'Transform', color: '#0288d1' },
-    { type: 'parallel', label: 'Parallel', icon: 'Merge', color: '#0288d1' },
-    { type: 'agent', label: 'Agent', icon: 'SmartToy', color: '#d32f2f' },
+    { type: 'transform', label: 'Transform', icon: 'Refresh', color: '#0288d1' },
+    { type: 'parallel', label: 'Parallel', icon: 'Bolt', color: '#0288d1' },
+    { type: 'agent', label: 'Agent', icon: 'Build', color: '#d32f2f' },
 ];
 
 export const PipelineToolbar = () => {
@@ -22,13 +22,13 @@ export const PipelineToolbar = () => {
 
     return (
         <Tile
-            background="primary"
             style={{
                 width: collapsed ? 60 : 240,
                 transition: 'width 0.2s',
                 display: 'flex',
                 flexDirection: 'column',
-                borderRight: '1px solid var(--bosch-gray-75)',
+                background: 'var(--app-bg)',
+                borderRight: '1px solid var(--app-border)',
                 overflow: 'hidden',
                 zIndex: 2,
                 padding: 0,
@@ -77,7 +77,7 @@ export const PipelineToolbar = () => {
                             {!collapsed && (
                                 <>
                                     <span style={{ flex: 1, fontSize: '0.875rem' }}>{step.label}</span>
-                                    <FrokIcon name="DragIndicator" style={{ color: '#bdbdbd' }} />
+                                    <FrokIcon name="DragIndicator" style={{ color: 'var(--app-text-secondary)' }} />
                                 </>
                             )}
                         </div>
@@ -86,8 +86,8 @@ export const PipelineToolbar = () => {
             </div>
 
             {!collapsed && (
-                <div style={{ padding: '1rem', borderTop: '1px solid var(--bosch-gray-75)' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#757575' }}>
+                <div style={{ padding: '1rem', borderTop: '1px solid var(--app-border)' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
                         Drag steps onto the canvas to add them to your pipeline.
                     </span>
                 </div>

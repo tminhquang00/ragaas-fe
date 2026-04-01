@@ -3,6 +3,7 @@ import { Button, TextField, Dialog, Popover } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
 import { alpha, cssVar } from '../../utils/frokTheme';
 import { ChatSession } from '../../types';
+import './Chat.css';
 
 interface ChatSessionListProps {
     sessions: ChatSession[];
@@ -108,10 +109,10 @@ export const ChatSessionList: React.FC<ChatSessionListProps> = ({
     }, {} as Record<string, ChatSession[]>);
 
     return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--major__enabled__default__front, #e0e0e0)' }}>
-            <div style={{ padding: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <h3 style={{ margin: 0, fontWeight: 600, fontSize: '1.1rem' }}>
+        <div className="session-list-container">
+            <div className="chat-sidebar-header">
+                <div className="chat-sidebar-title">
+                    <h3>
                         Chat History
                     </h3>
                     <Button
@@ -129,75 +130,49 @@ export const ChatSessionList: React.FC<ChatSessionListProps> = ({
                 />
             </div>
 
-            <ul style={{ flex: 1, overflowY: 'auto', padding: '0 8px', margin: 0, listStyle: 'none' }}>
+            <div className="session-list">
                 {Object.entries(groupedSessions).map(([label, groupSessions]) => (
                     <React.Fragment key={label}>
-                        <li style={{ padding: '8px 16px', fontWeight: 600, fontSize: '0.75rem', color: 'var(--minor__enabled__default__front, #666)' }}>
+                        <div className="session-list-group-label">
                             {label}
-                        </li>
+                        </div>
                         {groupSessions.map((session) => {
                             const isSelected = session.session_id === currentSessionId;
                             return (
-                                <li
+                                <div
                                     key={session.session_id}
-                                    style={{ marginBottom: 4 }}
+                                    className={`session-item ${isSelected ? 'selected' : ''}`}
+                                    onClick={() => onSelectSession(session.session_id)}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') onSelectSession(session.session_id); }}
                                 >
-                                    <div
-                                        onClick={() => onSelectSession(session.session_id)}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            padding: '8px 12px',
-                                            cursor: 'pointer',
-                                            background: isSelected ? alpha(cssVar('--g-blue-50'), 0.1) : 'transparent',
-                                            transition: 'background 0.15s',
-                                        }}
-                                        onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = alpha(cssVar('--g-blue-50'), 0.05); }}
-                                        onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                                    <span className="session-item-icon">
+                                        <FrokIcon
+                                            name="Chat"
+                                            style={{
+                                                fontSize: 18,
+                                                color: isSelected ? cssVar('--g-blue-50') : cssVar('--g-gray-50'),
+                                            }}
+                                        />
+                                    </span>
+                                    <span className="session-item-title">
+                                        {session.title || 'Untitled Session'}
+                                    </span>
+                                    <button
+                                        className="session-item-menu"
+                                        onClick={(e) => handleMenuOpen(e, session.session_id)}
+                                        aria-label="Session options"
+                                        type="button"
                                     >
-                                        <span style={{ minWidth: 24, display: 'flex', alignItems: 'center' }}>
-                                            <FrokIcon
-                                                name="Chat"
-                                                style={{
-                                                    fontSize: 18,
-                                                    color: isSelected ? cssVar('--g-blue-50') : 'var(--minor__enabled__default__front, #999)',
-                                                }}
-                                            />
-                                        </span>
-                                        <span
-                                            style={{
-                                                flex: 1,
-                                                fontSize: '0.875rem',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap',
-                                                fontWeight: isSelected ? 500 : 400,
-                                                marginLeft: 8,
-                                            }}
-                                        >
-                                            {session.title || 'Untitled Session'}
-                                        </span>
-                                        <button
-                                            onClick={(e) => handleMenuOpen(e, session.session_id)}
-                                            style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                opacity: 0.6,
-                                                padding: 4,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                            }}
-                                        >
                                             <FrokIcon name="MoreVert" style={{ fontSize: 18 }} />
                                         </button>
                                     </div>
-                                </li>
-                            );
+                                );
                         })}
                     </React.Fragment>
                 ))}
-            </ul>
+            </div>
 
             {/* Context Menu via Popover */}
             {menuOpen && menuTriggerRef.current && (
@@ -208,24 +183,20 @@ export const ChatSessionList: React.FC<ChatSessionListProps> = ({
                     onOutsideClick={handleMenuClose}
                     onCloseKeyPressed={handleMenuClose}
                 >
-                    <div style={{ minWidth: 150, padding: '4px 0' }}>
+                    <div className="chat-context-menu">
                         <div
+                            className="chat-context-menu-item"
                             onClick={handleEditClick}
-                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', cursor: 'pointer' }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = alpha(cssVar('--g-blue-50'), 0.05); }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
                             <FrokIcon name="Edit" style={{ fontSize: 18 }} />
-                            <span style={{ fontSize: '0.875rem' }}>Rename</span>
+                            <span>Rename</span>
                         </div>
                         <div
+                            className="chat-context-menu-item delete"
                             onClick={handleDeleteClick}
-                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', cursor: 'pointer', color: cssVar('--g-red-50') }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = alpha(cssVar('--g-red-50'), 0.05); }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
                             <FrokIcon name="Delete" style={{ fontSize: 18 }} />
-                            <span style={{ fontSize: '0.875rem' }}>Delete</span>
+                            <span>Delete</span>
                         </div>
                     </div>
                 </Popover>

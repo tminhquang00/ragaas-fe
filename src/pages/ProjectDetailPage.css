@@ -1,0 +1,65 @@
+.project-detail-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.project-detail-panel {
+  padding-top: 1.25rem;
+  min-width: 0;
+  border-top: 0 !important;
+}
+
+.project-detail-tabs {
+}
+
+.project-detail-tabs [role='tablist'] {
+  gap: 0.25rem;
+  align-items: flex-end;
+}
+
+.project-detail-tabs [role='tab'] {
+  border-radius: 4px 4px 0 0;
+  padding-inline: 0.75rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.project-detail-tabs [role='tab']:hover {
+  background: color-mix(in srgb, var(--app-primary) 8%, transparent);
+}
+
+.project-detail-tabs [role='tab'][aria-selected='true'] {
+  color: var(--app-primary);
+  font-weight: 600;
+}
+
+.project-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.project-chat-tile {
+  min-height: 460px;
+  overflow: hidden;
+  display: flex;
+  padding: 0;
+  border-top: 0;
+}
+
+.project-chat-tile > .ragaas-chat-root {
+  flex: 1;
+  min-height: 0;
+}
+
+.project-chat-tile .chat-container {
+  border-top: 0;
+}
+
+.project-pipeline-layout {
+  min-height: 500px;
+}

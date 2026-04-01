@@ -71,7 +71,6 @@ export const configToFlow = (config: PipelineConfig) => {
                     sourceHandle: i === 0 ? sourceHandle : undefined, // Only use handle for first connection in branch
                     type: 'smoothstep',
                     markerEnd: { type: MarkerType.ArrowClosed },
-                    animated: true,
                 });
             }
 

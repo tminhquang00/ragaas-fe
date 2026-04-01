@@ -7,11 +7,12 @@ const typeIcons: Record<string, React.ReactElement> = {
     retrieve: <FrokIcon name="Search" />,
     classify: <FrokIcon name="Description" />,
     generate: <FrokIcon name="SmartToy" />,
-    transform: <FrokIcon name="AutoFixHigh" />,
+    transform: <FrokIcon name="Refresh" />,
     filter: <FrokIcon name="FilterList" />,
     tool_call: <FrokIcon name="Settings" />,
     parallel: <FrokIcon name="Bolt" />,
     route: <FrokIcon name="CallSplit" />,
+    agent: <FrokIcon name="SmartToy" />,
 };
 
 const typeColors: Record<string, string> = {
@@ -23,7 +24,8 @@ const typeColors: Record<string, string> = {
     tool_call: '#0288d1',
     parallel: '#9c27b0',
     route: '#ed6c02',
-    default: '#757575',
+    agent: '#d32f2f',
+    default: 'var(--app-text-secondary)',
 };
 
 export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
@@ -49,7 +51,7 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.5rem' }}>
                 {displayConfig.map(([key, value]) => (
                     <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.75rem', color: '#757575', textTransform: 'capitalize' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)', textTransform: 'capitalize' }}>
                             {key.replace('_', ' ')}
                         </span>
                         <span style={{ fontSize: '0.75rem', fontWeight: 500, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -58,7 +60,7 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
                     </div>
                 ))}
                 {Object.keys(config).filter(k => k !== 'branches').length > 3 && (
-                    <span style={{ fontSize: '0.65rem', color: '#bdbdbd', fontStyle: 'italic' }}>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--app-text-secondary)', fontStyle: 'italic' }}>
                         + {Object.keys(config).filter(k => k !== 'branches').length - 3} more...
                     </span>
                 )}
@@ -85,11 +87,11 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
 
     return (
         <Tile
-            background="primary"
             style={{
                 width: hasBranches ? Math.max(200, branchKeys.length * 80) : 200,
+                background: 'var(--app-bg-surface)',
                 boxShadow: selected ? '0 0 0 2px #007bc0' : '0 1px 3px rgba(0,0,0,0.12)',
-                border: selected ? '1px solid #007bc0' : '1px solid var(--bosch-gray-75)',
+                border: selected ? '1px solid #007bc0' : '1px solid var(--app-border)',
                 transition: 'all 0.2s ease-in-out',
                 padding: 0,
             }}

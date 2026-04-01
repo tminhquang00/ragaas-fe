@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Skeleton } from '@mui/material';
 import {
     Button,
     TabNavigation,
     Tab,
     Notification,
     Popover,
+    ActivityIndicator,
+    Layout,
 } from '@bosch/react-frok';
 import { FrokIcon } from '../utils/iconAdapter';
 import { ProjectCard, CreateProjectDialog } from '../components/projects';
@@ -147,14 +148,14 @@ export const ProjectsPage: React.FC = () => {
     const filteredProjects = projects;
 
     return (
-        <div>
+        <Layout>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div className="projects-page-header">
                 <div>
-                    <h4 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>
+                    <h4 className="projects-page-title">
                         Projects
                     </h4>
-                    <p style={{ color: 'var(--app-text-secondary)' }}>
+                    <p className="projects-page-subtitle">
                         Manage your RAG knowledge bases
                     </p>
                 </div>
@@ -168,7 +169,7 @@ export const ProjectsPage: React.FC = () => {
             </div>
 
             {/* Filters */}
-            <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--app-border)' }}>
+            <div className="projects-page-filters">
                 <TabNavigation
                     selectedValue={statusFilter}
                     onTabSelect={(_ev, data) => setStatusFilter(data.value as string)}
@@ -182,7 +183,7 @@ export const ProjectsPage: React.FC = () => {
 
             {/* Error */}
             {error && (
-                <div style={{ marginBottom: '1.5rem' }}>
+                <div className="projects-page-error">
                     <Notification
                         type="error"
                         variant="banner"
@@ -196,23 +197,15 @@ export const ProjectsPage: React.FC = () => {
 
             {/* Projects Grid */}
             {loading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                    {[...Array(6)].map((_, i) => (
-                        <Skeleton key={i} variant="rounded" height={200} />
-                    ))}
+                <div className="projects-page-loading">
+                    <ActivityIndicator size="large" />
                 </div>
             ) : filteredProjects.length === 0 ? (
-                <div
-                    style={{
-                        textAlign: 'center',
-                        padding: '4rem 2rem',
-                        border: `1px dashed var(--app-border)`,
-                    }}
-                >
-                    <h6 style={{ color: 'var(--app-text-secondary)', marginBottom: '0.5rem' }}>
+                <div className="projects-page-empty">
+                    <h6 className="projects-page-empty-title">
                         No projects yet
                     </h6>
-                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                    <p className="projects-page-empty-description">
                         Create your first project to get started with AI-powered document Q&A
                     </p>
                     <Button
@@ -235,18 +228,17 @@ export const ProjectsPage: React.FC = () => {
                             (p.visibility === 'public' || p.members?.some((m) => m.user_id === tenantId))
                     );
                     return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                        <div className="projects-sections">
                             {/* My Projects */}
                             <div>
-                                {sharedProjects.length > 0 && (
-                                    <p style={{ fontWeight: 600, marginBottom: '1rem', color: 'var(--app-text-secondary)' }}>
-                                        My Projects
-                                    </p>
-                                )}
+                                <div className="projects-section-header">
+                                    <p className="projects-section-title">My Projects</p>
+                                    <p className="projects-section-count">{myProjects.length}</p>
+                                </div>
                                 {myProjects.length === 0 && sharedProjects.length > 0 ? (
-                                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>No owned projects.</p>
+                                    <p className="projects-empty-owned">No owned projects.</p>
                                 ) : (
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                                    <div className="projects-grid">
                                         {myProjects.map((project) => (
                                             <ProjectCard key={project.project_id} project={project} currentUserId={tenantId} onMenuClick={handleMenuClick} />
                                         ))}
@@ -256,10 +248,11 @@ export const ProjectsPage: React.FC = () => {
                             {/* Shared with me */}
                             {sharedProjects.length > 0 && (
                                 <div>
-                                    <p style={{ fontWeight: 600, marginBottom: '1rem', color: 'var(--app-text-secondary)' }}>
-                                        Shared with me
-                                    </p>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                                    <div className="projects-section-header">
+                                        <p className="projects-section-title">Shared with me</p>
+                                        <p className="projects-section-count">{sharedProjects.length}</p>
+                                    </div>
+                                    <div className="projects-grid">
                                         {sharedProjects.map((project) => (
                                             <ProjectCard key={project.project_id} project={project} currentUserId={tenantId} onMenuClick={handleMenuClick} />
                                         ))}
@@ -286,11 +279,11 @@ export const ProjectsPage: React.FC = () => {
                     zIndex: 1300,
                 } : undefined}
             >
-                <div style={{ minWidth: 160, padding: '0.5rem 0' }}>
+                <div className="project-actions-menu" role="menu" aria-label="Project actions">
                     {selectedProject?.status === 'draft' && (
                         <div
                             onClick={handleActivate}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 1rem', cursor: 'pointer' }}
+                            className="project-action-item"
                             role="menuitem"
                         >
                             <FrokIcon name="PlayArrow" />
@@ -300,7 +293,7 @@ export const ProjectsPage: React.FC = () => {
                     {selectedProject?.status === 'active' && (
                         <div
                             onClick={handleArchive}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 1rem', cursor: 'pointer' }}
+                            className="project-action-item"
                             role="menuitem"
                         >
                             <FrokIcon name="Archive" />
@@ -309,7 +302,7 @@ export const ProjectsPage: React.FC = () => {
                     )}
                     <div
                         onClick={handleDelete}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 1rem', cursor: 'pointer', color: 'var(--app-error)' }}
+                        className="project-action-item project-action-item-danger"
                         role="menuitem"
                     >
                         <FrokIcon name="Delete" />
@@ -334,6 +327,6 @@ export const ProjectsPage: React.FC = () => {
                 projectName={apiKeyModal.name}
                 onClose={() => setApiKeyModal({ open: false, key: '', name: '' })}
             />
-        </div>
+        </Layout>
     );
 };

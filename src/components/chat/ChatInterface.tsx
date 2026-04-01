@@ -9,6 +9,27 @@ import { SourceReference, StepProgress, AgentAction, ChatSession, ImageContent }
 import { VisualGroundingModal } from './VisualGroundingModal';
 import { JsonViewer, isJsonString } from './JsonViewer';
 import { ChatSessionList } from './ChatSessionList';
+import './Chat.css';
+
+// Utility to detect if content is HTML
+const isHtmlString = (str: string): boolean => {
+    if (typeof str !== 'string') return false;
+    const trimmed = str.trim();
+    // Check for common HTML patterns
+    return trimmed.startsWith('<html') || 
+           trimmed.startsWith('<!DOCTYPE') ||
+           (trimmed.startsWith('<') && /<[a-z][\s\S]*>/i.test(trimmed));
+};
+
+// Utility to strip HTML tags and decode entities
+const stripHtml = (html: string): string => {
+    // Create a temporary div to parse HTML
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    // Get text content (this automatically handles HTML entities)
+    const text = tmp.textContent || tmp.innerText || '';
+    return text.trim();
+};
 
 // Represents a file that was uploaded in chat history (from backend)
 interface UploadedFileInfo {
@@ -94,8 +115,8 @@ const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onVi
         <div
             style={{
                 padding: 12,
-                background: alpha('var(--major__enabled__default__fill, #fff)', 0.5),
-                border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.5)}`,
+                background: alpha('var(--app-bg-surface)', 0.5),
+                border: `1px solid ${alpha('var(--app-border)', 0.5)}`,
                 cursor: hasVisualGrounding ? 'pointer' : 'default',
                 transition: 'all 0.2s ease-in-out',
             }}
@@ -107,7 +128,7 @@ const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onVi
                     {source.document_name}
                 </span>
                 {source.headings && source.headings.length > 0 && (
-                    <span style={{ display: 'block', width: '100%', marginBottom: 4, fontSize: '0.75rem', color: 'var(--minor__enabled__default__front, #666)' }}>
+                    <span style={{ display: 'block', width: '100%', marginBottom: 4, fontSize: '0.75rem', color: cssVar('--g-gray-60') }}>
                         {source.headings.join(' > ')}
                     </span>
                 )}
@@ -123,7 +144,7 @@ const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onVi
                     />
                 )}
                 {source.position && (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--minor__enabled__default__front, #666)' }}>
+                    <span style={{ fontSize: '0.75rem', color: cssVar('--g-gray-60') }}>
                         {source.position}
                     </span>
                 )}
@@ -149,7 +170,7 @@ const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onVi
                     <Chip label={`${Math.round(source.relevance_score * 100)}%`} />
                 </div>
             </div>
-            <span style={{ fontSize: '0.75rem', fontStyle: 'italic', color: 'var(--minor__enabled__default__front, #666)' }}>
+            <span style={{ fontSize: '0.75rem', fontStyle: 'italic', color: cssVar('--g-gray-60') }}>
                 "{source.excerpt}"
             </span>
         </div>
@@ -389,8 +410,8 @@ const MarkdownRenderer: React.FC<{ content: string }> = React.memo(({ content })
                             style={{
                                 padding: 16,
                                 margin: '8px 0',
-                                background: alpha('var(--major__enabled__default__fill, #fff)', 0.8),
-                                border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
+                                background: alpha('var(--app-bg-surface)', 0.8),
+                                border: `1px solid ${alpha('var(--app-border)', 0.3)}`,
                                 overflow: 'auto',
                             }}
                         >
@@ -572,136 +593,68 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     };
 
     return (
-        <div
-            style={{
-                height: '100%',
-                display: 'flex',
-                maxHeight: 'calc(100vh - 200px)',
-                position: 'relative',
-                flexDirection: 'row',
-                overflow: 'hidden',
-                border: '1px solid var(--major__enabled__default__front, #e0e0e0)',
-            }}
-        >
+        <div className="chat-container ragaas-chat-root">
             <div
                 {...getRootProps()}
-                style={{
-                    flex: 1,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    position: 'relative',
-                    overflow: 'hidden',
-                }}
+                className="chat-main"
             >
                 <input {...getInputProps()} />
 
                 {/* Drag overlay */}
                 {isDragActive && (
-                    <div
-                        style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            background: alpha('var(--major__enabled__default__front, #ccc)', 0.05),
-                            border: `2px dashed ${cssVar('--g-blue-50')}`,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 10,
-                            backdropFilter: 'blur(4px)',
-                        }}
-                    >
-                        <FrokIcon name="CloudUpload" style={{ fontSize: 64, color: cssVar('--g-blue-50'), marginBottom: 16 }} />
-                        <h3 style={{ color: cssVar('--g-blue-50'), margin: 0 }}>
+                    <div className="chat-drag-overlay">
+                        <FrokIcon name="CloudUpload" className="chat-drag-overlay-icon" />
+                        <h3 className="chat-drag-overlay-title">
                             Drop files to attach
                         </h3>
-                        <p style={{ color: 'var(--minor__enabled__default__front, #666)', fontSize: '0.875rem' }}>
+                        <p className="chat-drag-overlay-subtitle">
                             PDF, Word, Excel, PowerPoint, CSV, TXT, Markdown, HTML, RTF, or Images
                         </p>
                     </div>
                 )}
 
                 {/* Messages Area */}
-                <div
-                    style={{
-                        flex: 1,
-                        overflowY: 'auto',
-                        padding: 16,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 16,
-                    }}
-                >
+                <div className="chat-messages">
                     {messages.length === 0 && !streamingContent && (
-                        <div
-                            style={{
-                                flex: 1,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 16,
-                                opacity: 0.7,
-                            }}
-                        >
-                            <FrokIcon name="SmartToy" style={{ fontSize: 64, color: cssVar('--g-blue-50') }} />
-                            <h3 style={{ color: 'var(--minor__enabled__default__front, #666)', margin: 0 }}>
+                        <div className="chat-empty-state">
+                            <div className="chat-empty-icon">
+                                <FrokIcon name="Chat" style={{ fontSize: 40, color: 'white' }} />
+                            </div>
+                            <h3 className="chat-empty-title">
                                 Ask me anything about your documents
                             </h3>
-                            <p style={{ color: 'var(--minor__enabled__default__front, #666)', fontSize: '0.875rem', margin: 0 }}>
+                            <p style={{ color: cssVar('--g-gray-60'), fontSize: '0.875rem', margin: 0, textAlign: 'center', maxWidth: 400 }}>
                                 I'll search through your knowledge base to find answers
                             </p>
-                            <span style={{ color: 'var(--minor__enabled__default__front, #666)', fontSize: '0.75rem', marginTop: 16 }}>
-                                💡 Tip: Drag and drop files to include them in your question
-                            </span>
+                            <div
+                                style={{
+                                    marginTop: 16,
+                                    padding: '12px 20px',
+                                    background: alpha('var(--app-primary)', 0.1),
+                                    borderRadius: 8,
+                                    border: '1px solid ' + alpha('var(--app-primary)', 0.3),
+                                }}
+                            >
+                                <span style={{ color: cssVar('--app-text-secondary'), fontSize: '0.8125rem' }}>
+                                    💡 Tip: Drag and drop files to include them in your question
+                                </span>
+                            </div>
                         </div>
                     )}
 
                     {messages.map((message) => (
                         <div
                             key={message.id}
-                            style={{
-                                display: 'flex',
-                                gap: 16,
-                                alignItems: 'flex-start',
-                                flexDirection: message.role === 'user' ? 'row-reverse' : 'row',
-                            }}
+                            className={`message-wrapper ${message.role}`}
                         >
-                            <div
-                                style={{
-                                    width: 36,
-                                    height: 36,
-                                    borderRadius: '50%',
-                                    background: message.role === 'user'
-                                        ? 'var(--minor__enabled__default__fill, #555)'
-                                        : cssVar('--g-blue-50'),
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    flexShrink: 0,
-                                    color: 'white',
-                                }}
-                            >
+                            <div className={`message-avatar ${message.role}`}>
                                 {message.role === 'user'
-                                    ? <FrokIcon name="Person" style={{ fontSize: 20, color: 'white' }} />
-                                    : <FrokIcon name="SmartToy" style={{ fontSize: 20, color: 'white' }} />
+                                    ? <FrokIcon name="Person" style={{ fontSize: 18, color: 'white' }} />
+                                    : <FrokIcon name="Chat" style={{ fontSize: 18, color: 'white' }} />
                                 }
                             </div>
 
-                            <div
-                                style={{
-                                    padding: 16,
-                                    maxWidth: '75%',
-                                    background: message.role === 'user'
-                                        ? alpha('var(--minor__enabled__default__fill, #555)', 0.1)
-                                        : alpha('var(--major__enabled__default__fill, #fff)', 0.8),
-                                    border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.2)}`,
-                                }}
-                            >
+                            <div className={`message-bubble ${message.role}`}>
                                 {/* Attached files and images for user messages */}
                                 {((message.attachments && message.attachments.length > 0) ||
                                     (message.images && message.images.length > 0) ||
@@ -742,18 +695,31 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 {message.role === 'assistant' ? (
                                     isJsonString(message.content) ? (
                                         <JsonViewer content={message.content} />
+                                    ) : isHtmlString(message.content) ? (
+                                        <div 
+                                            style={{ 
+                                                padding: 12,
+                                                background: alpha('var(--g-yellow-50)', 0.1),
+                                                border: `1px solid ${alpha('var(--g-yellow-50)', 0.3)}`,
+                                                borderRadius: 4,
+                                                marginBottom: 8
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                                <FrokIcon name="Warning" style={{ fontSize: 16, color: cssVar('--g-yellow-50') }} />
+                                                <span style={{ fontSize: '0.75rem', color: cssVar('--g-yellow-50'), fontWeight: 500 }}>
+                                                    HTML Content Detected
+                                                </span>
+                                            </div>
+                                            <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                {stripHtml(message.content)}
+                                            </p>
+                                        </div>
                                     ) : (
                                         <MarkdownRenderer content={message.content} />
                                     )
                                 ) : (
-                                    <p
-                                        style={{
-                                            whiteSpace: 'pre-wrap',
-                                            wordBreak: 'break-word',
-                                            margin: 0,
-                                            lineHeight: 1.6,
-                                        }}
-                                    >
+                                    <p className="message-content">
                                         {message.content}
                                     </p>
                                 )}
@@ -787,15 +753,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     width: 36,
                                     height: 36,
                                     borderRadius: '50%',
-                                    background: cssVar('--g-blue-50'),
+                                    background: cssVar('--g-green-50'),
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     flexShrink: 0,
                                     color: 'white',
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
                                 }}
                             >
-                                <FrokIcon name="SmartToy" style={{ fontSize: 20, color: 'white' }} />
+                                <FrokIcon name="Chat" style={{ fontSize: 18, color: 'white' }} />
                             </div>
                             <div style={{ flex: 1, maxWidth: '75%' }}>
                                 {/* Step Progress */}
@@ -804,11 +771,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         style={{
                                             padding: 12,
                                             marginBottom: 8,
-                                            background: alpha('var(--major__enabled__default__fill, #fff)', 0.6),
-                                            border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
+                                            background: alpha('var(--app-bg-surface)', 0.6),
+                                            border: `1px solid ${alpha('var(--app-border)', 0.3)}`,
                                         }}
                                     >
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--minor__enabled__default__front, #666)', display: 'block', marginBottom: 8 }}>
+                                        <span style={{ fontSize: '0.75rem', color: cssVar('--g-gray-60'), display: 'block', marginBottom: 8 }}>
                                             Pipeline Progress
                                         </span>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -832,11 +799,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                         <FrokIcon name="Error" style={{ fontSize: 16, color: cssVar('--g-red-50') }} />
                                                     )}
                                                     {step.status === 'pending' && (
-                                                        <FrokIcon name="Pending" style={{ fontSize: 16, color: 'var(--minor__enabled__default__front, #999)' }} />
+                                                        <FrokIcon name="Pending" style={{ fontSize: 16, color: cssVar('--g-gray-50') }} />
                                                     )}
                                                     <span
                                                         style={{
-                                                            color: step.status === 'pending' ? 'var(--minor__enabled__default__front, #999)' : 'inherit',
+                                                            color: step.status === 'pending' ? cssVar('--g-gray-50') : 'inherit',
                                                             flex: 1,
                                                             fontSize: '0.875rem',
                                                         }}
@@ -844,7 +811,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                         {step.name}
                                                     </span>
                                                     {step.duration_ms !== undefined && (
-                                                        <span style={{ fontSize: '0.75rem', color: 'var(--minor__enabled__default__front, #666)' }}>
+                                                        <span style={{ fontSize: '0.75rem', color: cssVar('--g-gray-60') }}>
                                                             {step.duration_ms.toFixed(0)}ms
                                                         </span>
                                                     )}
@@ -879,7 +846,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     paddingLeft: 24,
                                                     fontStyle: 'italic',
                                                     fontSize: '0.75rem',
-                                                    color: 'var(--minor__enabled__default__front, #666)',
+                                                    color: cssVar('--g-gray-60'),
                                                     maxWidth: 300,
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis',
@@ -897,11 +864,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     <div
                                         style={{
                                             padding: 16,
-                                            background: alpha('var(--major__enabled__default__fill, #fff)', 0.8),
-                                            border: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.2)}`,
+                                            background: alpha('var(--app-bg-surface)', 0.8),
+                                            border: `1px solid ${alpha('var(--app-border)', 0.2)}`,
                                         }}
                                     >
-                                        <MarkdownRenderer content={streamingContent} />
+                                        {isHtmlString(streamingContent) ? (
+                                            <>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                                    <FrokIcon name="Warning" style={{ fontSize: 16, color: cssVar('--g-yellow-50') }} />
+                                                    <span style={{ fontSize: '0.75rem', color: cssVar('--g-yellow-50'), fontWeight: 500 }}>
+                                                        HTML Content Detected
+                                                    </span>
+                                                </div>
+                                                <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                    {stripHtml(streamingContent)}
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <MarkdownRenderer content={streamingContent} />
+                                        )}
                                         <span
                                             style={{
                                                 display: 'inline-block',
@@ -917,7 +898,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 ) : isLoading && steps.length === 0 && !agentAction ? (
                                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                         <ActivityIndicator size="small" />
-                                        <span style={{ fontSize: '0.875rem', color: 'var(--minor__enabled__default__front, #666)' }}>
+                                        <span style={{ fontSize: '0.875rem', color: cssVar('--g-gray-60') }}>
                                             Thinking...
                                         </span>
                                     </div>
@@ -930,15 +911,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 </div>
 
                 {/* Input Area */}
-                <div
-                    style={{
-                        padding: 16,
-                        borderTop: '1px solid var(--major__enabled__default__front, #e0e0e0)',
-                        background: alpha('var(--major__enabled__default__fill, #fff)', 0.8),
-                    }}
-                >
+                <div className="chat-input-area">
                     {attachedFiles.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                        <div className="chat-attached-files">
                             {attachedFiles.map((file, idx) => (
                                 <Chip
                                     key={idx}
@@ -951,7 +926,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     )}
 
                     {suggestions.length > 0 && messages.length > 0 && !isLoading && (
-                        <div style={{ display: 'flex', gap: 8, marginBottom: 12, overflowX: 'auto', paddingBottom: 4 }}>
+                        <div className="chat-suggestions">
                             {suggestions.map((suggestion, idx) => (
                                 <Chip
                                     key={idx}
@@ -962,40 +937,42 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         </div>
                     )}
 
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div className="chat-input-row">
                         <Button
-                            mode="integrated"
+                            mode="tertiary"
                             icon={"attachment" as any}
                             onClick={open}
                             disabled={isLoading}
                             aria-label="Attach file"
+                            style={{
+                                color: cssVar('--g-gray-60'),
+                            }}
                         />
-                        <div style={{ flex: 1 }}>
+                        <div className="chat-input-inner">
                             <input
                                 type="text"
-                                placeholder="Type a message..."
+                                placeholder="Type your message..."
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={handleKeyPress}
                                 disabled={isLoading}
                                 ref={inputRef}
-                                className="a-text-field__input"
-                                style={{
-                                    width: '100%',
-                                    padding: '8px 12px',
-                                    border: '1px solid var(--major__enabled__default__front, #ccc)',
-                                    background: 'var(--major__enabled__default__fill, #fff)',
-                                    fontSize: '0.875rem',
-                                    outline: 'none',
-                                }}
+                                className="chat-input-field"
                             />
                         </div>
                         <Button
-                            mode="integrated"
+                            mode="primary"
                             icon="forward-right"
                             onClick={handleSend}
                             disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
                             aria-label="Send message"
+                            style={{
+                                borderRadius: '50%',
+                                width: 44,
+                                height: 44,
+                                minWidth: 44,
+                                padding: 0,
+                            }}
                         />
                     </div>
                 </div>
@@ -1004,35 +981,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             {/* Session Sidebar */}
             {sessions.length > 0 && (
                 <div
-                    style={{
-                        width: isSidebarOpen ? 300 : 0,
-                        transition: 'width 0.3s ease',
-                        borderLeft: isSidebarOpen ? '1px solid var(--major__enabled__default__front, #e0e0e0)' : 'none',
-                        position: 'relative',
-                        background: 'var(--major__enabled__default__fill, #fff)',
-                        overflow: 'hidden',
-                    }}
+                    className={`chat-sidebar ${isSidebarOpen ? '' : 'collapsed'}`}
+                    style={isSidebarOpen ? { width: 300 } : {}}
                 >
-                    <button
-                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        style={{
-                            position: 'absolute',
-                            left: -12,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            zIndex: 10,
-                            background: 'var(--major__enabled__default__fill, #fff)',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-                            border: '1px solid var(--major__enabled__default__front, #e0e0e0)',
-                            width: 24,
-                            height: 24,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            padding: 0,
-                        }}
-                    >
+                    <button className="sidebar-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)} aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}>
                         <FrokIcon
                             name={isSidebarOpen ? 'ChevronRight' : 'ChevronLeft'}
                             style={{ fontSize: 16 }}

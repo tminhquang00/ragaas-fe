@@ -1,8 +1,8 @@
 import { ConfigEditor } from '../components/projects';
 import { PipelineEditor } from '../components/pipeline';
+import './ProjectDetailPage.css';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Skeleton } from '@mui/material';
 import {
     Button,
     TabNavigation,
@@ -18,6 +18,7 @@ import {
     OptionBar,
     OptionBarItem,
     Badge,
+    ActivityIndicator,
 } from '@bosch/react-frok';
 import { FrokIcon } from '../utils/iconAdapter';
 import { UploadZone, DocumentList } from '../components/documents';
@@ -36,7 +37,7 @@ interface TabPanelProps {
     value: number;
 }
 const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
-    <div role="tabpanel" hidden={value !== index} style={{ paddingTop: '1.5rem' }}>
+    <div role="tabpanel" hidden={value !== index} className="project-detail-panel">
         {value === index && children}
     </div>
 );
@@ -668,10 +669,8 @@ export const ProjectDetailPage: React.FC = () => {
 
     if (loading) {
         return (
-            <div>
-                <Skeleton variant="text" width={200} height={40} />
-                <Skeleton variant="text" width={400} height={24} sx={{ mb: 3 }} />
-                <Skeleton variant="rounded" height={400} />
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4rem' }}>
+                <ActivityIndicator size="large" />
             </div>
         );
     }
@@ -700,7 +699,7 @@ export const ProjectDetailPage: React.FC = () => {
     const isEditorOrAbove = hasPermission(project, tenantId, 'editor');
 
     return (
-        <div>
+        <div className="project-detail-page">
             {/* Breadcrumbs */}
             <div style={{ marginBottom: '1rem' }}>
                 <FrokBreadcrumbs>
@@ -781,7 +780,7 @@ export const ProjectDetailPage: React.FC = () => {
             )}
 
             {/* Tabs */}
-            <div style={{ borderBottom: '1px solid var(--app-border)' }}>
+            <div className="project-detail-tabs">
                 <TabNavigation
                     selectedValue={tab}
                     onTabSelect={(_ev, data) => setTab(data.value as number)}
@@ -807,7 +806,7 @@ export const ProjectDetailPage: React.FC = () => {
 
             {/* Overview Tab */}
             <TabPanel value={tab} index={0}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                <div className="project-overview-grid">
                     <Tile>
                             <h6 style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
                                 Configuration
@@ -951,7 +950,7 @@ export const ProjectDetailPage: React.FC = () => {
                         </Notification>
                     </div>
                 )}
-                <Tile style={{ height: 'calc(100vh - 350px)' }}>
+                <Tile link={null} className="project-chat-tile" style={{ height: 'calc(100vh - 350px)' }}>
                     <ChatInterface
                         projectId={projectId!}
                         messages={messages}
@@ -976,7 +975,7 @@ export const ProjectDetailPage: React.FC = () => {
 
             {/* Pipeline Tab */}
             <TabPanel value={tab} index={3}>
-                <div style={{ height: 'calc(100vh - 300px)', display: 'flex', flexDirection: 'column' }}>
+                <div className="project-pipeline-layout" style={{ height: 'calc(100vh - 300px)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
                         {isEditorOrAbove && (
                             <Button
@@ -989,7 +988,7 @@ export const ProjectDetailPage: React.FC = () => {
                             </Button>
                         )}
                     </div>
-                    <div style={{ flex: 1, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
+                    <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                         {project && project.config && (
                             <PipelineEditor
                                 initialConfig={project.config.pipeline_config || { type: 'simple_rag', steps: [], chat_history_config: { include_history: true, max_history_turns: 3 } }}

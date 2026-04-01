@@ -198,13 +198,13 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
                     marginBottom: 16,
                 }}
             >
-                <p style={{ fontStyle: 'italic', color: 'var(--minor__enabled__default__front, #666)', margin: 0, fontSize: '0.875rem' }}>
+                <p style={{ fontStyle: 'italic', color: cssVar('--g-gray-60'), margin: 0, fontSize: '0.875rem' }}>
                     "{source.excerpt}"
                 </p>
                 <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <Chip label={`${Math.round(source.relevance_score * 100)}% match`} />
                     {source.position && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--minor__enabled__default__front, #666)' }}>
+                        <span style={{ fontSize: '0.75rem', color: cssVar('--g-gray-60') }}>
                             {source.position}
                         </span>
                     )}
@@ -221,13 +221,13 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
                     minHeight: 400,
                     maxHeight: 'calc(90vh - 300px)',
                     overflow: 'auto',
-                    background: alpha('var(--major__enabled__default__front, #999)', 0.05),
+                    background: alpha(cssVar('--g-gray-50'), 0.05),
                 }}
             >
                 {loading && (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 0' }}>
                         <ActivityIndicator size="medium" />
-                        <p style={{ marginTop: 16, color: 'var(--minor__enabled__default__front, #666)', fontSize: '0.875rem' }}>
+                        <p style={{ marginTop: 16, color: cssVar('--g-gray-60'), fontSize: '0.875rem' }}>
                             Loading page image...
                         </p>
                     </div>
@@ -238,7 +238,7 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
                         <p style={{ color: cssVar('--g-red-50'), marginBottom: 8 }}>
                             {error}
                         </p>
-                        <p style={{ color: 'var(--minor__enabled__default__front, #666)', fontSize: '0.875rem' }}>
+                        <p style={{ color: cssVar('--g-gray-60'), fontSize: '0.875rem' }}>
                             Visual grounding may not be available for this source.
                         </p>
                         {source.source_url && (
@@ -275,7 +275,7 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
 
                 {!imageUrl && !loading && !error && (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 0' }}>
-                        <p style={{ color: 'var(--minor__enabled__default__front, #666)', marginBottom: 8 }}>
+                        <p style={{ color: cssVar('--g-gray-60'), marginBottom: 8 }}>
                             Visual grounding not available for this source.
                         </p>
                         {source.source_url && (
