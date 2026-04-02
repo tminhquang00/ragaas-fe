@@ -6,7 +6,6 @@ import {
     Toggle,
     Notification,
     Layout,
-    Divider,
 } from '@bosch/react-frok';
 import { useAuth, useTheme as useAppTheme } from '../context';
 

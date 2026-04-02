@@ -111,112 +111,25 @@ body {
     }
 }
 
-/* FROK MinimalHeader main container - ensure it respects sidebar */
-/* Multi-layer targeting to catch FROK's internal structure */
-.m-minimal-header__main,
-header > div:first-child,
-.o-minimal-header > div:first-child {
-    transition: margin-left 225ms cubic-bezier(.38, .04, .35, .96) !important;
-    box-sizing: border-box !important;
-}
-
-@media (min-width: 1024px) {
-    /* When sidebar is collapsed (default icon-only) */
-    .m-minimal-header__main,
-    header > div:first-child,
-    .app-layout-wrapper.sidebar-collapsed .m-minimal-header__main,
-    .app-layout-wrapper.sidebar-collapsed header > div:first-child {
-        margin-left: 3rem !important;
-        width: calc(100% - 3rem) !important;
-    }
-    
-    /* When sidebar is open/expanded - aggressive multi-selector approach */
-    .o-minimal-header.-side-navigation-open .m-minimal-header__main,
-    .o-minimal-header.-side-navigation-open > div:first-child,
-    .m-minimal-header.-side-navigation-open .m-minimal-header__main,
-    .app-layout-wrapper.sidebar-open .m-minimal-header__main,
-    .app-layout-wrapper.sidebar-open header > div:first-child,
-    .app-layout-wrapper.sidebar-open .o-minimal-header > div:first-child {
-        margin-left: 16rem !important;
-        width: calc(100% - 16rem) !important;
-    }
-}
-
-@media (max-width: 1023px) {
-    .m-minimal-header__main,
-    header > div:first-child,
-    .app-layout-wrapper .m-minimal-header__main,
-    .app-layout-wrapper header > div:first-child {
-        margin-left: 0 !important;
-        width: 100% !important;
-    }
+/* FROK MinimalHeader — let FROK handle sidebar/header positioning natively */
+/* Only add transition smoothing */
+.m-minimal-header__main {
+    transition: margin-left 225ms cubic-bezier(.38, .04, .35, .96);
+    box-sizing: border-box;
 }
 
 /* ============================================================
-   SIDEBAR COLLAPSE - Hide text when sidebar is collapsed
+   SIDEBAR COLLAPSE - Hide text when collapsed
    ============================================================ */
 
-/* Primary method: Target our custom nav-item-text class */
+/* Hide custom text labels when sidebar collapsed */
 .m-side-navigation:not(.-open) .nav-item-text {
-    display: none !important;
+    display: none;
 }
 
-/* Secondary: Target FROK's header title */
+/* Hide FROK's header title when collapsed */
 .m-side-navigation:not(.-open) .a-side-navigation__header-title {
-    display: none !important;
-}
-
-/* Tertiary: Data attribute approach (if FROK uses it) */
-nav[data-open="false"] .nav-item-text,
-nav[data-open="false"] .a-side-navigation__header-title {
-    display: none !important;
-}
-
-/* Quaternary: Aggressive fallback - hide all non-icon spans */
-.m-side-navigation:not(.-open) .a-side-navigation__item > span:not([class*="icon"]):not([class*="a-icon"]) {
-    display: none !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    max-width: 0 !important;
-    visibility: hidden !important;
-    overflow: hidden !important;
-}
-
-/* Ensure icons remain visible and properly sized */
-.m-side-navigation .a-icon,
-.m-side-navigation svg,
-.m-side-navigation [class*="icon"],
-.m-side-navigation:not(.-open) .a-icon,
-.m-side-navigation:not(.-open) svg {
-    display: inline-flex !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    width: auto !important;
-    max-width: none !important;
-}
-
-/* Container overflow control */
-.m-side-navigation:not(.-open) {
-    overflow: hidden !important;
-    width: 3rem !important; /* Force collapsed width */
-}
-
-/* Item overflow control */
-.m-side-navigation:not(.-open) .a-side-navigation__item,
-.m-side-navigation:not(.-open) .a-side-navigation__item > *,
-.m-side-navigation:not(.-open) .a-side-navigation__body {
-    overflow: hidden !important;
-    white-space: nowrap !important;
-    text-overflow: clip !important;
-}
-
-/* Additional safety: hide text nodes by font-size as last resort */
-.m-side-navigation:not(.-open) .a-side-navigation__item {
-    font-size: 0 !important;
-}
-
-.m-side-navigation:not(.-open) .a-icon {
-    font-size: 1.5rem !important; /* Restore icon size */
+    display: none;
 }
 
 /* ---- Projects page cards ---- */

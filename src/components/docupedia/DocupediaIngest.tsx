@@ -12,7 +12,6 @@ import {
     ProgressIndicator,
     Slider,
     Tile,
-    Layout,
 } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
 

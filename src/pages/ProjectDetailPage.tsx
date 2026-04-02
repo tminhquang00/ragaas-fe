@@ -950,7 +950,7 @@ export const ProjectDetailPage: React.FC = () => {
                         </Notification>
                     </div>
                 )}
-                <Tile link={null} className="project-chat-tile" style={{ height: 'calc(100vh - 350px)' }}>
+                <Tile link={undefined} className="project-chat-tile" style={{ height: 'calc(100vh - 350px)' }}>
                     <ChatInterface
                         projectId={projectId!}
                         messages={messages}

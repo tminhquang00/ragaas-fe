@@ -45,46 +45,37 @@ export const MainLayout: React.FC = () => {
         action();
     };
 
+    const NavBody = SideNavigation.Body;
+    const NavItem = SideNavigation.Item;
+
     return (
         <div className={`app-layout-wrapper ${sideNavOpen ? 'sidebar-open' : 'sidebar-collapsed'}`} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <style>{`
-                @media (min-width: 1024px) {
-                    .app-layout-wrapper.sidebar-collapsed .m-minimal-header__main,
-                    .app-layout-wrapper.sidebar-collapsed header > div:first-child {
-                        margin-left: 3rem !important;
-                        width: calc(100% - 3rem) !important;
-                    }
-                    .app-layout-wrapper.sidebar-open .m-minimal-header__main,
-                    .app-layout-wrapper.sidebar-open header > div:first-child {
-                        margin-left: 16rem !important;
-                        width: calc(100% - 16rem) !important;
-                    }
-                }
-            `}</style>
             <MinimalHeader
-                logo={{ href: '/', alt: 'Bosch Logo', variant: 'small' }}
+                logo={{ href: '/' }}
                 sideNavigation={
                     <SideNavigation
                         open={sideNavOpen}
                         onOpenChange={setSideNavOpen}
                         defaultSelectedItem={selectedNav}
-                        onSelectedItemChange={(ev, data) => {
+                        onSelectedItemChange={(_ev, data) => {
                             const item = navItems.find(i => i.value === data.value);
                             if (item) handleNavClick(item.path);
                         }}
                         header={{ title: 'Ragaas' }}
                     >
-                        <SideNavigation.Body>
-                            {navItems.map((item) => (
-                                <SideNavigation.Item 
-                                    key={item.value} 
-                                    value={item.value}
-                                >
-                                    <Icon iconName={item.icon} />
-                                    <span className="nav-item-text">{item.label}</span>
-                                </SideNavigation.Item>
-                            ))}
-                        </SideNavigation.Body>
+                        {NavBody && NavItem && (
+                            <NavBody>
+                                {navItems.map((item) => (
+                                    <NavItem 
+                                        key={item.value} 
+                                        value={item.value}
+                                    >
+                                        <Icon iconName={item.icon} />
+                                        <span className="nav-item-text">{item.label}</span>
+                                    </NavItem>
+                                ))}
+                            </NavBody>
+                        )}
                     </SideNavigation>
                 }
                 burger={{ 'aria-label': 'Toggle navigation' }}

@@ -916,7 +916,7 @@ export const DatabaseConnection: React.FC<Props> = ({
                                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', paddingTop: '0.5rem' }}>
                                         <Button
                                             mode="integrated"
-                                            icon="chevron-left"
+                                            icon="arrow-left"
                                             onClick={() => setAuditPage(p => Math.max(1, p - 1))}
                                             disabled={auditPage === 1}
                                             aria-label="Previous page"
@@ -926,7 +926,7 @@ export const DatabaseConnection: React.FC<Props> = ({
                                         </span>
                                         <Button
                                             mode="integrated"
-                                            icon="chevron-right"
+                                            icon="arrow-right"
                                             onClick={() => setAuditPage(p => Math.min(Math.ceil(auditTotal / AUDIT_LIMIT), p + 1))}
                                             disabled={auditPage >= Math.ceil(auditTotal / AUDIT_LIMIT)}
                                             aria-label="Next page"

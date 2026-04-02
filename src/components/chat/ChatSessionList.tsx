@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, TextField, Dialog, Popover } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
-import { alpha, cssVar } from '../../utils/frokTheme';
+import { cssVar } from '../../utils/frokTheme';
 import { ChatSession } from '../../types';
 import './Chat.css';
 
