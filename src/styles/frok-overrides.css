@@ -19,6 +19,7 @@
     --app-warning: var(--g-yellow-85, #ffcf00);
     --app-bg: var(--g-gray-100, #ffffff);
     --app-bg-surface: var(--g-gray-95, #eff1f2);
+    --app-surface: var(--g-gray-95, #eff1f2);
     --app-text: var(--g-gray-05, #101112);
     --app-text-secondary: var(--g-gray-50, #71767c);
     --app-border: var(--g-gray-80, #c1c7cc);
@@ -28,6 +29,7 @@
 .-dark-mode {
     --app-bg: var(--g-gray-05, #101112);
     --app-bg-surface: var(--g-gray-15, #232628);
+    --app-surface: var(--g-gray-15, #232628);
     --app-text: var(--g-gray-95, #eff1f2);
     --app-text-secondary: var(--g-gray-60, #8a9097);
     --app-border: var(--g-gray-30, #43464a);

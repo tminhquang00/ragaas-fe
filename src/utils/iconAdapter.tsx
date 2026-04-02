@@ -35,6 +35,7 @@ const iconMapping: Record<string, string> = {
     AttachFile: 'attachment',
     FileUpload: 'upload',
     CloudUpload: 'upload',
+    Upload: 'upload',
 
     // Communication
     Chat: 'chat',
@@ -83,6 +84,7 @@ const iconMapping: Record<string, string> = {
     // Misc
     Build: 'wrench',
     AutoAwesome: 'flash',
+    AutoFixHigh: 'flash',
     Bolt: 'flash',
     SmartToy: 'robot',
     Star: 'star',
