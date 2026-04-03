@@ -4,11 +4,9 @@ import {
     TabNavigation,
     Tab,
     Notification,
-    Popover,
     ActivityIndicator,
     Layout,
 } from '@bosch/react-frok';
-import { FrokIcon } from '../utils/iconAdapter';
 import { ProjectCard, CreateProjectDialog } from '../components/projects';
 import { ApiKeyModal } from '../components/common';
 import { useAuth } from '../context';
@@ -28,8 +26,6 @@ export const ProjectsPage: React.FC = () => {
         name: '',
     });
     const [statusFilter, setStatusFilter] = useState<string>('all');
-    const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
-    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
     const fetchProjects = async () => {
         if (!apiClient) return;
@@ -86,63 +82,40 @@ export const ProjectsPage: React.FC = () => {
         }
     };
 
-    const handleMenuClick = (event: React.MouseEvent<HTMLElement>, project: Project) => {
-        event.stopPropagation();
-        setMenuAnchor(event.currentTarget);
-        setSelectedProject(project);
-    };
-
-    const handleMenuClose = () => {
-        setMenuAnchor(null);
-        setSelectedProject(null);
-    };
-
-    const handleActivate = async () => {
-        if (!apiClient || !selectedProject) return;
-
+    const handleActivate = async (project: Project) => {
+        if (!apiClient) return;
         try {
-            await apiClient.activateProject(selectedProject.project_id);
+            await apiClient.activateProject(project.project_id);
             fetchProjects();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to activate project');
         }
-        handleMenuClose();
     };
 
-    const handleArchive = async () => {
-        if (!apiClient || !selectedProject) return;
-
+    const handleArchive = async (project: Project) => {
+        if (!apiClient) return;
         try {
-            await apiClient.archiveProject(selectedProject.project_id);
+            await apiClient.archiveProject(project.project_id);
             fetchProjects();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to archive project');
         }
-        handleMenuClose();
     };
 
-    const handleDelete = async () => {
-        if (!apiClient || !selectedProject) return;
-
-        const role = getUserRole(selectedProject, tenantId);
+    const handleDelete = async (project: Project) => {
+        if (!apiClient) return;
+        const role = getUserRole(project, tenantId);
         if (role !== 'owner') {
             setError('Only the project owner can delete this project.');
-            handleMenuClose();
             return;
         }
-
-        if (!window.confirm(`Are you sure you want to delete "${selectedProject.name}"?`)) {
-            handleMenuClose();
-            return;
-        }
-
+        if (!window.confirm(`Are you sure you want to delete "${project.name}"?`)) return;
         try {
-            await apiClient.deleteProject(selectedProject.project_id);
+            await apiClient.deleteProject(project.project_id);
             fetchProjects();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to delete project');
         }
-        handleMenuClose();
     };
 
     const filteredProjects = projects;
@@ -240,7 +213,14 @@ export const ProjectsPage: React.FC = () => {
                                 ) : (
                                     <div className="projects-grid">
                                         {myProjects.map((project) => (
-                                            <ProjectCard key={project.project_id} project={project} currentUserId={tenantId} onMenuClick={handleMenuClick} />
+                                            <ProjectCard
+                                                key={project.project_id}
+                                                project={project}
+                                                currentUserId={tenantId}
+                                                onActivate={() => handleActivate(project)}
+                                                onArchive={() => handleArchive(project)}
+                                                onDelete={() => handleDelete(project)}
+                                            />
                                         ))}
                                     </div>
                                 )}
@@ -254,7 +234,14 @@ export const ProjectsPage: React.FC = () => {
                                     </div>
                                     <div className="projects-grid">
                                         {sharedProjects.map((project) => (
-                                            <ProjectCard key={project.project_id} project={project} currentUserId={tenantId} onMenuClick={handleMenuClick} />
+                                            <ProjectCard
+                                                key={project.project_id}
+                                                project={project}
+                                                currentUserId={tenantId}
+                                                onActivate={() => handleActivate(project)}
+                                                onArchive={() => handleArchive(project)}
+                                                onDelete={() => handleDelete(project)}
+                                            />
                                         ))}
                                     </div>
                                 </div>
@@ -263,53 +250,6 @@ export const ProjectsPage: React.FC = () => {
                     );
                 })()
             )}
-
-            {/* Context Menu */}
-            <Popover
-                open={Boolean(menuAnchor)}
-                trigger={<span ref={(el) => { if (menuAnchor && el) el.style.display = 'none'; }} />}
-                position="bottom-left"
-                onOutsideClick={handleMenuClose}
-                onCloseKeyPressed={handleMenuClose}
-                isPopoverArrowMissing
-                style={menuAnchor ? {
-                    position: 'fixed',
-                    left: menuAnchor.getBoundingClientRect().left,
-                    top: menuAnchor.getBoundingClientRect().bottom,
-                    zIndex: 1300,
-                } : undefined}
-            >
-                <div className="project-actions-menu" role="menu" aria-label="Project actions">
-                    {selectedProject?.status === 'draft' && (
-                        <div
-                            onClick={handleActivate}
-                            className="project-action-item"
-                            role="menuitem"
-                        >
-                            <FrokIcon name="PlayArrow" />
-                            <span>Activate</span>
-                        </div>
-                    )}
-                    {selectedProject?.status === 'active' && (
-                        <div
-                            onClick={handleArchive}
-                            className="project-action-item"
-                            role="menuitem"
-                        >
-                            <FrokIcon name="Archive" />
-                            <span>Archive</span>
-                        </div>
-                    )}
-                    <div
-                        onClick={handleDelete}
-                        className="project-action-item project-action-item-danger"
-                        role="menuitem"
-                    >
-                        <FrokIcon name="Delete" />
-                        <span>Delete</span>
-                    </div>
-                </div>
-            </Popover>
 
             {/* Create Project Dialog */}
             <CreateProjectDialog

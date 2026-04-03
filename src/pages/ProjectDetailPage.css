@@ -10,10 +10,12 @@
 .project-detail-panel {
   padding-top: 1.25rem;
   min-width: 0;
+  width: 100%;
   border-top: 0 !important;
 }
 
 .project-detail-tabs {
+  width: 100%;
 }
 
 .project-detail-tabs [role='tablist'] {
@@ -45,19 +47,27 @@
 
 .project-chat-tile {
   min-height: 460px;
+  height: calc(100vh - 350px);
   overflow: hidden;
   display: flex;
   padding: 0;
-  border-top: 0;
+  border: 1px solid var(--major__enabled__default__front, #e0e0e0);
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.project-chat-tile > .ragaas-chat-root {
+.project-chat-tile .ragaas-chat-root {
   flex: 1;
   min-height: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .project-chat-tile .chat-container {
-  border-top: 0;
+  border: none;
+  width: 100%;
+  height: 100%;
 }
 
 .project-pipeline-layout {

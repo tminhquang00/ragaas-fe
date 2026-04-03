@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { MinimalHeader, SideNavigation, Icon } from '@bosch/react-frok';
+import { MinimalHeader, SideNavigation, Icon, ContextMenu } from '@bosch/react-frok';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -35,21 +35,11 @@ export const MainLayout: React.FC = () => {
         navigate(path);
     }, [navigate]);
 
-    // Close user menu when clicking outside
-    const handleUserClick = () => {
-        setUserMenuOpen(!userMenuOpen);
-    };
-
-    const handleMenuAction = (action: () => void) => {
-        setUserMenuOpen(false);
-        action();
-    };
-
     const NavBody = SideNavigation.Body;
     const NavItem = SideNavigation.Item;
 
     return (
-        <div className={`app-layout-wrapper ${sideNavOpen ? 'sidebar-open' : 'sidebar-collapsed'}`} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <div className={`app-layout-wrapper ${sideNavOpen ? 'sidebar-open' : 'sidebar-collapsed'}`}>
             <MinimalHeader
                 logo={{ href: '/' }}
                 sideNavigation={
@@ -66,8 +56,8 @@ export const MainLayout: React.FC = () => {
                         {NavBody && NavItem && (
                             <NavBody>
                                 {navItems.map((item) => (
-                                    <NavItem 
-                                        key={item.value} 
+                                    <NavItem
+                                        key={item.value}
                                         value={item.value}
                                     >
                                         <Icon iconName={item.icon} />
@@ -81,147 +71,74 @@ export const MainLayout: React.FC = () => {
                 burger={{ 'aria-label': 'Toggle navigation' }}
                 open={sideNavOpen}
                 onOpenChange={setSideNavOpen}
-                actions={[
-                    {
-                        label: 'Theme',
-                        icon: mode === 'dark' ? 'sun' : 'moon',
-                        onClick: toggleTheme,
-                        showLabel: false,
-                    },
-                    {
-                        label: 'User',
-                        showLabel: false,
-                        children: (
-                            <div style={{ position: 'relative' }}>
+                actions={{
+                    children: (
+                        <div className="header-actions-list">
+                            <div className="header-action-item">
                                 <button
-                                    onClick={handleUserClick}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        width: '32px',
-                                        height: '32px',
-                                        background: '#005691',
-                                        border: 'none',
-                                        borderRadius: '50%',
-                                        cursor: 'pointer',
-                                        color: '#fff',
-                                        fontWeight: 600,
-                                        fontSize: '0.8rem',
-                                    }}
+                                    type="button"
+                                    className="header-theme-button"
+                                    onClick={toggleTheme}
+                                    aria-label="Toggle theme"
                                 >
-                                    {user?.name?.charAt(0) || 'U'}
+                                    <Icon iconName={mode === 'dark' ? 'sun' : 'moon'} />
                                 </button>
-
-                                {userMenuOpen && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: '100%',
-                                        right: 0,
-                                        marginTop: '8px',
-                                        background: 'var(--app-bg)',
-                                        border: '1px solid var(--app-border)',
-                                        borderRadius: '4px',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                        minWidth: '160px',
-                                        zIndex: 1000,
-                                    }}>
-                                        <div style={{
-                                            padding: '12px',
-                                            borderBottom: '1px solid var(--app-border)',
-                                        }}>
-                                            <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--app-text)' }}>
-                                                {user?.name || 'Demo User'}
-                                            </div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
-                                                {user?.username || tenantId}
-                                            </div>
-                                        </div>
-                                        <div style={{ padding: '4px' }}>
-                                            <button
-                                                className="app-user-menu-item"
-                                                onClick={() => handleMenuAction(() => navigate('/settings'))}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '8px',
-                                                    width: '100%',
-                                                    padding: '8px 12px',
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    borderRadius: '4px',
-                                                    cursor: 'pointer',
-                                                    fontSize: '0.875rem',
-                                                    color: 'var(--app-text)',
-                                                    textAlign: 'left',
-                                                }}
-                                            >
-                                                <Icon iconName="settings" />
-                                                Settings
-                                            </button>
-                                            <button
-                                                className="app-user-menu-item"
-                                                onClick={() => handleMenuAction(logout)}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '8px',
-                                                    width: '100%',
-                                                    padding: '8px 12px',
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    borderRadius: '4px',
-                                                    cursor: 'pointer',
-                                                    fontSize: '0.875rem',
-                                                    color: 'var(--app-text)',
-                                                    textAlign: 'left',
-                                                }}
-                                            >
-                                                <Icon iconName="log-out" />
-                                                Logout
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
-                        ),
-                        onClick: () => {},
-                    },
-                ]}
+                            <div className="header-action-item">
+                                <ContextMenu
+                                    open={userMenuOpen}
+                                    onOpenChange={setUserMenuOpen}
+                                    trigger={
+                                        <button type="button" className="header-avatar-button" aria-label="User menu">
+                                            {user?.name?.charAt(0) || 'U'}
+                                        </button>
+                                    }
+                                    popover={{ position: 'bottom-right' }}
+                                    ariaMenuLabel="User menu"
+                                >
+                                    <ContextMenu.Group>
+                                        <div className="header-user-info">
+                                            <div className="header-user-name">{user?.name || 'Demo User'}</div>
+                                            <div className="header-user-email">{user?.username || tenantId}</div>
+                                        </div>
+                                    </ContextMenu.Group>
+                                    <ContextMenu.Group>
+                                        <ContextMenu.Item
+                                            label="Settings"
+                                            icon="settings"
+                                            onClick={() => {
+                                                setUserMenuOpen(false);
+                                                navigate('/settings');
+                                            }}
+                                        />
+                                        <ContextMenu.Item
+                                            label="Logout"
+                                            icon="logout"
+                                            onClick={() => {
+                                                setUserMenuOpen(false);
+                                                logout();
+                                            }}
+                                        />
+                                    </ContextMenu.Group>
+                                </ContextMenu>
+                            </div>
+                        </div>
+                    ),
+                }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontWeight: 700 }}>Ragaas</span>
-                    <span style={{
-                        fontSize: '0.7rem',
-                        padding: '2px 8px',
-                        background: 'rgba(255,255,255,0.15)',
-                        borderRadius: '4px',
-                        fontFamily: 'monospace'
-                    }}>
-                        {tenantId}
-                    </span>
+                <div className="header-title-section">
+                    <span className="header-app-name">Bosch RAGaaS</span>
+                    <span className="header-app-subtitle">AI-Powered Knowledge</span>
                 </div>
             </MinimalHeader>
 
             {/* Main Content */}
-            <main
-                className={`app-main-content ${sideNavOpen ? 'sidebar-open' : ''}`}
-            >
-                <div style={{ flex: 1 }}>
+            <main className={`app-main-content ${sideNavOpen ? 'sidebar-open' : ''}`}>
+                <div className="app-content-wrapper">
                     <Outlet />
                 </div>
 
-                <footer
-                    style={{
-                        paddingTop: '16px',
-                        paddingBottom: '16px',
-                        marginTop: '32px',
-                        borderTop: '1px solid var(--app-border)',
-                        textAlign: 'center',
-                        fontSize: '0.875rem',
-                        color: 'var(--app-text-secondary)',
-                    }}
-                >
+                <footer className="app-footer">
                     © 2026 Bosch Global Software Vietnam - SX Department. All rights reserved.
                 </footer>
             </main>

@@ -36,6 +36,180 @@
     --app-sidebar-bg: var(--g-gray-10, #1a1c1d);
 }
 
+/* ---- App Layout Wrapper ---- */
+.app-layout-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* ---- Header Styles (Bosch Design) ---- */
+
+/* MinimalHeader - Bosch white background */
+.o-minimal-header.-primary,
+.o-minimal-header__top {
+    background: var(--g-gray-100, #ffffff);
+}
+
+/* Dark mode header */
+.-dark-mode .o-minimal-header.-primary,
+.-dark-mode .o-minimal-header__top {
+    background: var(--g-gray-10, #1a1c1d);
+}
+
+/* Header title section - with subtitle */
+.header-title-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.header-app-name {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--g-gray-05, #101112) !important; /* Black */
+    letter-spacing: -0.02em;
+}
+
+.-dark-mode .header-app-name {
+    color: var(--g-gray-95, #eff1f2) !important;
+}
+
+.header-app-subtitle {
+    font-size: 0.75rem;
+    color: var(--g-gray-50, #71767c) !important;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+.-dark-mode .header-app-subtitle {
+    color: var(--g-gray-60, #8a9097) !important;
+}
+
+/* Header actions list - flex container for proper alignment */
+.header-actions-list {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-action-item {
+    display: flex;
+    align-items: center;
+}
+
+/* Theme toggle button - dark icon on white header */
+.header-theme-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--g-gray-30, #43464a) !important;
+    transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.-dark-mode .header-theme-button {
+    color: var(--g-gray-90, #e0e2e5) !important;
+}
+
+.header-theme-button:hover {
+    background: var(--g-gray-95, #eff1f2);
+    transform: scale(1.05);
+}
+
+.-dark-mode .header-theme-button:hover {
+    background: var(--g-gray-25, #383b3e);
+}
+
+.header-theme-button:focus-visible {
+    outline: 2px solid var(--g-blue-50, #007bc0);
+    outline-offset: 2px;
+}
+
+/* Ensure icon inside theme button has correct color */
+.header-theme-button .a-icon,
+.header-theme-button svg {
+    color: inherit !important;
+    fill: currentColor !important;
+}
+
+/* Avatar button - Bosch circular style */
+.header-avatar-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--g-blue-50, #007bc0); /* Bosch blue */
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #ffffff !important;
+    font-weight: 600;
+    font-size: 0.8rem;
+    transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.header-avatar-button:hover {
+    background: var(--g-blue-40, #00629a);
+    transform: scale(1.05);
+}
+
+.header-avatar-button:focus-visible {
+    outline: 2px solid var(--g-blue-50, #007bc0);
+    outline-offset: 2px;
+}
+
+/* Dark mode avatar - slightly lighter */
+.-dark-mode .header-avatar-button {
+    background: var(--g-blue-40, #00629a);
+}
+
+.-dark-mode .header-avatar-button:hover {
+    background: var(--g-blue-30, #004975);
+}
+
+/* User info section in context menu */
+.header-user-info {
+    padding: 12px 16px;
+    min-width: 160px;
+}
+
+.header-user-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--app-text);
+}
+
+.header-user-email {
+    font-size: 0.75rem;
+    color: var(--app-text-secondary);
+    margin-top: 2px;
+}
+
+/* ---- Content Wrapper ---- */
+.app-content-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ---- Footer ---- */
+.app-footer {
+    padding-top: 16px;
+    padding-bottom: 16px;
+    margin-top: 32px;
+    border-top: 1px solid var(--app-border);
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--app-text-secondary);
+}
+
 /* ---- Scrollbar ---- */
 body {
     scrollbar-width: thin;
@@ -134,84 +308,88 @@ body {
     display: none;
 }
 
-/* ---- Projects page cards ---- */
+/* ---- Projects page ---- */
 .projects-page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .projects-page-title {
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.25rem;
     font-weight: 700;
 }
 
 .projects-page-subtitle {
     margin: 0;
     color: var(--app-text-secondary);
-    font-size: 1rem;
+    font-size: 0.875rem;
 }
 
 .projects-page-filters {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .projects-page-error {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .projects-page-loading {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 4rem;
+    padding: 3rem;
 }
 
 .projects-page-empty {
     text-align: center;
-    padding: 4rem 2rem;
+    padding: 3rem 2rem;
     border: 1px dashed var(--app-border);
 }
 
 .projects-page-empty-title {
     color: var(--app-text-secondary);
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.4rem;
 }
 
 .projects-page-empty-description {
     color: var(--app-text-secondary);
     font-size: 0.875rem;
-    margin: 0 0 1.5rem;
+    margin: 0 0 1.25rem;
 }
 
 .projects-sections {
     display: flex;
     flex-direction: column;
-    gap: 2.25rem;
+    gap: 1.75rem;
 }
 
 .projects-section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.9rem;
-    padding-bottom: 0.45rem;
+    margin-bottom: 0.65rem;
+    padding-bottom: 0.35rem;
     border-bottom: 1px solid var(--app-border);
 }
 
 .projects-section-title {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 0.8rem;
     font-weight: 700;
-    color: var(--app-text);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--app-text-secondary);
 }
 
 .projects-section-count {
     margin: 0;
-    font-size: 0.875rem;
-    font-weight: 500;
+    font-size: 0.75rem;
+    font-weight: 600;
     color: var(--app-text-secondary);
+    background: var(--app-bg-surface);
+    padding: 0.1rem 0.45rem;
 }
 
 .projects-empty-owned {
@@ -221,195 +399,198 @@ body {
 
 .projects-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.75rem;
 }
 
+/* ---- Project card ---- */
 .project-card-tile {
     height: 100%;
     display: flex;
     flex-direction: column;
     cursor: pointer;
-    transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+    transition: border-color 150ms ease, transform 130ms ease, box-shadow 150ms ease;
     border: 1px solid var(--app-border);
+    border-left: 4px solid transparent;
     background-color: var(--app-bg);
-    min-height: 244px;
     padding: 0;
     position: relative;
-}
-
-.project-card-tile::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 3px;
-    background: var(--app-primary);
-    opacity: 0.12;
-    transition: opacity 180ms ease;
+    overflow: visible; /* allow popover to escape */
 }
 
 .project-card-tile:hover {
-    transform: translateY(-3px);
-    border-color: var(--app-primary);
-    background-color: var(--app-bg);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--app-text) 8%, transparent);
 }
 
-.project-card-tile:hover::before {
-    opacity: 0.9;
+/* Left accent per status */
+.project-card-active {
+    border-left-color: var(--app-primary);
+}
+.project-card-active:hover {
+    border-left-color: var(--app-primary);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--app-primary) 16%, transparent);
 }
 
-.project-card-active::before {
-    background: var(--app-primary);
+.project-card-draft {
+    border-left-color: var(--app-warning);
+}
+.project-card-draft:hover {
+    border-left-color: var(--app-warning);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--app-warning) 20%, transparent);
 }
 
-.project-card-draft::before {
-    background: var(--app-warning);
+.project-card-archived {
+    border-left-color: var(--app-border);
+}
+.project-card-archived:hover {
+    border-left-color: var(--app-text-secondary);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--app-text) 6%, transparent);
 }
 
-.project-card-archived::before {
-    background: var(--app-text-secondary);
-}
-
+/* Card body */
 .project-card-body {
     flex: 1;
-    padding: 0.95rem 1rem 0.4rem;
+    padding: 0.85rem 0.6rem 0.65rem 0.85rem;
     display: flex;
     flex-direction: column;
+    gap: 0.4rem;
+    min-height: 0;
 }
 
+/* Title row: name fills space, menu trigger right-aligned */
 .project-card-header {
     display: flex;
-    justify-content: space-between;
     align-items: flex-start;
-    gap: 0.5rem;
-    margin-bottom: 0.8rem;
+    gap: 0.15rem;
+}
+
+.project-card-title {
+    flex: 1;
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--app-text);
+    /* Align with the menu button optical center */
+    padding-top: 0.35rem;
+}
+
+/* Menu wrap — trigger fades in on card hover / focus-within */
+.project-card-menu-wrap {
+    flex-shrink: 0;
+    margin-top: -0.1rem; /* optical alignment with title */
+}
+
+.project-card-menu-wrap .o-context-menu__trigger {
+    opacity: 0.2;
+    transition: opacity 150ms ease;
+    /* Compact size */
+    width: 2rem !important;
+    height: 2rem !important;
+    min-width: unset !important;
+    padding: 0 !important;
+}
+
+.project-card-tile:hover .project-card-menu-wrap .o-context-menu__trigger,
+.project-card-menu-wrap:focus-within .o-context-menu__trigger,
+.project-card-menu-wrap .o-context-menu__trigger[aria-expanded="true"] {
+    opacity: 1;
+}
+
+/* Description */
+.project-card-description {
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--app-text-secondary);
+    flex: 1;
+}
+
+/* Footer */
+.project-card-footer {
+    padding: 0.4rem 0.6rem 0.45rem 0.85rem;
+    border-top: 1px solid var(--app-border);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    background: color-mix(in srgb, var(--app-bg-surface) 45%, var(--app-bg));
 }
 
 .project-card-chip-row {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 0.42rem;
+    gap: 0.25rem;
+    width: 100%;
 }
 
+/* Badges */
 .project-badge {
     display: inline-flex;
     align-items: center;
-    height: 1.6rem;
-    padding: 0 0.55rem;
-    font-size: 0.76rem;
-    font-weight: 600;
+    justify-content: center;
+    padding: 0.18rem 0.42rem;
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     border: 1px solid transparent;
-    line-height: 1;
+    line-height: 1.25;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .project-badge-status {
     color: var(--app-primary);
-    background: color-mix(in srgb, var(--app-primary) 12%, var(--app-bg));
+    background: color-mix(in srgb, var(--app-primary) 10%, var(--app-bg));
+    border-color: color-mix(in srgb, var(--app-primary) 30%, transparent);
 }
 
 .project-badge-draft {
-    color: var(--app-text);
-    background: color-mix(in srgb, var(--app-warning) 22%, var(--app-bg));
+    color: color-mix(in srgb, var(--app-warning) 40%, var(--app-text));
+    background: color-mix(in srgb, var(--app-warning) 20%, var(--app-bg));
+    border-color: color-mix(in srgb, var(--app-warning) 50%, transparent);
 }
 
 .project-badge-archived {
     color: var(--app-text-secondary);
     background: var(--app-bg-surface);
+    border-color: var(--app-border);
 }
 
 .project-badge-role {
-    color: var(--app-primary);
-    background: color-mix(in srgb, var(--app-primary) 14%, var(--app-bg));
+    color: var(--app-text-secondary);
+    background: transparent;
+    border-color: var(--app-border);
 }
 
 .project-badge-public {
     color: var(--app-success);
-    background: color-mix(in srgb, var(--app-success) 14%, var(--app-bg));
+    background: color-mix(in srgb, var(--app-success) 10%, var(--app-bg));
+    border-color: color-mix(in srgb, var(--app-success) 30%, transparent);
 }
 
-.project-card-title {
-    margin: 0 0 0.42rem;
-    font-size: 1.08rem;
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: var(--app-text);
-}
-
-.project-card-description {
-    margin: 0;
-    min-height: 52px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    font-size: 0.91rem;
-    line-height: 1.45;
-    color: var(--app-text-secondary);
-}
-
-.project-card-stats {
-    margin-top: 0.72rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.project-stat {
+/* LLM label in footer */
+.project-card-llm {
     display: inline-flex;
     align-items: center;
-    gap: 0.32rem;
-    color: var(--app-text-secondary);
-    font-size: 0.88rem;
-    font-weight: 500;
-}
-
-.project-card-footer {
-    padding: 0.68rem 1rem 0.8rem;
-    border-top: 1px solid var(--app-border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.65rem;
-    background: color-mix(in srgb, var(--app-bg-surface) 58%, var(--app-bg));
-}
-
-.project-card-llm {
-    font-size: 0.84rem;
+    gap: 0.22rem;
+    font-size: 0.71rem;
+    line-height: 1.2;
     color: var(--app-text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.project-card-progress {
-    min-width: 78px;
-}
-
-.project-actions-menu {
-    min-width: 160px;
-    padding: 0.5rem 0;
-}
-
-.project-action-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    color: var(--app-text);
-}
-
-.project-action-item:hover {
-    background: var(--app-bg-surface);
-}
-
-.project-action-item-danger {
-    color: var(--app-error);
+    max-width: 100%;
 }
 
 .app-user-menu-item {
@@ -447,7 +628,7 @@ body {
     .projects-page-header {
         flex-direction: column;
         align-items: flex-start;
-        gap: 1rem;
+        gap: 0.75rem;
     }
 
     .projects-grid {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Tooltip, Chip, Accordion, ActivityIndicator, Button } from '@bosch/react-frok';
+import { Tooltip, Chip, Accordion, ActivityIndicator, Button, Icon } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
 import { alpha, cssVar } from '../../utils/frokTheme';
 import { useDropzone } from 'react-dropzone';
@@ -507,7 +507,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
     const [input, setInput] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -611,6 +611,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             PDF, Word, Excel, PowerPoint, CSV, TXT, Markdown, HTML, RTF, or Images
                         </p>
                     </div>
+                )}
+
+                {/* Floating history button — overlay, no layout impact */}
+                {onSelectSession && !isSidebarOpen && (
+                    <Button
+                        mode="secondary"
+                        icon="history"
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="chat-history-btn"
+                        title="Show chat history"
+                    />
                 )}
 
                 {/* Messages Area */}
@@ -938,70 +949,59 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     )}
 
                     <div className="chat-input-row">
-                        <Button
-                            mode="tertiary"
-                            icon={"attachment" as any}
+                        <button
+                            type="button"
+                            className="chat-input-btn chat-input-btn--upload"
                             onClick={open}
                             disabled={isLoading}
                             aria-label="Attach file"
-                            style={{
-                                color: cssVar('--g-gray-60'),
-                            }}
+                        >
+                            <Icon iconName="upload" />
+                        </button>
+                        <input
+                            type="text"
+                            id="chat-input"
+                            placeholder="Ask anything..."
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={handleKeyPress}
+                            disabled={isLoading}
+                            ref={inputRef}
+                            className="chat-input-field"
                         />
-                        <div className="chat-input-inner">
-                            <input
-                                type="text"
-                                placeholder="Type your message..."
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={handleKeyPress}
-                                disabled={isLoading}
-                                ref={inputRef}
-                                className="chat-input-field"
-                            />
-                        </div>
-                        <Button
-                            mode="primary"
-                            icon="forward-right"
+                        <button
+                            type="button"
+                            className="chat-input-btn chat-input-btn--send"
                             onClick={handleSend}
                             disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
                             aria-label="Send message"
-                            style={{
-                                borderRadius: '50%',
-                                width: 44,
-                                height: 44,
-                                minWidth: 44,
-                                padding: 0,
-                            }}
-                        />
+                        >
+                            <Icon iconName="forward-right" />
+                        </button>
                     </div>
                 </div>
             </div>
 
             {/* Session Sidebar */}
-            {sessions.length > 0 && (
-                <div
-                    className={`chat-sidebar ${isSidebarOpen ? '' : 'collapsed'}`}
-                    style={isSidebarOpen ? { width: 300 } : {}}
-                >
-                    <button className="sidebar-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)} aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}>
-                        <FrokIcon
-                            name={isSidebarOpen ? 'ChevronRight' : 'ChevronLeft'}
-                            style={{ fontSize: 16 }}
-                        />
+            {onSelectSession && isSidebarOpen && onCreateSession && onDeleteSession && onUpdateSession && (
+                <div className="chat-sidebar">
+                    <button
+                        className="chat-sidebar-close-btn"
+                        onClick={() => setIsSidebarOpen(false)}
+                        title="Close chat history"
+                        aria-label="Close chat history"
+                    >
+                        <Icon iconName="close" isUiIcon style={{ fontSize: '14px' }} />
                     </button>
-
-                    {isSidebarOpen && onSelectSession && onCreateSession && onDeleteSession && onUpdateSession && (
-                        <ChatSessionList
-                            sessions={sessions}
-                            currentSessionId={sessionId}
-                            onSelectSession={onSelectSession}
-                            onCreateSession={onCreateSession}
-                            onDeleteSession={onDeleteSession}
-                            onUpdateSession={onUpdateSession}
-                            onSearch={onSearch}
-                        />
-                    )}
+                    <ChatSessionList
+                        sessions={sessions}
+                        currentSessionId={sessionId}
+                        onSelectSession={onSelectSession}
+                        onCreateSession={onCreateSession}
+                        onDeleteSession={onDeleteSession}
+                        onUpdateSession={onUpdateSession}
+                        onSearch={onSearch}
+                    />
                 </div>
             )}
 

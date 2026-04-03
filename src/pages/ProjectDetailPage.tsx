@@ -950,7 +950,7 @@ export const ProjectDetailPage: React.FC = () => {
                         </Notification>
                     </div>
                 )}
-                <Tile link={undefined} className="project-chat-tile" style={{ height: 'calc(100vh - 350px)' }}>
+                <div className="project-chat-tile">
                     <ChatInterface
                         projectId={projectId!}
                         messages={messages}
@@ -970,7 +970,7 @@ export const ProjectDetailPage: React.FC = () => {
                         onUpdateSession={handleUpdateSession}
                         onSearch={handleSearchSessions}
                     />
-                </Tile>
+                </div>
             </TabPanel>
 
             {/* Pipeline Tab */}
