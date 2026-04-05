@@ -139,11 +139,13 @@ function PipelineEditorContent({ initialConfig, onConfigChange }: PipelineEditor
 
     return (
         <div
+            className="pipeline-editor-container"
             style={{
                 display: 'flex',
                 width: '100%',
                 height: '100%',
-                border: '1px solid var(--bosch-gray-75)',
+                border: '1px solid var(--app-border, #c1c7cc)',
+                borderRadius: '2px',
                 overflow: 'hidden',
             }}
         >

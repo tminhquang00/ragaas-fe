@@ -100,7 +100,7 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
             <Handle
                 type="target"
                 position={Position.Top}
-                style={{ background: '#555', width: 10, height: 10 }}
+                style={{ background: 'var(--g-gray-45, #656a6f)', width: 10, height: 10, border: 'none' }}
             />
 
             <div style={{ padding: 12 }}>
@@ -109,7 +109,7 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
                         <span style={{ color, display: 'flex' }}>
                             {icon}
                         </span>
-                        <strong style={{ width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', fontSize: '0.875rem' }} title={label}>
+                        <strong style={{ width: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', fontSize: '0.875rem', color: 'var(--app-text)' }} title={label}>
                             {label}
                         </strong>
                     </div>
@@ -146,9 +146,10 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
                             position={Position.Bottom}
                             id={branchKey}
                             style={{
-                                background: '#ed6c02', // warning color
+                                background: 'var(--g-yellow-85, #ffcf00)',
                                 width: 10,
                                 height: 10,
+                                border: 'none',
                                 left: `${(index + 0.5) / branchKeys.length * 100}%`,
                             }}
                         />
@@ -158,7 +159,7 @@ export function StepNode({ data, selected }: NodeProps<PipelineNode>) {
                 <Handle
                     type="source"
                     position={Position.Bottom}
-                    style={{ background: '#555', width: 10, height: 10 }}
+                    style={{ background: 'var(--g-gray-45, #656a6f)', width: 10, height: 10, border: 'none' }}
                 />
             )}
         </Tile>
