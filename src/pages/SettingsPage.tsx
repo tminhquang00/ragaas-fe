@@ -31,7 +31,7 @@ export const SettingsPage: React.FC = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 800 }}>
                 {/* Tenant Configuration */}
-                <Tile>
+                <Tile className="static-tile">
                     <div style={{ marginBottom: '1rem' }}>
                         <h6 style={{ fontWeight: 600, marginBottom: '0.5rem', marginTop: 0 }}>
                             Tenant Configuration
@@ -61,7 +61,7 @@ export const SettingsPage: React.FC = () => {
                 </Tile>
 
                 {/* Theme Settings */}
-                <Tile>
+                <Tile className="static-tile">
                     <div style={{ marginBottom: '1rem' }}>
                         <h6 style={{ fontWeight: 600, marginBottom: '0.5rem', marginTop: 0 }}>
                             Appearance
@@ -80,7 +80,7 @@ export const SettingsPage: React.FC = () => {
                 </Tile>
 
                 {/* API Configuration */}
-                <Tile>
+                <Tile className="static-tile">
                     <div style={{ marginBottom: '1rem' }}>
                         <h6 style={{ fontWeight: 600, marginBottom: '0.5rem', marginTop: 0 }}>
                             API Configuration
@@ -100,7 +100,7 @@ export const SettingsPage: React.FC = () => {
                 </Tile>
 
                 {/* Azure AD Settings */}
-                <Tile>
+                <Tile className="static-tile">
                     <div style={{ marginBottom: '1rem' }}>
                         <h6 style={{ fontWeight: 600, marginBottom: '0.5rem', marginTop: 0 }}>
                             Authentication

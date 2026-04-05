@@ -12,7 +12,6 @@ import {
     Tile,
     Breadcrumbs as FrokBreadcrumbs,
     Link as FrokLink,
-    Tooltip,
     Toggle,
     ProgressIndicator,
     OptionBar,
@@ -20,6 +19,7 @@ import {
     Badge,
     ActivityIndicator,
 } from '@bosch/react-frok';
+import { PortalTooltip } from '../components/common/PortalTooltip';
 import { FrokIcon } from '../utils/iconAdapter';
 import { UploadZone, DocumentList } from '../components/documents';
 import { SharePointBrowser } from '../components/sharepoint';
@@ -93,7 +93,7 @@ export const ProjectDetailPage: React.FC = () => {
     const [chatLoading, setChatLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string | undefined>();
     const [sessions, setSessions] = useState<ChatSession[]>([]);
-    // const [sessionsLoading, setSessionsLoading] = useState(false);
+    const [sessionsLoading, setSessionsLoading] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [isStreaming, setIsStreaming] = useState(false);
     const [steps, setSteps] = useState<StepProgress[]>([]);
@@ -140,13 +140,13 @@ export const ProjectDetailPage: React.FC = () => {
     const fetchSessions = useCallback(async () => {
         if (!apiClient || !projectId) return;
         try {
-            // setSessionsLoading(true);
+            setSessionsLoading(true);
             const data = await apiClient.getSessions(projectId);
             setSessions(data.sessions);
         } catch (err) {
             console.error('Failed to load sessions:', err);
         } finally {
-            // setSessionsLoading(false);
+            setSessionsLoading(false);
         }
     }, [apiClient, projectId]);
 
@@ -737,9 +737,6 @@ export const ProjectDetailPage: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <Tooltip content="Refresh">
-                        <Button mode="integrated" icon="refresh" aria-label="Refresh" onClick={() => { fetchProject(); fetchDocuments(); }} />
-                    </Tooltip>
                     {project.status === 'draft' && isEditorOrAbove && (
                         <Button
                             mode="primary"
@@ -758,6 +755,9 @@ export const ProjectDetailPage: React.FC = () => {
                             Archive
                         </Button>
                     )}
+                    <PortalTooltip content="Refresh">
+                        <Button mode="integrated" icon="refresh" aria-label="Refresh" onClick={() => { fetchProject(); fetchDocuments(); }} />
+                    </PortalTooltip>
                 </div>
             </div>
 
@@ -807,58 +807,60 @@ export const ProjectDetailPage: React.FC = () => {
             {/* Overview Tab */}
             <TabPanel value={tab} index={0}>
                 <div className="project-overview-grid">
-                    <Tile>
-                            <h6 style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
-                                Configuration
-                            </h6>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>LLM Model</span>
-                                    <span style={{ fontSize: '0.875rem' }}>{project.config?.llm_config?.config_name || 'Not set'}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Temperature</span>
-                                    <span style={{ fontSize: '0.875rem' }}>{project.config?.llm_config?.temperature || 0.7}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Top K</span>
-                                    <span style={{ fontSize: '0.875rem' }}>{project.config?.retrieval_config?.top_k || 5}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Pipeline Type</span>
-                                    <span style={{ fontSize: '0.875rem' }}>{project.config?.pipeline_config?.type || 'simple_rag'}</span>
-                                </div>
+                    <Tile background="floating" className="overview-card">
+                        <div className="overview-card-header">
+                            <FrokIcon name="Settings" className="overview-card-icon" />
+                            <h6 className="overview-card-title">Configuration</h6>
+                        </div>
+                        <div className="overview-card-content">
+                            <div className="overview-stat-row">
+                                <span className="overview-stat-label">LLM Model</span>
+                                <span className="overview-stat-value">{project.config?.llm_config?.config_name || 'Not set'}</span>
                             </div>
-                        </Tile>
-                        <Tile>
-                            <h6 style={{ fontWeight: 600, marginBottom: '0.75rem' }}>
-                                Statistics
-                            </h6>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Documents</span>
-                                    <span style={{ fontSize: '0.875rem' }}>{documents.length}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Total Chunks</span>
-                                    <span style={{ fontSize: '0.875rem' }}>
-                                        {documents.reduce((sum, d) => sum + (d.chunks_count || 0), 0)}
-                                    </span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Created</span>
-                                    <span style={{ fontSize: '0.875rem' }}>
-                                        {new Date(project.created_at).toLocaleDateString()}
-                                    </span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>Last Updated</span>
-                                    <span style={{ fontSize: '0.875rem' }}>
-                                        {new Date(project.updated_at).toLocaleDateString()}
-                                    </span>
-                                </div>
+                            <div className="overview-stat-row">
+                                <span className="overview-stat-label">Temperature</span>
+                                <span className="overview-stat-value">{project.config?.llm_config?.temperature || 0.7}</span>
                             </div>
-                        </Tile>
+                            <div className="overview-stat-row">
+                                <span className="overview-stat-label">Top K</span>
+                                <span className="overview-stat-value">{project.config?.retrieval_config?.top_k || 5}</span>
+                            </div>
+                            <div className="overview-stat-row">
+                                <span className="overview-stat-label">Pipeline Type</span>
+                                <span className="overview-stat-value">{project.config?.pipeline_config?.type || 'simple_rag'}</span>
+                            </div>
+                        </div>
+                    </Tile>
+                    <Tile background="floating" className="overview-card">
+                        <div className="overview-card-header">
+                            <FrokIcon name="AutoGraph" className="overview-card-icon" />
+                            <h6 className="overview-card-title">Statistics</h6>
+                        </div>
+                        <div className="overview-card-content">
+                            <div className="overview-stat-row">
+                                <span className="overview-stat-label">Documents</span>
+                                <span className="overview-stat-value overview-stat-highlight">{documents.length}</span>
+                            </div>
+                            <div className="overview-stat-row">
+                                <span className="overview-stat-label">Total Chunks</span>
+                                <span className="overview-stat-value overview-stat-highlight">
+                                    {documents.reduce((sum, d) => sum + (d.chunks_count || 0), 0)}
+                                </span>
+                            </div>
+                            <div className="overview-stat-row">
+                                <span className="overview-stat-label">Created</span>
+                                <span className="overview-stat-value">
+                                    {new Date(project.created_at).toLocaleDateString()}
+                                </span>
+                            </div>
+                            <div className="overview-stat-row">
+                                <span className="overview-stat-label">Last Updated</span>
+                                <span className="overview-stat-value">
+                                    {new Date(project.updated_at).toLocaleDateString()}
+                                </span>
+                            </div>
+                        </div>
+                    </Tile>
                 </div>
             </TabPanel>
 
@@ -969,6 +971,7 @@ export const ProjectDetailPage: React.FC = () => {
                         onDeleteSession={handleDeleteSession}
                         onUpdateSession={handleUpdateSession}
                         onSearch={handleSearchSessions}
+                        isLoadingSessions={sessionsLoading}
                     />
                 </div>
             </TabPanel>
@@ -1040,45 +1043,57 @@ export const ProjectDetailPage: React.FC = () => {
                 {apiClient && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         {/* Visibility Toggle — owner only */}
-                        <Tile>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    {project.visibility === 'public'
-                                        ? <FrokIcon name="Public" style={{ color: '#059669' }} />
-                                        : <FrokIcon name="Lock" style={{ color: 'var(--app-text-secondary)' }} />
-                                    }
-                                    <div>
-                                        <p style={{ fontWeight: 600 }}>
-                                            {project.visibility === 'public' ? 'Public project' : 'Private project'}
-                                        </p>
-                                        <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>
-                                            {project.visibility === 'public'
-                                                ? 'Any authenticated user can view and chat with this project.'
-                                                : 'Only the owner and explicitly added members can access this project.'}
-                                        </p>
-                                    </div>
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '1rem',
+                                padding: '1rem 1.25rem',
+                                borderLeft: project.visibility === 'public'
+                                    ? '4px solid var(--app-success, #00884a)'
+                                    : '4px solid var(--app-border, #c1c7cc)',
+                                background: project.visibility === 'public'
+                                    ? 'color-mix(in srgb, var(--app-success) 6%, var(--app-bg))'
+                                    : 'var(--app-bg-surface, #eff1f2)',
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                {project.visibility === 'public'
+                                    ? <FrokIcon name="Public" style={{ color: 'var(--app-success, #00884a)' }} />
+                                    : <FrokIcon name="Lock" style={{ color: 'var(--app-text-secondary)' }} />
+                                }
+                                <div>
+                                    <p style={{ fontWeight: 600, margin: 0 }}>
+                                        {project.visibility === 'public' ? 'Public project' : 'Private project'}
+                                    </p>
+                                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: 0 }}>
+                                        {project.visibility === 'public'
+                                            ? 'Any authenticated user can view and chat with this project.'
+                                            : 'Only the owner and explicitly added members can access this project.'}
+                                    </p>
                                 </div>
-                                <Tooltip content={isOwner ? '' : 'Only the project owner can change visibility'}>
-                                    <span>
-                                        <Toggle
-                                            id="visibility-toggle"
-                                            rightLabel="Make public"
-                                            checked={project.visibility === 'public'}
-                                            disabled={!isOwner}
-                                            onChange={async (e: React.ChangeEvent<HTMLInputElement>) => {
-                                                const newVisibility = e.target.checked ? 'public' : 'private';
-                                                try {
-                                                    const updated = await apiClient.setVisibility(projectId!, newVisibility);
-                                                    setProject(updated);
-                                                } catch (err) {
-                                                    setError(err instanceof Error ? err.message : 'Failed to update visibility');
-                                                }
-                                            }}
-                                        />
-                                    </span>
-                                </Tooltip>
                             </div>
-                        </Tile>
+                            <PortalTooltip content={isOwner ? '' : 'Only the project owner can change visibility'} disabled={isOwner}>
+                                <span>
+                                    <Toggle
+                                        id="visibility-toggle"
+                                        rightLabel="Make public"
+                                        checked={project.visibility === 'public'}
+                                        disabled={!isOwner}
+                                        onChange={async (e: React.ChangeEvent<HTMLInputElement>) => {
+                                            const newVisibility = e.target.checked ? 'public' : 'private';
+                                            try {
+                                                const updated = await apiClient.setVisibility(projectId!, newVisibility);
+                                                setProject(updated);
+                                            } catch (err) {
+                                                setError(err instanceof Error ? err.message : 'Failed to update visibility');
+                                            }
+                                        }}
+                                    />
+                                </span>
+                            </PortalTooltip>
+                        </div>
 
                         <MembersPanel
                             projectId={projectId!}

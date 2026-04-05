@@ -121,7 +121,7 @@ export const ProjectsPage: React.FC = () => {
     const filteredProjects = projects;
 
     return (
-        <Layout>
+        <Layout fullWidth className="projects-page">
             {/* Header */}
             <div className="projects-page-header">
                 <div>

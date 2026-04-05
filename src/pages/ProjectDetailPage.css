@@ -40,9 +40,80 @@
 
 .project-overview-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.5rem;
   align-items: start;
+}
+
+/* Overview Cards */
+.overview-card.a-tile {
+  padding: 1.25rem;
+  background: var(--g-gray-95, #eff1f2) !important;
+  border: 1px solid var(--g-gray-80, #c1c7cc);
+}
+
+/* Overview Cards - Dark Mode */
+.-dark-mode .overview-card.a-tile {
+  background: var(--g-gray-15, #232628) !important;
+  border-color: var(--g-gray-30, #43464a);
+}
+
+.overview-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.overview-card-icon {
+  color: var(--g-blue-50, #007bc0);
+  font-size: 1.5rem;
+}
+
+.-dark-mode .overview-card-icon {
+  color: #6bb8ff;
+}
+
+.overview-card-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--g-gray-05, #101112);
+}
+
+.-dark-mode .overview-card-title {
+  color: var(--g-gray-95, #eff1f2);
+}
+
+.overview-stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.375rem 0;
+}
+
+.overview-stat-label {
+  color: var(--g-gray-50, #71767c);
+  font-size: 0.875rem;
+}
+
+.-dark-mode .overview-stat-label {
+  color: var(--g-gray-60, #8a9097);
+}
+
+.overview-stat-value {
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none !important;
+  border-bottom: none !important;
+  color: var(--g-gray-15, #232628);
+}
+
+.-dark-mode .overview-stat-value {
+  color: var(--g-gray-90, #e0e2e5);
+}
+
+.overview-stat-highlight {
+  font-weight: 700;
 }
 
 .project-chat-tile {
@@ -72,4 +143,33 @@
 
 .project-pipeline-layout {
   min-height: 500px;
+}
+
+/* Custom tooltip for refresh button - instant display, top-left position */
+.refresh-btn-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.refresh-btn-wrapper::before {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  background: var(--g-gray-15, #232628);
+  color: var(--g-gray-100, #ffffff);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.1s ease;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.refresh-btn-wrapper:hover::before {
+  opacity: 1;
+  visibility: visible;
 }
