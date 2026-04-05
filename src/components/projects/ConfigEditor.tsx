@@ -5,10 +5,10 @@ import {
     Toggle,
     Accordion,
     Button,
-    Tile,
     TabNavigation,
     Tab,
 } from '@bosch/react-frok';
+import './ConfigEditor.css';
 
 interface ConfigEditorProps {
     config: Record<string, any>;
@@ -37,7 +37,7 @@ const ConfigField: React.FC<{
     // String / Number
     if (type === 'string' || type === 'number' || type === 'null') {
         return (
-            <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="config-field-row">
                 <TextField
                     id={`config-field-${path.join('-')}`}
                     label={label}
@@ -62,7 +62,7 @@ const ConfigField: React.FC<{
     // Boolean
     if (type === 'boolean') {
         return (
-            <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="config-field-toggle">
                 <Toggle
                     id={`toggle-${path.join('-')}`}
                     leftLabel={label}
@@ -84,7 +84,7 @@ const ConfigField: React.FC<{
     // Object
     if (type === 'object') {
         const content = (
-            <div style={{ width: '100%' }}>
+            <div className="config-field-group">
                 {Object.entries(value).map(([key, val]) => (
                     <ConfigField
                         key={key}
@@ -101,7 +101,7 @@ const ConfigField: React.FC<{
         if (isRoot) return content;
 
         return (
-            <Accordion headline={label} defaultOpen style={{ marginBottom: 16 }}>
+            <Accordion headline={label} defaultOpen className="config-section-accordion">
                 {content}
             </Accordion>
         );
@@ -110,9 +110,9 @@ const ConfigField: React.FC<{
     // Array
     if (type === 'array') {
         return (
-            <Accordion headline={`${label} [${value.length}]`} defaultOpen style={{ marginBottom: 16 }}>
+            <Accordion headline={`${label} [${value.length}]`} defaultOpen className="config-section-accordion">
                 {value.map((item: any, index: number) => (
-                    <div key={index} style={{ paddingLeft: 16, borderLeft: '1px solid var(--major__enabled__default__line, #ccc)', marginBottom: 8 }}>
+                    <div key={index} className="config-array-item">
                         <ConfigField
                             path={[...path, index.toString()]}
                             value={item}
@@ -197,17 +197,11 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({ config, onSave }) =>
     };
 
     return (
-        <Tile className="config-editor-tile" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="config-editor-wrapper">
             {/* Toolbar */}
-            <div className="config-editor-toolbar" style={{
-                padding: 16,
-                borderBottom: '1px solid var(--major__enabled__default__line, #ccc)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-            }}>
-                <div className="config-editor-toolbar-left" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <h6 style={{ margin: 0 }}>Project Configuration</h6>
+            <div className="config-editor-toolbar">
+                <div className="config-editor-toolbar-left">
+                    <h6 className="config-editor-title">Project Configuration</h6>
                     <TabNavigation
                         className="config-editor-mode-tabs"
                         selectedValue={mode}
@@ -227,7 +221,7 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({ config, onSave }) =>
             </div>
 
             {/* Content */}
-            <div className="config-editor-content" style={{ padding: 24 }}>
+            <div className="config-editor-content">
                 {mode === 'visual' ? (
                     <ConfigField
                         path={[]}
@@ -243,14 +237,14 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({ config, onSave }) =>
                             rows={20}
                             value={JSON.stringify(localConfig, null, 2)}
                             onChange={(e) => handleJsonChange(e.target.value)}
-                            style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}
+                            className="config-json-textarea"
                         />
                         {jsonError && (
-                            <p style={{ color: 'var(--app-error, #e00)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{jsonError}</p>
+                            <p className="config-json-error">{jsonError}</p>
                         )}
                     </div>
                 )}
             </div>
-        </Tile>
+        </div>
     );
 };
