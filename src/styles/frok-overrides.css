@@ -41,6 +41,9 @@
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    position: relative;
+    width: 100%;
+    overflow-x: hidden;
 }
 
 /* ---- Header Styles (Bosch Design) ---- */
@@ -57,19 +60,65 @@
     background: var(--g-gray-10, #1a1c1d);
 }
 
-/* Header title section - with subtitle */
+/* Header layout - title on left, actions on right */
+.o-minimal-header__top {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important; /* Override flex-end */
+}
+
+/* Header title section - force left alignment */
+.o-minimal-header__title {
+    flex: 1 1 auto !important;
+    order: 0 !important;
+    margin-inline-start: 0 !important; /* Remove default 5rem margin */
+    padding-left: 1rem;
+    text-align: left !important;
+}
+
+/* When sidebar is open, shift header content right by sidebar width */
+@media (min-width: 1194px) {
+    /* Use wrapper class since sidebar is inside header, not sibling */
+    .app-layout-wrapper.sidebar-open .o-minimal-header__top {
+        padding-left: 19rem !important; /* Match 19rem expanded sidebar width */
+    }
+
+    /* Collapsed state - shift by collapsed width */
+    .app-layout-wrapper:not(.sidebar-open) .o-minimal-header__top {
+        padding-left: 3rem !important; /* Match 3rem collapsed sidebar width */
+    }
+}
+
 .header-title-section {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
+    text-align: left;
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Desktop - position title after sidebar */
+@media (min-width: 1194px) {
+    .app-layout-wrapper:not(.sidebar-open) .header-title-section {
+        left: calc(3rem + 1rem); /* Collapsed sidebar + padding */
+    }
+
+    .app-layout-wrapper.sidebar-open .header-title-section {
+        left: calc(19rem + 1rem); /* Expanded sidebar + padding */
+    }
 }
 
 .header-app-name {
     font-weight: 700;
-    font-size: 1.1rem;
-    color: var(--g-gray-05, #101112) !important; /* Black */
+    font-size: 1.25rem;
+    color: var(--g-gray-05, #101112) !important;
     letter-spacing: -0.02em;
+    line-height: 1.2;
+    text-align: left;
 }
 
 .-dark-mode .header-app-name {
@@ -81,10 +130,18 @@
     color: var(--g-gray-50, #71767c) !important;
     font-weight: 500;
     letter-spacing: 0.01em;
+    text-align: left;
 }
 
 .-dark-mode .header-app-subtitle {
     color: var(--g-gray-60, #8a9097) !important;
+}
+
+/* Actions stay on the right */
+.o-minimal-header__actions {
+    flex: 0 0 auto !important;
+    margin-left: auto !important;
+    order: 1 !important;
 }
 
 /* Header actions list - flex container for proper alignment */
@@ -259,16 +316,18 @@ body {
     z-index: 1;
     flex-grow: 1;
     padding: 24px;
-    padding-top: 80px;
+    padding-top: 96px; /* Increased from 80px to account for header height */
     display: flex;
     flex-direction: column;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
     max-width: 100%;
     box-sizing: border-box;
 }
 
 /* Mobile/tablet - no sidebar offset (sidebar overlays content) */
-@media (max-width: 1023px) {
+/* Below 1194px, FROK sidebar overlays content */
+@media (max-width: 1193px) {
     .app-main-content {
         margin-left: 0 !important;
         width: 100% !important;
@@ -276,27 +335,70 @@ body {
 }
 
 /* Desktop - sidebar collapsed (icon-only mode) or open */
-@media (min-width: 1024px) {
+/* FROK SideNavigation widths: collapsed=3rem, open=19rem (at 1194px+) */
+@media (min-width: 1194px) {
     .app-main-content {
         margin-left: 3rem; /* 48px - collapsed sidebar width */
         width: calc(100% - 3rem);
     }
     .app-main-content.sidebar-open {
-        margin-left: 16rem; /* 256px - expanded sidebar width */
-        width: calc(100% - 16rem);
+        margin-left: 19rem; /* 304px - expanded sidebar width per FROK */
+        width: calc(100% - 19rem);
     }
 }
 
-/* FROK MinimalHeader — let FROK handle sidebar/header positioning natively */
-/* Only add transition smoothing */
-.m-minimal-header__main {
+/* FROK MinimalHeader — sidebar on top, header content shifts right */
+.o-minimal-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+}
+
+/* Ensure header supergraphic doesn't overlap sidebar */
+.o-minimal-header::before,
+.o-minimal-header__supergraphic {
+    z-index: 100;
+}
+
+/* Sidebar stays on top with full height */
+.m-side-navigation {
+    z-index: 300 !important; /* Above header and supergraphic */
+}
+
+/* Header top bar shifts right to accommodate sidebar */
+.o-minimal-header__top {
     transition: margin-left 225ms cubic-bezier(.38, .04, .35, .96);
-    box-sizing: border-box;
+}
+
+/* Desktop: shift header content when sidebar is present */
+@media (min-width: 1194px) {
+    /* Collapsed sidebar - header shifts by 3rem */
+    .o-minimal-header__top {
+        margin-left: 3rem;
+    }
+
+    /* Open sidebar - header shifts by 19rem */
+    .app-layout-wrapper.sidebar-open .o-minimal-header__top {
+        margin-left: 19rem;
+    }
 }
 
 /* ============================================================
-   SIDEBAR COLLAPSE - Hide text when collapsed
+   SIDEBAR STYLING
    ============================================================ */
+
+/* Left-align sidebar menu items */
+.m-side-navigation .a-menu-item__button,
+.m-side-navigation .a-menu-item__link {
+    justify-content: flex-start !important;
+    text-align: left;
+}
+
+.m-side-navigation .a-menu-item__label {
+    text-align: left;
+}
 
 /* Hide custom text labels when sidebar collapsed */
 .m-side-navigation:not(.-open) .nav-item-text {
