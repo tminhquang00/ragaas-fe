@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Dialog,
     TextField,
@@ -12,7 +13,6 @@ import {
     Slider,
 } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
-import { alpha } from '../../utils/frokTheme';
 import { CreateProjectRequest } from '../../types';
 
 interface CreateProjectDialogProps {
@@ -183,7 +183,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
         }
     };
 
-    return (
+    const dialogContent = (
         <Dialog
             title="Create New Project"
             modal={true}
@@ -195,8 +195,9 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
             cancelLabel="Cancel"
             confirmButton={{ disabled: loading || (tab === 'manual' ? !name.trim() : !yamlFile) }}
             cancelButton={{ disabled: loading }}
+            className="create-project-dialog"
         >
-            <div style={{ minWidth: 400 }}>
+            <div className="create-project-dialog-content">
                 <TabNavigation
                     selectedValue={tab}
                     onTabSelect={(_ev, data) => setTab(data.value as string)}
@@ -205,21 +206,21 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                     <Tab value="yaml" icon={{ iconName: 'upload' }}>Upload YAML</Tab>
                 </TabNavigation>
 
-                <div style={{ marginTop: 16 }}>
+                <div className="create-project-form-area">
                     {error && (
-                        <Notification type="error" defaultOpen>
+                        <Notification type="error" defaultOpen style={{ marginBottom: 16 }}>
                             {error}
                         </Notification>
                     )}
 
                     {loading && (
-                        <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
+                        <div className="create-project-loading">
                             <ActivityIndicator size="small" />
                         </div>
                     )}
 
                     {tab === 'manual' ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <div className="create-project-form">
                             <TextField
                                 id="project-name"
                                 label="Project Name"
@@ -235,12 +236,12 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                                 label="Description"
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                rows={2}
+                                rows={3}
                                 placeholder="A document Q&A system for..."
                             />
 
-                            <Accordion headline="Advanced Settings">
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '8px 0' }}>
+                            <Accordion headline="Advanced Settings" size="small">
+                                <div className="create-project-advanced">
                                     <Dropdown
                                         label="LLM Model"
                                         value={llmModel}
@@ -251,8 +252,10 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                                         }))}
                                     />
 
-                                    <div>
-                                        <p style={{ marginBottom: 8 }}>Temperature: {temperature}</p>
+                                    <div className="create-project-slider-field">
+                                        <label className="create-project-slider-label">
+                                            Temperature: <strong>{temperature}</strong>
+                                        </label>
                                         <Slider
                                             labelLeft="0"
                                             labelRight="2"
@@ -267,8 +270,10 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                                         />
                                     </div>
 
-                                    <div>
-                                        <p style={{ marginBottom: 8 }}>Top K Results: {topK}</p>
+                                    <div className="create-project-slider-field">
+                                        <label className="create-project-slider-label">
+                                            Top K Results: <strong>{topK}</strong>
+                                        </label>
                                         <Slider
                                             labelLeft="1"
                                             labelRight="20"
@@ -288,36 +293,28 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                                         label="System Prompt"
                                         value={systemPrompt}
                                         onChange={(e) => setSystemPrompt(e.target.value)}
-                                        rows={4}
+                                        rows={3}
                                         placeholder="You are a helpful assistant that answers questions based on the provided documents..."
                                     />
                                 </div>
                             </Accordion>
                         </div>
                     ) : (
-                        <div style={{ padding: '16px 0' }}>
+                        <div className="create-project-upload-area">
                             <input
                                 type="file"
                                 accept=".yaml,.yml"
-                                style={{ display: 'none' }}
+                                className="create-project-file-input"
                                 id="yaml-upload"
                                 onChange={(e) => setYamlFile(e.target.files?.[0] || null)}
                             />
-                            <label htmlFor="yaml-upload">
-                                <div
-                                    style={{
-                                        border: `2px dashed ${alpha('var(--g-blue-50, #007bc0)', 0.3)}`,
-                                        padding: 32,
-                                        textAlign: 'center',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s',
-                                    }}
-                                >
-                                    <FrokIcon name="Upload" style={{ fontSize: 48, marginBottom: 16 }} />
-                                    <p style={{ marginBottom: 4 }}>
+                            <label htmlFor="yaml-upload" className="create-project-upload-label">
+                                <div className={`create-project-dropzone ${yamlFile ? 'has-file' : ''}`}>
+                                    <FrokIcon name="Upload" className="create-project-upload-icon" />
+                                    <p className="create-project-upload-text">
                                         {yamlFile ? yamlFile.name : 'Click to upload YAML configuration'}
                                     </p>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--major__enabled__default__front-secondary, #70757a)' }}>
+                                    <span className="create-project-upload-hint">
                                         Supported: .yaml, .yml
                                     </span>
                                 </div>
@@ -328,4 +325,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
             </div>
         </Dialog>
     );
+
+    // Use portal to render dialog at document body level to avoid parent container clipping
+    return createPortal(dialogContent, document.body);
 };
