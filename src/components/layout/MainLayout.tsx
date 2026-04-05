@@ -96,30 +96,31 @@ export const MainLayout: React.FC = () => {
                                     popover={{ position: 'bottom-right' }}
                                     ariaMenuLabel="User menu"
                                 >
-                                    <ContextMenu.Group>
-                                        <div className="header-user-info">
-                                            <div className="header-user-name">{user?.name || 'Demo User'}</div>
-                                            <div className="header-user-email">{user?.username || tenantId}</div>
+                                    <div className="user-menu-header">
+                                        <div className="user-menu-avatar">
+                                            {user?.name?.charAt(0) || 'U'}
                                         </div>
-                                    </ContextMenu.Group>
-                                    <ContextMenu.Group>
-                                        <ContextMenu.Item
-                                            label="Settings"
-                                            icon="settings"
-                                            onClick={() => {
-                                                setUserMenuOpen(false);
-                                                navigate('/settings');
-                                            }}
-                                        />
-                                        <ContextMenu.Item
-                                            label="Logout"
-                                            icon="logout"
-                                            onClick={() => {
-                                                setUserMenuOpen(false);
-                                                logout();
-                                            }}
-                                        />
-                                    </ContextMenu.Group>
+                                        <div className="user-menu-info">
+                                            <div className="user-menu-name">{user?.name || 'Demo User'}</div>
+                                            <div className="user-menu-email">{user?.username || tenantId}</div>
+                                        </div>
+                                    </div>
+                                    <ContextMenu.Item
+                                        label="Settings"
+                                        icon="settings"
+                                        onClick={() => {
+                                            setUserMenuOpen(false);
+                                            navigate('/settings');
+                                        }}
+                                    />
+                                    <ContextMenu.Item
+                                        label="Logout"
+                                        icon="logout"
+                                        onClick={() => {
+                                            setUserMenuOpen(false);
+                                            logout();
+                                        }}
+                                    />
                                 </ContextMenu>
                             </div>
                         </div>

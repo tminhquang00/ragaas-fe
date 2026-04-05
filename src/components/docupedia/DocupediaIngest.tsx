@@ -3,17 +3,14 @@ import {
     Notification,
     Button,
     Checkbox,
-    ActivityIndicator,
     Divider,
     Dropdown,
     TextField,
-    Tooltip,
     Chip,
     ProgressIndicator,
     Slider,
-    Tile,
+    Icon,
 } from '@bosch/react-frok';
-import { FrokIcon } from '../../utils/iconAdapter';
 
 import { RAGaaSClient } from '../../services/api';
 import { UploadTaskStatus } from '../../types';
@@ -93,20 +90,19 @@ export const DocupediaIngest: React.FC<DocupediaIngestProps> = ({
     // Render
 
     return (
-        <Tile>
+        <div className="docupedia-ingest">
             {/* Info banner */}
             <div
                 style={{
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: 'flex-start',
                     gap: '1rem',
-                    padding: '1rem',
+                    padding: '1rem 1.25rem',
                     marginBottom: '1.5rem',
                     background: 'var(--app-bg-surface)',
-                    borderRadius: 8,
                 }}
             >
-                <FrokIcon name="Article" style={{ fontSize: 24, color: 'var(--app-primary)' }} />
+                <Icon iconName="document" style={{ fontSize: '1.5rem', color: 'var(--app-primary)', flexShrink: 0, marginTop: '0.125rem' }} />
                 <div style={{ flex: 1 }}>
                     <p style={{ fontWeight: 600, fontSize: '0.875rem', margin: 0 }}>
                         Ingest from Docupedia / Confluence
@@ -120,42 +116,41 @@ export const DocupediaIngest: React.FC<DocupediaIngestProps> = ({
             </div>
 
             {/* Form */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.5rem' }}>
 
-                {/* URL */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <FrokIcon name="Link" />
-                    <div style={{ flex: 1 }}>
-                        <TextField
-                            id="docupedia-url"
-                            label="Docupedia / Confluence Page URL"
-                            placeholder="https://inside-docupedia.bosch.com/confluence/pages/viewpage.action?pageId=123456"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
+                {/* URL and Token - grid layout */}
+                <div
+                    style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                        gap: '1rem',
+                        alignItems: 'start',
+                    }}
+                >
+                    <TextField
+                        id="docupedia-url"
+                        label="Docupedia / Confluence Page URL"
+                        placeholder="https://inside-docupedia.bosch.com/confluence/pages/viewpage.action?pageId=123456"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                    />
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
+                        <div style={{ flex: 1 }}>
+                            <TextField
+                                id="docupedia-token"
+                                label="Personal Access Token"
+                                placeholder="Your Confluence PAT"
+                                type={showToken ? 'text' : 'password'}
+                                value={token}
+                                onChange={(e) => setToken(e.target.value)}
+                            />
+                        </div>
+                        <Button
+                            mode="integrated"
+                            icon={showToken ? 'lock-open' : 'lock-closed'}
+                            onClick={() => setShowToken((v) => !v)}
                         />
                     </div>
-                </div>
-
-                {/* Token */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <FrokIcon name="Key" />
-                    <div style={{ flex: 1 }}>
-                        <TextField
-                            id="docupedia-token"
-                            label="Personal Access Token"
-                            placeholder="Your Confluence PAT"
-                            type={showToken ? 'text' : 'password'}
-                            value={token}
-                            onChange={(e) => setToken(e.target.value)}
-                        />
-                    </div>
-                    <Button
-                        mode="integrated"
-                        onClick={() => setShowToken((v) => !v)}
-                        aria-label={showToken ? 'Hide token' : 'Show token'}
-                    >
-                        {showToken ? <FrokIcon name="VisibilityOff" /> : <FrokIcon name="Visibility" />}
-                    </Button>
                 </div>
 
                 {/* Include children */}
@@ -190,9 +185,18 @@ export const DocupediaIngest: React.FC<DocupediaIngestProps> = ({
 
                 {/* Image handling */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', minWidth: 120 }}>
+                    <label
+                        style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: 'var(--app-text-secondary)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.025em',
+                            minWidth: 100,
+                        }}
+                    >
                         Image handling
-                    </span>
+                    </label>
                     <div style={{ minWidth: 220 }}>
                         <Dropdown
                             value={imageHandling}
@@ -207,26 +211,13 @@ export const DocupediaIngest: React.FC<DocupediaIngestProps> = ({
 
                 {/* Action button */}
                 <div>
-                    <Tooltip
-                        content={
-                            !url.trim() || !token.trim()
-                                ? 'Enter a page URL and personal access token to continue'
-                                : ''
-                        }
-                    >
-                        <span>
-                            <Button
-                                mode="primary"
-                                onClick={handleIngest}
-                                disabled={!canIngest}
-                            >
-                                {ingesting
-                                    ? <><ActivityIndicator size="small" /> Starting...</>
-                                    : <><FrokIcon name="FileUpload" /> Start Ingestion</>
-                                }
-                            </Button>
-                        </span>
-                    </Tooltip>
+                    <Button
+                        mode="primary"
+                        icon={ingesting ? undefined : 'upload'}
+                        label={ingesting ? 'Starting...' : 'Start Ingestion'}
+                        onClick={handleIngest}
+                        disabled={!canIngest}
+                    />
                 </div>
             </div>
 
@@ -300,6 +291,6 @@ export const DocupediaIngest: React.FC<DocupediaIngestProps> = ({
                     </Notification>
                 </div>
             )}
-        </Tile>
+        </div>
     );
 };

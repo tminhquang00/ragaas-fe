@@ -3,14 +3,11 @@ import {
     Notification,
     Button,
     Chip,
-    ActivityIndicator,
     ProgressIndicator,
     TextField,
-    Tooltip,
     Divider,
-    Tile,
+    Icon,
 } from '@bosch/react-frok';
-import { FrokIcon } from '../../utils/iconAdapter';
 import { useMsal } from '@azure/msal-react';
 import { InteractionRequiredAuthError } from '@azure/msal-browser';
 
@@ -328,100 +325,108 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
     // ── Render ────────────────────────────────────────────────────────────────
 
     return (
-        <Tile>
+        <div className="sharepoint-browser">
             {/* ── Auth banner ─────────────────────────────────────── */}
             <div
                 style={{
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'space-between',
                     gap: '1rem',
-                    padding: '1rem',
+                    padding: '1rem 1.25rem',
                     marginBottom: '1.5rem',
                     background: 'var(--app-bg-surface)',
-                    borderRadius: 8,
+                    borderRadius: 0,
                 }}
             >
-                {spAccessToken ? (
-                    <>
-                        <FrokIcon name="CheckCircle" style={{ color: 'var(--app-success)' }} />
-                        <span style={{ flex: 1, fontSize: '0.875rem' }}>
-                            Connected{connectedAs ? ` as ${connectedAs}` : ''}
-                        </span>
-                        <Button
-                            mode="secondary"
-                            onClick={() => {
-                                setSpAccessToken(null);
-                                setSpRefreshToken(null);
-                                setConnectedAs(null);
-                                setTree(null);
-                                setSelected(new Set());
-                                setStatusMap({});
-                            }}
-                        >
-                            Disconnect
-                        </Button>
-                    </>
-                ) : (
-                    <>
-                        <FrokIcon name="Link" />
-                        <span style={{ flex: 1, color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>
-                            {isAzureADEnabled
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Icon
+                        iconName={spAccessToken ? 'checkmark' : 'link-to'}
+                        style={{ color: spAccessToken ? 'var(--app-success)' : 'var(--app-text-secondary)', fontSize: '1.25rem' }}
+                    />
+                    <span style={{ fontSize: '0.875rem', color: spAccessToken ? 'inherit' : 'var(--app-text-secondary)' }}>
+                        {spAccessToken
+                            ? `Connected${connectedAs ? ` as ${connectedAs}` : ''}`
+                            : isAzureADEnabled
                                 ? 'Connect to SharePoint to browse and ingest files'
                                 : 'SharePoint requires Azure AD (VITE_USE_AZURE_AD=true)'}
-                        </span>
-                        <Tooltip
-                            content={
-                                !isAzureADEnabled
-                                    ? 'SharePoint requires Azure AD authentication. Set VITE_USE_AZURE_AD=true to enable.'
-                                    : ''
-                            }
-                        >
-                            <span>
-                                <Button
-                                    mode="primary"
-                                    onClick={handleConnect}
-                                    disabled={!isAzureADEnabled}
-                                >
-                                    <FrokIcon name="Login" /> Connect to SharePoint
-                                </Button>
-                            </span>
-                        </Tooltip>
-                    </>
+                    </span>
+                </div>
+                {spAccessToken ? (
+                    <Button
+                        mode="secondary"
+                        label="Disconnect"
+                        onClick={() => {
+                            setSpAccessToken(null);
+                            setSpRefreshToken(null);
+                            setConnectedAs(null);
+                            setTree(null);
+                            setSelected(new Set());
+                            setStatusMap({});
+                        }}
+                    />
+                ) : (
+                    <Button
+                        mode="primary"
+                        label="Connect to SharePoint"
+                        onClick={handleConnect}
+                        disabled={!isAzureADEnabled}
+                    />
                 )}
             </div>
 
             {/* ── URL / folder / extension form ───────────────────── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <FrokIcon name="Link" style={{ marginBottom: '8px' }} />
-                    <div style={{ flex: '1 1 300px', minWidth: 200 }}>
-                        <TextField
-                            id="sp-url"
-                            label="SharePoint URL"
-                            placeholder="https://contoso.sharepoint.com/sites/MySite"
-                            value={sharePointUrl}
-                            onChange={e => setSharePointUrl(e.target.value)}
-                            disabled={!spAccessToken}
-                        />
-                    </div>
-                    <div style={{ flex: '1 1 250px', minWidth: 180 }}>
-                        <TextField
-                            id="sp-folder-path"
-                            label="Folder Path (optional)"
-                            placeholder="Documents/ProjectA"
-                            value={folderPath}
-                            onChange={e => setFolderPath(e.target.value)}
-                            disabled={!spAccessToken}
-                        />
-                    </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                {/* URL and Folder inputs - grid layout for alignment */}
+                <div
+                    style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                        gap: '1rem',
+                        alignItems: 'start',
+                    }}
+                >
+                    <TextField
+                        id="sp-url"
+                        label="SharePoint URL"
+                        placeholder="https://contoso.sharepoint.com/sites/MySite"
+                        value={sharePointUrl}
+                        onChange={e => setSharePointUrl(e.target.value)}
+                        disabled={!spAccessToken}
+                    />
+                    <TextField
+                        id="sp-folder-path"
+                        label="Folder Path (optional)"
+                        placeholder="Documents/ProjectA"
+                        value={folderPath}
+                        onChange={e => setFolderPath(e.target.value)}
+                        disabled={!spAccessToken}
+                    />
                 </div>
 
                 {/* Extension chips */}
                 <div>
-                    <span style={{ color: 'var(--app-text-secondary)', fontSize: '0.75rem', display: 'block', marginBottom: '0.25rem' }}>
+                    <label
+                        style={{
+                            display: 'block',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: 'var(--app-text-secondary)',
+                            marginBottom: '0.5rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.025em',
+                        }}
+                    >
                         File type filter
-                    </span>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBottom: '0.5rem' }}>
+                    </label>
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                        }}
+                    >
                         {extensions.map(ext => (
                             <Chip
                                 key={ext}
@@ -431,8 +436,14 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
                                 disabled={!spAccessToken}
                             />
                         ))}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <div style={{ width: 80 }}>
+                        <div
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                            }}
+                        >
+                            <div style={{ width: 72 }}>
                                 <TextField
                                     id="sp-ext-filter"
                                     value={newExtension}
@@ -444,24 +455,23 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
                             </div>
                             <Button
                                 mode="integrated"
+                                icon="add"
                                 onClick={addExtension}
                                 disabled={!spAccessToken || !newExtension.trim()}
-                            >
-                                <FrokIcon name="Add" />
-                            </Button>
+                            />
                         </div>
                     </div>
                 </div>
 
+                {/* Browse button */}
                 <div>
                     <Button
                         mode="secondary"
+                        icon={browsing ? undefined : 'search'}
+                        label={browsing ? 'Browsing…' : 'Browse Files'}
                         onClick={handleBrowse}
                         disabled={!spAccessToken || browsing || !sharePointUrl.trim()}
-                    >
-                        {browsing ? <ActivityIndicator size="small" /> : <FrokIcon name="Search" />}
-                        {browsing ? ' Browsing…' : ' Browse Files'}
-                    </Button>
+                    />
                 </div>
             </div>
 
@@ -506,12 +516,11 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                             <Button
                                 mode="secondary"
+                                icon={checkingStatus ? undefined : 'refresh'}
+                                label={checkingStatus ? 'Checking…' : 'Check for Updates'}
                                 onClick={handleCheckUpdates}
                                 disabled={checkingStatus || ingesting}
-                            >
-                                {checkingStatus ? <ActivityIndicator size="small" /> : <FrokIcon name="CloudSync" />}
-                                {checkingStatus ? ' Checking…' : ' Check for Updates'}
-                            </Button>
+                            />
 
                             <span style={{ flex: 1, fontSize: '0.75rem', color: 'var(--app-text-secondary)' }}>
                                 {selected.size > 0
@@ -521,12 +530,11 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
 
                             <Button
                                 mode="primary"
+                                icon={ingesting ? undefined : 'upload'}
+                                label={ingesting ? 'Starting…' : `Ingest ${selected.size > 0 ? selected.size : ''} File${selected.size !== 1 ? 's' : ''}`}
                                 onClick={handleIngest}
                                 disabled={selected.size === 0 || ingesting || browsing}
-                            >
-                                {ingesting ? <ActivityIndicator size="small" /> : <FrokIcon name="FileUpload" />}
-                                {ingesting ? ' Starting…' : ` Ingest ${selected.size > 0 ? selected.size : ''} File${selected.size !== 1 ? 's' : ''}`}
-                            </Button>
+                            />
                         </div>
                     </div>
                 </>
@@ -586,6 +594,6 @@ export const SharePointBrowser: React.FC<SharePointBrowserProps> = ({
                     </Notification>
                 </div>
             )}
-        </Tile>
+        </div>
     );
 };

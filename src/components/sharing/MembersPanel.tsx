@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
     Button,
-    Chip,
-    Tooltip,
     Notification,
     Divider,
     ActivityIndicator,
 } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
+import { PortalTooltip } from '../common/PortalTooltip';
 
 import { ProjectMemberResponse, ProjectRole } from '../../types';
 import { ShareDialog } from './ShareDialog';
@@ -23,7 +22,20 @@ interface RoleBadgeProps {
     role: ProjectRole;
 }
 export const RoleBadge: React.FC<RoleBadgeProps> = ({ role }) => (
-    <Chip label={ROLE_LABEL[role]} />
+    <span
+        style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '0.2rem 0.5rem',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            background: 'var(--app-bg-surface, #eff1f2)',
+            border: '1px solid var(--app-border, #c1c7cc)',
+            color: 'var(--app-text-secondary, #71767c)',
+        }}
+    >
+        {ROLE_LABEL[role]}
+    </span>
 );
 
 // ── MembersPanel ─────────────────────────────────────────────────────────────
@@ -153,7 +165,7 @@ export const MembersPanel: React.FC<MembersPanelProps> = ({
                                         )}
                                     </div>
                                     {isOwner && member.role !== 'owner' && (
-                                        <Tooltip content="Remove access">
+                                        <PortalTooltip content="Remove access">
                                             <Button
                                                 mode="integrated"
                                                 disabled={removingId === member.user_id}
@@ -161,7 +173,7 @@ export const MembersPanel: React.FC<MembersPanelProps> = ({
                                             >
                                                 <FrokIcon name="PersonRemove" />
                                             </Button>
-                                        </Tooltip>
+                                        </PortalTooltip>
                                     )}
                                 </li>
                             </React.Fragment>
