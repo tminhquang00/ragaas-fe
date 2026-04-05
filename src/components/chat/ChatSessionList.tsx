@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, TextField, Dialog, Popover } from '@bosch/react-frok';
+import { Button, TextField, Dialog, Popover, ActivityIndicator } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
 import { cssVar } from '../../utils/frokTheme';
 import { ChatSession } from '../../types';
@@ -13,6 +13,7 @@ interface ChatSessionListProps {
     onDeleteSession: (sessionId: string) => void;
     onUpdateSession: (sessionId: string, title: string) => Promise<void>;
     onSearch?: (query: string) => void;
+    isLoading?: boolean;
 }
 
 export const ChatSessionList: React.FC<ChatSessionListProps> = ({
@@ -23,6 +24,7 @@ export const ChatSessionList: React.FC<ChatSessionListProps> = ({
     onDeleteSession,
     onUpdateSession,
     onSearch,
+    isLoading = false,
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [editingSession, setEditingSession] = useState<{ id: string; title: string } | null>(null);
@@ -131,47 +133,60 @@ export const ChatSessionList: React.FC<ChatSessionListProps> = ({
             </div>
 
             <div className="session-list">
-                {Object.entries(groupedSessions).map(([label, groupSessions]) => (
-                    <React.Fragment key={label}>
-                        <div className="session-list-group-label">
-                            {label}
-                        </div>
-                        {groupSessions.map((session) => {
-                            const isSelected = session.session_id === currentSessionId;
-                            return (
-                                <div
-                                    key={session.session_id}
-                                    className={`session-item ${isSelected ? 'selected' : ''}`}
-                                    onClick={() => onSelectSession(session.session_id)}
-                                    role="button"
-                                    tabIndex={0}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') onSelectSession(session.session_id); }}
-                                >
-                                    <span className="session-item-icon">
-                                        <FrokIcon
-                                            name="Chat"
-                                            style={{
-                                                fontSize: 18,
-                                                color: isSelected ? cssVar('--g-blue-50') : cssVar('--g-gray-50'),
-                                            }}
-                                        />
-                                    </span>
-                                    <span className="session-item-title">
-                                        {session.title || 'Untitled Session'}
-                                    </span>
-                                    <button
-                                        className="session-item-menu"
-                                        onClick={(e) => handleMenuOpen(e, session.session_id)}
-                                        aria-label="Session options"
-                                        type="button"
+                {isLoading ? (
+                    <div className="session-list-loading">
+                        <ActivityIndicator size="medium" />
+                        <span className="session-list-loading-text">Loading chat history...</span>
+                    </div>
+                ) : Object.entries(groupedSessions).length === 0 ? (
+                    <div className="session-list-empty">
+                        <FrokIcon name="Forum" style={{ fontSize: 48, color: cssVar('--g-gray-40'), marginBottom: 12 }} />
+                        <span>No chat sessions yet</span>
+                        <span className="session-list-empty-hint">Start a new conversation to begin</span>
+                    </div>
+                ) : (
+                    Object.entries(groupedSessions).map(([label, groupSessions]) => (
+                        <React.Fragment key={label}>
+                            <div className="session-list-group-label">
+                                {label}
+                            </div>
+                            {groupSessions.map((session) => {
+                                const isSelected = session.session_id === currentSessionId;
+                                return (
+                                    <div
+                                        key={session.session_id}
+                                        className={`session-item ${isSelected ? 'selected' : ''}`}
+                                        onClick={() => onSelectSession(session.session_id)}
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') onSelectSession(session.session_id); }}
                                     >
+                                        <span className="session-item-icon">
+                                            <FrokIcon
+                                                name="Chat"
+                                                style={{
+                                                    fontSize: 18,
+                                                    color: isSelected ? cssVar('--g-blue-50') : cssVar('--g-gray-50'),
+                                                }}
+                                            />
+                                        </span>
+                                        <span className="session-item-title">
+                                            {session.title || 'Untitled Session'}
+                                        </span>
+                                        <button
+                                            className="session-item-menu"
+                                            onClick={(e) => handleMenuOpen(e, session.session_id)}
+                                            aria-label="Session options"
+                                            type="button"
+                                        >
                                             <FrokIcon name="MoreVert" style={{ fontSize: 18 }} />
                                         </button>
                                     </div>
                                 );
-                        })}
-                    </React.Fragment>
-                ))}
+                            })}
+                        </React.Fragment>
+                    ))
+                )}
             </div>
 
             {/* Context Menu via Popover */}

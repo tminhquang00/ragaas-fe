@@ -193,18 +193,27 @@ export const VisualGroundingModal: React.FC<VisualGroundingModalProps> = ({
             <div
                 style={{
                     padding: 16,
-                    background: alpha(cssVar('--g-blue-50'), 0.05),
-                    borderBottom: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
+                    background: alpha(cssVar('--g-blue-50'), 0.08),
+                    border: `1px solid ${alpha(cssVar('--g-blue-50'), 0.25)}`,
+                    borderRadius: 4,
                     marginBottom: 16,
                 }}
             >
-                <p style={{ fontStyle: 'italic', color: cssVar('--g-gray-60'), margin: 0, fontSize: '0.875rem' }}>
+                <p style={{
+                    fontStyle: 'italic',
+                    color: 'inherit',
+                    opacity: 0.9,
+                    margin: 0,
+                    fontSize: '0.9375rem',
+                    lineHeight: 1.6,
+                    letterSpacing: '0.01em',
+                }}>
                     "{source.excerpt}"
                 </p>
-                <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <Chip label={`${Math.round(source.relevance_score * 100)}% match`} />
                     {source.position && (
-                        <span style={{ fontSize: '0.75rem', color: cssVar('--g-gray-60') }}>
+                        <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>
                             {source.position}
                         </span>
                     )}

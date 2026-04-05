@@ -57,7 +57,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 24px 32px;
+  padding: 24px 60px 24px 32px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -92,6 +92,22 @@
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
+}
+
+.chat-empty-subtitle {
+  color: var(--g-gray-50, #71767c);
+  font-size: 0.875rem;
+  margin: 0;
+  text-align: center;
+  max-width: 400px;
+}
+
+.chat-empty-tip-box {
+  margin-top: 16px;
+  padding: 12px 20px;
+  background: rgba(0, 123, 192, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 123, 192, 0.3);
 }
 
 .chat-empty-tip {
@@ -766,6 +782,45 @@
   background: color-mix(in srgb, var(--g-red-50) 5%, transparent);
 }
 
+/* Session list loading state */
+.session-list-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  gap: 16px;
+}
+
+.session-list-loading-text {
+  font-size: 0.875rem;
+  color: var(--g-gray-60);
+  font-weight: 500;
+}
+
+/* Session list empty state */
+.session-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--g-gray-60);
+}
+
+.session-list-empty span {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.session-list-empty-hint {
+  font-size: 0.8rem !important;
+  font-weight: 400 !important;
+  margin-top: 4px;
+  opacity: 0.8;
+}
+
 /* Floating history button — overlays chat-main top-right, no layout impact */
 .chat-history-btn {
   position: absolute;
@@ -915,4 +970,288 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* ==========================================================================
+   Tooltip Fix for Chat Messages (FROK CSS-based tooltips)
+   ========================================================================== */
+
+/* FROK Tooltip uses CSS ::before pseudo-element with position: absolute.
+   To prevent clipping, parents must allow overflow. */
+
+.message-bubble,
+.message-wrapper,
+.message-bubble.assistant {
+  overflow: visible;
+}
+
+/* Boost z-index for tooltip pseudo-elements inside messages */
+.message-bubble [data-tooltip]:hover::before,
+.message-wrapper [data-tooltip]:hover::before {
+  z-index: 10000 !important;
+}
+
+/* ==========================================================================
+   Dark Mode Styles
+   ========================================================================== */
+
+/* Chat container border */
+.-dark-mode .chat-container {
+  border-color: var(--g-gray-30, #43464a);
+}
+
+/* Empty state - Dark mode text readability */
+.-dark-mode .chat-empty-state {
+  opacity: 1;
+}
+
+.-dark-mode .chat-empty-title {
+  color: var(--g-gray-90, #e0e2e5);
+}
+
+.-dark-mode .chat-empty-subtitle {
+  color: var(--g-gray-65, #979ea4);
+}
+
+.-dark-mode .chat-empty-tip-box {
+  background: rgba(0, 123, 192, 0.15);
+  border-color: rgba(0, 123, 192, 0.35);
+}
+
+.-dark-mode .chat-empty-tip {
+  color: var(--g-gray-70, #a4abb3);
+}
+
+/* Input area - Dark mode */
+.-dark-mode .chat-input-area {
+  border-top-color: var(--g-gray-30, #43464a);
+}
+
+.-dark-mode .chat-input-row {
+  background: var(--g-gray-15, #232628);
+  border-color: var(--g-gray-35, #4e5256);
+}
+
+.-dark-mode .chat-input-row:focus-within {
+  border-color: var(--g-blue-50, #007bc0);
+}
+
+.-dark-mode .chat-input-row .chat-input-field {
+  color: var(--g-gray-95, #eff1f2);
+}
+
+.-dark-mode .chat-input-row .chat-input-field::placeholder {
+  color: var(--g-gray-55, #7d8389);
+}
+
+/* Upload button - Dark mode */
+.-dark-mode .chat-input-btn--upload {
+  color: var(--g-gray-60, #8a9097);
+  border-right-color: var(--g-gray-35, #4e5256);
+}
+
+.-dark-mode .chat-input-btn--upload:hover:not(:disabled) {
+  background: var(--g-gray-25, #383b3e);
+  color: var(--g-blue-50, #007bc0);
+}
+
+.-dark-mode .chat-input-row:focus-within .chat-input-btn--upload {
+  border-right-color: var(--g-gray-40, #595e62);
+}
+
+/* Message bubble assistant - Dark mode */
+.-dark-mode .message-bubble.assistant {
+  background: var(--g-gray-15, #232628);
+  border-color: var(--g-gray-30, #43464a);
+}
+
+/* Markdown code blocks - Dark mode */
+.-dark-mode .chat-markdown code {
+  background: var(--g-gray-25, #383b3e);
+  color: var(--g-gray-90, #e0e2e5);
+}
+
+.-dark-mode .chat-markdown pre {
+  background: var(--g-gray-20, #2e3033);
+}
+
+.-dark-mode .chat-markdown blockquote {
+  color: var(--g-gray-65, #979ea4);
+}
+
+.-dark-mode .chat-markdown th {
+  background: var(--g-gray-20, #2e3033);
+}
+
+.-dark-mode .chat-markdown th,
+.-dark-mode .chat-markdown td {
+  border-color: var(--g-gray-35, #4e5256);
+}
+
+/* Source citations - Dark mode */
+.-dark-mode .source-item {
+  background: var(--g-gray-20, #2e3033);
+}
+
+.-dark-mode .source-item:hover {
+  background: var(--g-gray-25, #383b3e);
+}
+
+.-dark-mode .source-title {
+  color: var(--g-gray-90, #e0e2e5);
+}
+
+/* Steps and agent action - Dark mode */
+.-dark-mode .chat-steps {
+  background: var(--g-gray-20, #2e3033);
+}
+
+.-dark-mode .agent-action {
+  background: rgba(0, 123, 192, 0.12);
+  border-color: rgba(0, 123, 192, 0.25);
+}
+
+/* Streaming state - Dark mode */
+.-dark-mode .chat-streaming {
+  background: var(--g-gray-15, #232628);
+  border-color: var(--g-gray-30, #43464a);
+}
+
+/* ==========================================================================
+   HTML Content Block - Using Bosch Notification Component
+   ========================================================================== */
+
+.html-content-wrapper {
+  margin-bottom: 8px;
+}
+
+.html-content-wrapper .a-notification {
+  margin: 0;
+}
+
+.html-content-wrapper .a-notification.-neutral {
+  background: var(--g-gray-95, #eff1f2);
+  border-left: 4px solid var(--g-gray-50, #71767c);
+}
+
+.html-content-inner {
+  width: 100%;
+}
+
+.html-content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--g-gray-80, #c1c7cc);
+}
+
+.html-content-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--g-gray-20, #2e3033);
+  letter-spacing: 0.01em;
+}
+
+.html-content-badge {
+  padding: 2px 8px;
+  background: var(--g-gray-85, #d0d4d8);
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--g-gray-35, #4e5256);
+}
+
+.html-content-body {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--g-gray-20, #2e3033);
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* Scrollbar styling for html content */
+.html-content-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.html-content-body::-webkit-scrollbar-track {
+  background: var(--g-gray-90, #e0e2e5);
+  border-radius: 3px;
+}
+
+.html-content-body::-webkit-scrollbar-thumb {
+  background: var(--g-gray-70, #a4abb3);
+  border-radius: 3px;
+}
+
+.html-content-body::-webkit-scrollbar-thumb:hover {
+  background: var(--g-gray-60, #8a9097);
+}
+
+/* Dark mode - HTML content (distinct styling) */
+.-dark-mode .html-content-wrapper .a-notification.-neutral {
+  background: var(--g-gray-15, #232628);
+  border-left-color: var(--g-gray-50, #71767c);
+  border-color: var(--g-gray-30, #43464a);
+}
+
+.-dark-mode .html-content-header {
+  border-bottom-color: var(--g-gray-30, #43464a);
+}
+
+.-dark-mode .html-content-title {
+  color: var(--g-gray-85, #d0d4d8);
+}
+
+.-dark-mode .html-content-badge {
+  background: var(--g-gray-30, #43464a);
+  color: var(--g-gray-70, #a4abb3);
+}
+
+.-dark-mode .html-content-body {
+  color: var(--g-gray-80, #c1c7cc);
+}
+
+.-dark-mode .html-content-body::-webkit-scrollbar-track {
+  background: var(--g-gray-25, #383b3e);
+}
+
+.-dark-mode .html-content-body::-webkit-scrollbar-thumb {
+  background: var(--g-gray-45, #656a6f);
+}
+
+.-dark-mode .html-content-body::-webkit-scrollbar-thumb:hover {
+  background: var(--g-gray-55, #7d8389);
+}
+
+/* Sidebar - Dark mode */
+.-dark-mode .chat-sidebar {
+  background: var(--g-gray-10, #1a1c1d);
+  border-left-color: var(--g-gray-30, #43464a);
+}
+
+.-dark-mode .chat-sidebar-header {
+  border-bottom-color: var(--g-gray-30, #43464a);
+}
+
+.-dark-mode .session-item:hover {
+  background: var(--g-gray-20, #2e3033);
+}
+
+.-dark-mode .session-item.selected {
+  background: rgba(0, 123, 192, 0.15);
+}
+
+/* Drag overlay - Dark mode */
+.-dark-mode .chat-drag-overlay {
+  background: rgba(35, 38, 40, 0.9);
 }

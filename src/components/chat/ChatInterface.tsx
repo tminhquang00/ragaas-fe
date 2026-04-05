@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Tooltip, Chip, Accordion, ActivityIndicator, Button, Icon } from '@bosch/react-frok';
+import { Chip, Accordion, ActivityIndicator, Button, Icon, Notification } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
+import { PortalTooltip } from '../common/PortalTooltip';
 import { alpha, cssVar } from '../../utils/frokTheme';
 import { useDropzone } from 'react-dropzone';
 import ReactMarkdown from 'react-markdown';
@@ -21,14 +22,40 @@ const isHtmlString = (str: string): boolean => {
            (trimmed.startsWith('<') && /<[a-z][\s\S]*>/i.test(trimmed));
 };
 
-// Utility to strip HTML tags and decode entities
+// Utility to strip HTML tags and decode entities while preserving structure
 const stripHtml = (html: string): string => {
-    // Create a temporary div to parse HTML
+    // Replace block-level elements with newlines to preserve structure
+    let processed = html
+        // Add double newlines for paragraph breaks
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<p[^>]*>/gi, '')
+        // Add newlines for other block elements
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<div[^>]*>/gi, '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<li[^>]*>/gi, '  • ')
+        .replace(/<\/tr>/gi, '\n')
+        .replace(/<\/h[1-6]>/gi, '\n\n')
+        .replace(/<h[1-6][^>]*>/gi, '')
+        // Handle blockquote with indentation
+        .replace(/<blockquote[^>]*>/gi, '\n    ')
+        .replace(/<\/blockquote>/gi, '\n');
+
+    // Create a temporary div to parse remaining HTML and decode entities
     const tmp = document.createElement('div');
-    tmp.innerHTML = html;
+    tmp.innerHTML = processed;
     // Get text content (this automatically handles HTML entities)
-    const text = tmp.textContent || tmp.innerText || '';
-    return text.trim();
+    let text = tmp.textContent || tmp.innerText || '';
+
+    // Clean up excessive whitespace while preserving intentional line breaks
+    text = text
+        .replace(/\n{3,}/g, '\n\n')  // Max 2 consecutive newlines
+        .replace(/[ \t]+/g, ' ')      // Collapse multiple spaces
+        .replace(/^ +/gm, '')         // Remove leading spaces on lines
+        .trim();
+
+    return text;
 };
 
 // Represents a file that was uploaded in chat history (from backend)
@@ -72,6 +99,7 @@ interface ChatInterfaceProps {
     onDeleteSession?: (sessionId: string) => void;
     onUpdateSession?: (sessionId: string, title: string) => Promise<void>;
     onSearch?: (query: string) => void;
+    isLoadingSessions?: boolean;
 }
 
 // ... (skipping to render)
@@ -150,12 +178,12 @@ const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onVi
                 )}
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
                     {hasVisualGrounding && (
-                        <Tooltip content="View highlighted source">
+                        <PortalTooltip content="View highlighted source">
                             <span><FrokIcon name="Visibility" style={{ fontSize: 18, color: cssVar('--g-blue-50') }} /></span>
-                        </Tooltip>
+                        </PortalTooltip>
                     )}
                     {source.source_url && (
-                        <Tooltip content="Open source document">
+                        <PortalTooltip content="Open source document">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -165,7 +193,7 @@ const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onVi
                             >
                                 <FrokIcon name="Link" style={{ fontSize: 18 }} />
                             </button>
-                        </Tooltip>
+                        </PortalTooltip>
                     )}
                     <Chip label={`${Math.round(source.relevance_score * 100)}%`} />
                 </div>
@@ -504,10 +532,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     onDeleteSession,
     onUpdateSession,
     onSearch,
+    isLoadingSessions = false,
 }) => {
     const [input, setInput] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -634,19 +663,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             <h3 className="chat-empty-title">
                                 Ask me anything about your documents
                             </h3>
-                            <p style={{ color: cssVar('--g-gray-60'), fontSize: '0.875rem', margin: 0, textAlign: 'center', maxWidth: 400 }}>
+                            <p className="chat-empty-subtitle">
                                 I'll search through your knowledge base to find answers
                             </p>
-                            <div
-                                style={{
-                                    marginTop: 16,
-                                    padding: '12px 20px',
-                                    background: alpha('var(--app-primary)', 0.1),
-                                    borderRadius: 8,
-                                    border: '1px solid ' + alpha('var(--app-primary)', 0.3),
-                                }}
-                            >
-                                <span style={{ color: cssVar('--app-text-secondary'), fontSize: '0.8125rem' }}>
+                            <div className="chat-empty-tip-box">
+                                <span className="chat-empty-tip">
                                     💡 Tip: Drag and drop files to include them in your question
                                 </span>
                             </div>
@@ -707,24 +728,23 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     isJsonString(message.content) ? (
                                         <JsonViewer content={message.content} />
                                     ) : isHtmlString(message.content) ? (
-                                        <div 
-                                            style={{ 
-                                                padding: 12,
-                                                background: alpha('var(--g-yellow-50)', 0.1),
-                                                border: `1px solid ${alpha('var(--g-yellow-50)', 0.3)}`,
-                                                borderRadius: 4,
-                                                marginBottom: 8
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                                                <FrokIcon name="Warning" style={{ fontSize: 16, color: cssVar('--g-yellow-50') }} />
-                                                <span style={{ fontSize: '0.75rem', color: cssVar('--g-yellow-50'), fontWeight: 500 }}>
-                                                    HTML Content Detected
-                                                </span>
-                                            </div>
-                                            <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                                                {stripHtml(message.content)}
-                                            </p>
+                                        <div className="html-content-wrapper">
+                                            <Notification
+                                                type="neutral"
+                                                icon="document"
+                                                defaultOpen
+                                                className="html-content-notification"
+                                            >
+                                                <div className="html-content-inner">
+                                                    <div className="html-content-header">
+                                                        <span className="html-content-title">HTML Content</span>
+                                                        <span className="html-content-badge">Rendered as text</span>
+                                                    </div>
+                                                    <p className="html-content-body">
+                                                        {stripHtml(message.content)}
+                                                    </p>
+                                                </div>
+                                            </Notification>
                                         </div>
                                     ) : (
                                         <MarkdownRenderer content={message.content} />
@@ -880,17 +900,24 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         }}
                                     >
                                         {isHtmlString(streamingContent) ? (
-                                            <>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                                                    <FrokIcon name="Warning" style={{ fontSize: 16, color: cssVar('--g-yellow-50') }} />
-                                                    <span style={{ fontSize: '0.75rem', color: cssVar('--g-yellow-50'), fontWeight: 500 }}>
-                                                        HTML Content Detected
-                                                    </span>
-                                                </div>
-                                                <p style={{ margin: 0, fontSize: '0.875rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                                                    {stripHtml(streamingContent)}
-                                                </p>
-                                            </>
+                                            <div className="html-content-wrapper">
+                                                <Notification
+                                                    type="neutral"
+                                                    icon="document"
+                                                    defaultOpen
+                                                    className="html-content-notification"
+                                                >
+                                                    <div className="html-content-inner">
+                                                        <div className="html-content-header">
+                                                            <span className="html-content-title">HTML Content</span>
+                                                            <span className="html-content-badge">Rendered as text</span>
+                                                        </div>
+                                                        <p className="html-content-body">
+                                                            {stripHtml(streamingContent)}
+                                                        </p>
+                                                    </div>
+                                                </Notification>
+                                            </div>
                                         ) : (
                                             <MarkdownRenderer content={streamingContent} />
                                         )}
@@ -1001,6 +1028,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         onDeleteSession={onDeleteSession}
                         onUpdateSession={onUpdateSession}
                         onSearch={onSearch}
+                        isLoading={isLoadingSessions}
                     />
                 </div>
             )}
