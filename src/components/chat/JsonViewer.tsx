@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Tooltip } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
-import { alpha, cssVar } from '../../utils/frokTheme';
+import { PortalTooltip } from '../common/PortalTooltip';
+import './JsonViewer.css';
 
 // Utility to detect if a string is valid JSON
 export const isJsonString = (str: string): boolean => {
@@ -34,17 +34,6 @@ interface JsonNodeProps {
     isLast: boolean;
 }
 
-const VALUE_COLORS = {
-    null: cssVar('--g-yellow-85'),
-    boolean: cssVar('--g-blue-50'),
-    number: cssVar('--g-green-50'),
-    string: cssVar('--g-red-50'),
-    key: cssVar('--g-blue-50'),
-    bracket: 'var(--major__enabled__default__front, #333)',
-    disabled: cssVar('--g-gray-50'),
-    secondary: cssVar('--g-gray-60'),
-};
-
 const JsonNode: React.FC<JsonNodeProps> = ({ keyName, value, depth, maxDepth, isLast }) => {
     const [isExpanded, setIsExpanded] = useState(depth < maxDepth);
 
@@ -53,36 +42,38 @@ const JsonNode: React.FC<JsonNodeProps> = ({ keyName, value, depth, maxDepth, is
     const isExpandable = isObject || isArray;
     const isEmpty = isExpandable && (isArray ? value.length === 0 : Object.keys(value as object).length === 0);
 
-    const getValueColor = (val: unknown): string => {
-        if (val === null) return VALUE_COLORS.null;
-        if (typeof val === 'boolean') return VALUE_COLORS.boolean;
-        if (typeof val === 'number') return VALUE_COLORS.number;
-        if (typeof val === 'string') return VALUE_COLORS.string;
-        return VALUE_COLORS.secondary;
+    const getValueClass = (val: unknown): string => {
+        if (val === null) return 'json-null';
+        if (typeof val === 'boolean') return 'json-boolean';
+        if (typeof val === 'number') return 'json-number';
+        if (typeof val === 'string') return 'json-string';
+        return '';
     };
 
     const renderValue = () => {
-        if (value === null) return <span style={{ color: getValueColor(value) }}>null</span>;
-        if (typeof value === 'boolean') return <span style={{ color: getValueColor(value) }}>{value.toString()}</span>;
-        if (typeof value === 'number') return <span style={{ color: getValueColor(value) }}>{value}</span>;
-        if (typeof value === 'string') return <span style={{ color: getValueColor(value) }}>"{value}"</span>;
+        if (value === null) return <span className={getValueClass(value)}>null</span>;
+        if (typeof value === 'boolean') return <span className={getValueClass(value)}>{value.toString()}</span>;
+        if (typeof value === 'number') return <span className={getValueClass(value)}>{value}</span>;
+        if (typeof value === 'string') return <span className={getValueClass(value)}>"{value}"</span>;
         return null;
     };
 
     const renderKey = () => {
         if (keyName === undefined) return null;
         return (
-            <span style={{ color: VALUE_COLORS.key }}>
-                "{keyName}"<span style={{ color: VALUE_COLORS.secondary }}>: </span>
-            </span>
+            <>
+                <span className="json-key">"{keyName}"</span>
+                <span className="json-colon">:</span>{' '}
+            </>
         );
     };
 
     const comma = isLast ? '' : ',';
+    const indent = depth * 14;
 
     if (!isExpandable) {
         return (
-            <div style={{ paddingLeft: depth * 16, fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 1.6 }}>
+            <div className="json-node-line" style={{ paddingLeft: indent }}>
                 {renderKey()}{renderValue()}{comma}
             </div>
         );
@@ -95,51 +86,35 @@ const JsonNode: React.FC<JsonNodeProps> = ({ keyName, value, depth, maxDepth, is
 
     if (isEmpty) {
         return (
-            <div style={{ paddingLeft: depth * 16, fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 1.6 }}>
-                {renderKey()}<span style={{ color: VALUE_COLORS.bracket }}>{openBracket}{closeBracket}</span>{comma}
+            <div className="json-node-line" style={{ paddingLeft: indent }}>
+                {renderKey()}<span className="json-bracket">{openBracket}{closeBracket}</span>{comma}
             </div>
         );
     }
 
     return (
-        <div>
+        <div className="json-node-expandable">
             <div
-                style={{
-                    paddingLeft: depth * 16,
-                    fontFamily: 'monospace',
-                    fontSize: '0.85rem',
-                    lineHeight: 1.6,
-                    display: 'flex',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    padding: '1px 0',
-                }}
+                className="json-node-header"
+                style={{ paddingLeft: indent }}
                 onClick={() => setIsExpanded(!isExpanded)}
             >
-                <span style={{ width: 16, display: 'inline-flex', alignItems: 'center', marginRight: 4 }}>
-                    {isExpanded ? (
-                        <FrokIcon name="ExpandMore" style={{ fontSize: 14, color: VALUE_COLORS.secondary }} />
-                    ) : (
-                        <FrokIcon name="ChevronRight" style={{ fontSize: 14, color: VALUE_COLORS.secondary }} />
-                    )}
+                <span className="json-node-toggle">
+                    <FrokIcon name={isExpanded ? "ExpandMore" : "ChevronRight"} />
                 </span>
                 <span>
                     {renderKey()}
-                    <span style={{ color: VALUE_COLORS.bracket }}>{openBracket}</span>
+                    <span className="json-bracket">{openBracket}</span>
                     {!isExpanded && (
-                        <span style={{ color: VALUE_COLORS.disabled }}>
-                            {' '}{itemCount} {isArray ? 'items' : 'keys'}{' '}
+                        <span className="json-node-count">
+                            {itemCount} {isArray ? 'items' : 'keys'}
                         </span>
                     )}
-                    {!isExpanded && <span style={{ color: VALUE_COLORS.bracket }}>{closeBracket}</span>}
+                    {!isExpanded && <span className="json-bracket">{closeBracket}</span>}
                     {!isExpanded && comma}
                 </span>
             </div>
-            <div style={{
-                maxHeight: isExpanded ? '2000px' : '0',
-                overflow: 'hidden',
-                transition: 'max-height 0.3s ease',
-            }}>
+            <div className={`json-node-children ${isExpanded ? 'expanded' : ''}`}>
                 <div>
                     {isArray
                         ? (value as unknown[]).map((item, idx) => (
@@ -162,8 +137,8 @@ const JsonNode: React.FC<JsonNodeProps> = ({ keyName, value, depth, maxDepth, is
                             />
                         ))}
                 </div>
-                <div style={{ paddingLeft: depth * 16, fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 1.6 }}>
-                    <span style={{ color: VALUE_COLORS.bracket }}>{closeBracket}</span>{comma}
+                <div className="json-node-line" style={{ paddingLeft: indent }}>
+                    <span className="json-bracket">{closeBracket}</span>{comma}
                 </div>
             </div>
         </div>
@@ -175,7 +150,7 @@ interface JsonViewerProps {
     maxDepth?: number;
 }
 
-export const JsonViewer: React.FC<JsonViewerProps> = ({ content, maxDepth = 3 }) => {
+export const JsonViewer: React.FC<JsonViewerProps> = ({ content, maxDepth = 2 }) => {
     const [copied, setCopied] = useState(false);
     const [showRaw, setShowRaw] = useState(false);
 
@@ -183,7 +158,6 @@ export const JsonViewer: React.FC<JsonViewerProps> = ({ content, maxDepth = 3 })
 
     const handleCopy = async () => {
         try {
-            // Pretty print the JSON when copying
             const formatted = JSON.stringify(parsedJson, null, 2);
             await navigator.clipboard.writeText(formatted);
             setCopied(true);
@@ -194,91 +168,46 @@ export const JsonViewer: React.FC<JsonViewerProps> = ({ content, maxDepth = 3 })
     };
 
     if (parsedJson === null) {
-        return <span style={{ color: cssVar('--g-red-50') }}>Invalid JSON</span>;
+        return <span className="json-viewer-error">Invalid JSON</span>;
     }
 
     return (
-        <div
-            style={{
-                border: `1px solid ${alpha('var(--app-border)', 0.3)}`,
-                background: alpha('var(--app-bg-surface)', 0.6),
-                overflow: 'hidden',
-            }}
-        >
+        <div className="json-viewer-container">
             {/* Header */}
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '6px 12px',
-                    borderBottom: `1px solid ${alpha('var(--major__enabled__default__front, #ccc)', 0.3)}`,
-                    background: alpha(cssVar('--g-blue-50'), 0.05),
-                }}
-            >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <FrokIcon name="Code" style={{ fontSize: 16, color: cssVar('--g-blue-50') }} />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 500, color: cssVar('--g-blue-50') }}>
-                        JSON Response
-                    </span>
+            <div className="json-viewer-header">
+                <div className="json-viewer-title">
+                    <FrokIcon name="DataObject" style={{ fontSize: 18 }} />
+                    <span>JSON Response</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Tooltip content={showRaw ? 'Tree View' : 'Raw View'}>
+                <div className="json-viewer-actions">
+                    <PortalTooltip content={showRaw ? 'Tree View' : 'Raw View'}>
                         <button
+                            className="json-viewer-btn"
                             onClick={() => setShowRaw(!showRaw)}
-                            style={{
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                padding: 4,
-                                display: 'flex',
-                                alignItems: 'center',
-                            }}
+                            aria-label={showRaw ? 'Switch to tree view' : 'Switch to raw view'}
                         >
-                            <FrokIcon name="Code" style={{ fontSize: 16 }} />
+                            <FrokIcon name={showRaw ? "AccountTree" : "Code"} style={{ fontSize: 18 }} />
                         </button>
-                    </Tooltip>
-                    <Tooltip content={copied ? 'Copied!' : 'Copy JSON'}>
+                    </PortalTooltip>
+                    <PortalTooltip content={copied ? 'Copied!' : 'Copy JSON'}>
                         <button
+                            className="json-viewer-btn"
                             onClick={handleCopy}
-                            style={{
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                padding: 4,
-                                display: 'flex',
-                                alignItems: 'center',
-                            }}
+                            aria-label="Copy JSON"
                         >
-                            {copied ? (
-                                <FrokIcon name="Check" style={{ fontSize: 16, color: cssVar('--g-green-50') }} />
-                            ) : (
-                                <FrokIcon name="ContentCopy" style={{ fontSize: 16 }} />
-                            )}
+                            <FrokIcon
+                                name={copied ? "Check" : "ContentCopy"}
+                                style={{ fontSize: 18, color: copied ? '#00884a' : undefined }}
+                            />
                         </button>
-                    </Tooltip>
+                    </PortalTooltip>
                 </div>
             </div>
 
             {/* Content */}
-            <div
-                style={{
-                    padding: 12,
-                    maxHeight: 400,
-                    overflowY: 'auto',
-                }}
-            >
+            <div className="json-viewer-content">
                 {showRaw ? (
-                    <pre
-                        style={{
-                            margin: 0,
-                            fontFamily: 'monospace',
-                            fontSize: '0.85rem',
-                            lineHeight: 1.6,
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-word',
-                        }}
-                    >
+                    <pre className="json-viewer-raw">
                         {JSON.stringify(parsedJson, null, 2)}
                     </pre>
                 ) : (

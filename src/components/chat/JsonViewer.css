@@ -1,0 +1,316 @@
+/* ==========================================================================
+   JSON Viewer - Bosch FROK Design System
+   Clean, modern, and readable JSON display with light/dark mode support
+   Using Bosch design tokens for consistency
+   ========================================================================== */
+
+/* Container - Light Mode (default) */
+.json-viewer-container {
+  --json-bg: var(--g-gray-95, #eff1f2);
+  --json-header-bg: var(--g-gray-90, #e0e2e5);
+  --json-border: var(--g-gray-80, #c1c7cc);
+  --json-text: var(--g-gray-20, #2e3033);
+  --json-text-secondary: var(--g-gray-50, #71767c);
+  --json-key: var(--g-blue-50, #007bc0);
+  --json-string: var(--g-gray-35, #4e5256);
+  --json-number: var(--g-green-50, #00884a);
+  --json-boolean: var(--g-blue-40, #00629a);
+  --json-null: var(--g-gray-50, #71767c);
+  --json-bracket: var(--g-gray-40, #595e62);
+  --json-hover: rgba(0, 123, 192, 0.08);
+  --json-accent: var(--g-gray-50, #71767c);
+
+  border: 1px solid var(--json-border);
+  border-left: 4px solid var(--json-accent);
+  border-radius: 4px;
+  background: var(--json-bg);
+  overflow: visible;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', 'Menlo', monospace;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Dark mode - using Bosch gray tokens */
+.-dark-mode .json-viewer-container {
+  --json-bg: var(--g-gray-15, #232628);
+  --json-header-bg: var(--g-gray-20, #2e3033);
+  --json-border: var(--g-gray-30, #43464a);
+  --json-text: var(--g-gray-85, #d0d4d8);
+  --json-text-secondary: var(--g-gray-60, #8a9097);
+  --json-key: var(--g-blue-90, #d1e4ff);
+  --json-string: var(--g-gray-70, #a4abb3);
+  --json-number: var(--g-green-50, #00884a);
+  --json-boolean: var(--g-blue-90, #d1e4ff);
+  --json-null: var(--g-gray-55, #7d8389);
+  --json-bracket: var(--g-gray-65, #979ea4);
+  --json-hover: rgba(209, 228, 255, 0.1);
+  --json-accent: var(--g-gray-50, #71767c);
+}
+
+/* Header */
+.json-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--json-header-bg);
+  border-bottom: 1px solid var(--json-border);
+  min-height: 40px;
+  position: relative;
+  overflow: visible;
+}
+
+.json-viewer-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--json-text);
+  font-family: boschsans, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.json-viewer-title .a-icon {
+  font-size: 16px !important;
+  color: var(--json-text-secondary) !important;
+}
+
+.json-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  overflow: visible;
+}
+
+.json-viewer-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--json-text-secondary);
+  transition: all 0.15s ease;
+}
+
+.json-viewer-btn:hover {
+  background: var(--json-hover);
+  border-color: var(--json-border);
+  color: var(--g-blue-50, #007bc0);
+}
+
+.-dark-mode .json-viewer-btn:hover {
+  color: var(--g-blue-90, #d1e4ff);
+}
+
+.json-viewer-btn:active {
+  transform: scale(0.95);
+}
+
+/* Content Area */
+.json-viewer-content {
+  padding: 14px 16px;
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: auto;
+  background: var(--json-bg);
+}
+
+/* Raw View */
+.json-viewer-raw {
+  margin: 0;
+  padding: 0;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--json-text);
+}
+
+/* Error State */
+.json-viewer-error {
+  color: var(--g-red-50, #ed0007);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 8px 12px;
+  background: rgba(237, 0, 7, 0.08);
+  border-radius: 4px;
+}
+
+.-dark-mode .json-viewer-error {
+  background: rgba(237, 0, 7, 0.15);
+}
+
+/* ==========================================================================
+   JSON Node Styles
+   ========================================================================== */
+
+.json-node-line {
+  font-family: 'SF Mono', 'Consolas', 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  line-height: 1.8;
+  padding: 2px 6px;
+  white-space: nowrap;
+  border-radius: 3px;
+  color: var(--json-text);
+}
+
+.json-node-line:hover {
+  background: var(--json-hover);
+}
+
+.json-node-expandable {
+  /* Container for expandable nodes */
+}
+
+.json-node-header {
+  display: flex;
+  align-items: center;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  line-height: 1.8;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: background 0.1s ease;
+  color: var(--json-text);
+}
+
+.json-node-header:hover {
+  background: var(--json-hover);
+}
+
+.json-node-toggle {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  transition: background 0.1s;
+}
+
+.json-node-toggle:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.-dark-mode .json-node-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.json-node-toggle .a-icon {
+  font-size: 14px !important;
+  color: var(--json-text-secondary) !important;
+}
+
+.json-node-count {
+  color: var(--json-text-secondary);
+  font-style: normal;
+  font-size: 11px;
+  background: var(--g-gray-85, #d0d4d8);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin: 0 4px;
+}
+
+.-dark-mode .json-node-count {
+  background: var(--g-gray-30, #43464a);
+  color: var(--g-gray-70, #a4abb3);
+}
+
+.json-node-children {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease-out;
+}
+
+.json-node-children.expanded {
+  max-height: 3000px;
+  transition: max-height 0.4s ease-in;
+}
+
+/* ==========================================================================
+   Syntax Colors - Using Bosch Design Tokens
+   ========================================================================== */
+
+.json-key {
+  color: var(--json-key);
+  font-weight: 500;
+}
+
+.json-string {
+  color: var(--json-string);
+}
+
+.json-number {
+  color: var(--json-number);
+}
+
+.json-boolean {
+  color: var(--json-boolean);
+  font-weight: 500;
+}
+
+.json-null {
+  color: var(--json-null);
+  font-style: italic;
+}
+
+.json-bracket {
+  color: var(--json-bracket);
+  font-weight: 400;
+}
+
+.json-colon {
+  color: var(--json-text-secondary);
+  margin: 0 3px;
+}
+
+/* ==========================================================================
+   Scrollbar Styling - Matching HTML content block
+   ========================================================================== */
+
+.json-viewer-content::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.json-viewer-content::-webkit-scrollbar-track {
+  background: var(--g-gray-90, #e0e2e5);
+  border-radius: 3px;
+}
+
+.json-viewer-content::-webkit-scrollbar-thumb {
+  background: var(--g-gray-70, #a4abb3);
+  border-radius: 3px;
+}
+
+.json-viewer-content::-webkit-scrollbar-thumb:hover {
+  background: var(--g-gray-60, #8a9097);
+}
+
+.-dark-mode .json-viewer-content::-webkit-scrollbar-track {
+  background: var(--g-gray-25, #383b3e);
+}
+
+.-dark-mode .json-viewer-content::-webkit-scrollbar-thumb {
+  background: var(--g-gray-45, #656a6f);
+}
+
+.-dark-mode .json-viewer-content::-webkit-scrollbar-thumb:hover {
+  background: var(--g-gray-55, #7d8389);
+}
+
+.json-viewer-content::-webkit-scrollbar-corner {
+  background: transparent;
+}
