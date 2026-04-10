@@ -38,7 +38,22 @@ import {
     ConnectionTestResult,
     IntrospectResponse,
     AuditLogResponse,
+    QuotaStatus,
+    BundleSize,
+    QuotaRequest,
+    QuotaRequestStatus,
+    AdminProjectListResponse,
+    QuotaRequestListResponse,
+    QuotaApprovalResponse,
 } from '../types';
+
+/** Thrown by API methods when the server returns a non-2xx status. Carries the HTTP status code so callers can distinguish e.g. 429 from 500. */
+export class ApiHttpError extends Error {
+    constructor(public readonly status: number, message: string) {
+        super(message);
+        this.name = 'ApiHttpError';
+    }
+}
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -427,8 +442,10 @@ export class RAGaaSClient {
         );
 
         if (!response.ok) {
-            const error: ApiError = await response.json();
-            throw new Error(error.detail);
+            const error: ApiError = await response.json().catch(() => ({
+                detail: `HTTP ${response.status}: ${response.statusText}`,
+            }));
+            throw new ApiHttpError(response.status, error.detail);
         }
 
         const reader = response.body?.getReader();
@@ -632,6 +649,81 @@ export class RAGaaSClient {
             );
             // 503 = platform env vars not configured
             return response.status !== 503;
+        } catch {
+            return false;
+        }
+    }
+
+    // ============ Quota ============
+
+    async getQuotaStatus(projectId: string): Promise<QuotaStatus> {
+        return this.request(`/api/v1/projects/${projectId}/quota`);
+    }
+
+    async requestExtraBundle(
+        projectId: string,
+        bundleSize: BundleSize,
+        userMessage?: string
+    ): Promise<QuotaRequest> {
+        return this.request(`/api/v1/projects/${projectId}/quota/request-extra`, {
+            method: 'POST',
+            body: JSON.stringify({ bundle_size: bundleSize, user_message: userMessage }),
+        });
+    }
+
+    // ============ Admin ============
+
+    async adminListProjects(params?: {
+        page?: number;
+        page_size?: number;
+        status?: string;
+    }): Promise<AdminProjectListResponse> {
+        const q = new URLSearchParams();
+        if (params?.page) q.set('page', String(params.page));
+        if (params?.page_size) q.set('page_size', String(params.page_size));
+        if (params?.status) q.set('status', params.status);
+        const qs = q.toString();
+        return this.request(`/api/v1/admin/projects${qs ? `?${qs}` : ''}`);
+    }
+
+    async adminListQuotaRequests(params?: {
+        page?: number;
+        page_size?: number;
+        status?: QuotaRequestStatus;
+    }): Promise<QuotaRequestListResponse> {
+        const q = new URLSearchParams();
+        if (params?.page) q.set('page', String(params.page));
+        if (params?.page_size) q.set('page_size', String(params.page_size));
+        if (params?.status) q.set('status', params.status);
+        const qs = q.toString();
+        return this.request(`/api/v1/admin/quota-requests${qs ? `?${qs}` : ''}`);
+    }
+
+    async adminApproveQuotaRequest(
+        requestId: string,
+        adminNote?: string
+    ): Promise<QuotaApprovalResponse> {
+        return this.request(`/api/v1/admin/quota-requests/${requestId}/approve`, {
+            method: 'POST',
+            body: JSON.stringify({ admin_note: adminNote }),
+        });
+    }
+
+    async adminRejectQuotaRequest(
+        requestId: string,
+        adminNote?: string
+    ): Promise<QuotaRequest> {
+        return this.request(`/api/v1/admin/quota-requests/${requestId}/reject`, {
+            method: 'POST',
+            body: JSON.stringify({ admin_note: adminNote }),
+        });
+    }
+
+    /** Probe whether the current user has admin access. Returns true if the admin endpoint responds with 200. */
+    async probeAdminAccess(): Promise<boolean> {
+        try {
+            await this.request('/api/v1/admin/quota-requests?page_size=1');
+            return true;
         } catch {
             return false;
         }

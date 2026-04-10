@@ -64,77 +64,42 @@
 .o-minimal-header__top {
     display: flex !important;
     align-items: center !important;
-    justify-content: flex-start !important; /* Override flex-end */
+    justify-content: flex-start !important;
+    gap: 8px;
 }
 
-/* Header title section - force left alignment */
+/* Burger button — fixed size, never shrinks */
+.o-minimal-header__burger {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+}
+
+/* Header title area — flex-fill so page title sits left, actions go right */
 .o-minimal-header__title {
     flex: 1 1 auto !important;
     order: 0 !important;
-    margin-inline-start: 0 !important; /* Remove default 5rem margin */
-    padding-left: 1rem;
+    margin-inline-start: 0 !important;
+    padding-left: 4px !important;
     text-align: left !important;
+    display: flex !important;
+    align-items: center !important;
+    min-width: 0;
 }
 
-/* When sidebar is open, shift header content right by sidebar width */
-@media (min-width: 1194px) {
-    /* Use wrapper class since sidebar is inside header, not sibling */
-    .app-layout-wrapper.sidebar-open .o-minimal-header__top {
-        padding-left: 19rem !important; /* Match 19rem expanded sidebar width */
-    }
-
-    /* Collapsed state - shift by collapsed width */
-    .app-layout-wrapper:not(.sidebar-open) .o-minimal-header__top {
-        padding-left: 3rem !important; /* Match 3rem collapsed sidebar width */
-    }
+/* Page title — single line, matches reference app style */
+.header-page-title {
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--g-gray-05, #101112);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1;
 }
 
-.header-title-section {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    text-align: left;
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-}
-
-/* Desktop - position title after sidebar */
-@media (min-width: 1194px) {
-    .app-layout-wrapper:not(.sidebar-open) .header-title-section {
-        left: calc(3rem + 1rem); /* Collapsed sidebar + padding */
-    }
-
-    .app-layout-wrapper.sidebar-open .header-title-section {
-        left: calc(19rem + 1rem); /* Expanded sidebar + padding */
-    }
-}
-
-.header-app-name {
-    font-weight: 700;
-    font-size: 1.25rem;
-    color: var(--g-gray-05, #101112) !important;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
-    text-align: left;
-}
-
-.-dark-mode .header-app-name {
-    color: var(--g-gray-95, #eff1f2) !important;
-}
-
-.header-app-subtitle {
-    font-size: 0.75rem;
-    color: var(--g-gray-50, #71767c) !important;
-    font-weight: 500;
-    letter-spacing: 0.01em;
-    text-align: left;
-}
-
-.-dark-mode .header-app-subtitle {
-    color: var(--g-gray-60, #8a9097) !important;
+.-dark-mode .header-page-title {
+    color: var(--g-gray-95, #eff1f2);
 }
 
 /* Actions stay on the right */
@@ -144,92 +109,76 @@
     order: 1 !important;
 }
 
-/* Header actions list - flex container for proper alignment */
-.header-actions-list {
-    display: flex;
+/* User trigger button — avatar circle + name */
+.header-user-trigger {
+    display: inline-flex;
     align-items: center;
     gap: 8px;
-}
-
-.header-action-item {
-    display: flex;
-    align-items: center;
-}
-
-/* Theme toggle button - dark icon on white header */
-.header-theme-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
     background: transparent;
     border: none;
-    border-radius: 50%;
     cursor: pointer;
-    color: var(--g-gray-30, #43464a) !important;
-    transition: background-color 150ms ease, transform 150ms ease;
+    padding: 4px 10px 4px 4px;
+    color: var(--g-gray-05, #101112);
+    transition: background-color 150ms ease;
+    border-radius: 2px;
+    font-family: inherit;
+    line-height: 1;
 }
 
-.-dark-mode .header-theme-button {
-    color: var(--g-gray-90, #e0e2e5) !important;
+.-dark-mode .header-user-trigger {
+    color: var(--g-gray-95, #eff1f2);
 }
 
-.header-theme-button:hover {
-    background: var(--g-gray-95, #eff1f2);
-    transform: scale(1.05);
+.header-user-trigger:hover {
+    background: var(--g-gray-90, #e0e2e5);
 }
 
-.-dark-mode .header-theme-button:hover {
+.-dark-mode .header-user-trigger:hover {
     background: var(--g-gray-25, #383b3e);
 }
 
-.header-theme-button:focus-visible {
+.header-user-trigger:focus-visible {
     outline: 2px solid var(--g-blue-50, #007bc0);
     outline-offset: 2px;
 }
 
-/* Ensure icon inside theme button has correct color */
-.header-theme-button .a-icon,
-.header-theme-button svg {
-    color: inherit !important;
-    fill: currentColor !important;
+.header-user-icon {
+    display: none;
 }
 
-/* Avatar button - Bosch circular style */
-.header-avatar-button {
+.header-user-avatar {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: var(--g-blue-50, #007bc0); /* Bosch blue */
-    border: none;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    cursor: pointer;
-    color: #ffffff !important;
+    background: var(--g-blue-50, #007bc0);
+    color: #ffffff;
+    font-size: 0.75rem;
     font-weight: 600;
-    font-size: 0.8rem;
-    transition: background-color 150ms ease, transform 150ms ease;
+    flex-shrink: 0;
+    line-height: 1;
 }
 
-.header-avatar-button:hover {
-    background: var(--g-blue-40, #00629a);
-    transform: scale(1.05);
+.header-user-name {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    white-space: nowrap;
+    color: inherit;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.header-avatar-button:focus-visible {
-    outline: 2px solid var(--g-blue-50, #007bc0);
-    outline-offset: 2px;
-}
+@media (max-width: 640px) {
+    .header-user-name {
+        display: none;
+    }
 
-/* Dark mode avatar - slightly lighter */
-.-dark-mode .header-avatar-button {
-    background: var(--g-blue-40, #00629a);
-}
-
-.-dark-mode .header-avatar-button:hover {
-    background: var(--g-blue-30, #004975);
+    .header-user-trigger {
+        padding: 4px;
+    }
 }
 
 /* User menu dropdown - clean layout without redundant dropdowns */
@@ -448,10 +397,7 @@ body {
     z-index: 100;
 }
 
-/* Sidebar stays on top with full height */
-.m-side-navigation {
-    z-index: 300 !important; /* Above header and supergraphic */
-}
+/* Sidebar z-index handled in SIDEBAR STYLING section above */
 
 /* Header top bar shifts right to accommodate sidebar */
 .o-minimal-header__top {
@@ -475,24 +421,107 @@ body {
    SIDEBAR STYLING
    ============================================================ */
 
-/* Left-align sidebar menu items */
+/* Sidebar fills the full viewport height and sits fixed on the left */
+.m-side-navigation {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 19rem;
+    z-index: 300 !important;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: width 225ms cubic-bezier(.38, .04, .35, .96);
+    background: var(--g-gray-95, #eff1f2);
+}
+
+.m-side-navigation.-contrast {
+    background: var(--g-gray-05, #101112);
+}
+
+.m-side-navigation:not(.-open) {
+    width: 3rem;
+}
+
+/* Mobile/tablet: hide sidebar completely when closed, overlay when open */
+@media (max-width: 1193px) {
+    .m-side-navigation:not(.-open) {
+        width: 0;
+        overflow: hidden;
+    }
+}
+
+/* --- Sidebar header --- */
+.m-side-navigation__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 8px 12px 12px;
+    min-height: 48px;
+    box-sizing: border-box;
+}
+
+.m-side-navigation.-contrast .m-side-navigation__header__label {
+    color: #ffffff;
+}
+
+/* Hide the sidebar's own trigger button — MinimalHeader's burger handles open/close */
+.m-side-navigation__header__trigger {
+    display: none !important;
+}
+
+/* --- Sidebar menu items --- */
 .m-side-navigation .a-menu-item__button,
 .m-side-navigation .a-menu-item__link {
     justify-content: flex-start !important;
     text-align: left;
+    padding: 10px 12px;
+    text-decoration: none;
+    transition: background-color 150ms ease;
+}
+
+/* Contrast mode: white text + icons for all items */
+.m-side-navigation.-contrast .a-menu-item__link {
+    color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.m-side-navigation.-contrast .a-menu-item__link .a-icon {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Hover state */
+.m-side-navigation.-contrast .a-menu-item__link:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
+}
+
+.m-side-navigation.-contrast .a-menu-item__link:hover .a-icon {
+    color: #ffffff !important;
+}
+
+/* Selected state — blue accent */
+.m-side-navigation.-contrast .a-menu-item.-selected .a-menu-item__link {
+    color: #ffffff !important;
+    background: var(--g-blue-50, #007bc0) !important;
+}
+
+.m-side-navigation.-contrast .a-menu-item.-selected .a-menu-item__link .a-icon {
+    color: #ffffff !important;
 }
 
 .m-side-navigation .a-menu-item__label {
     text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
-/* Hide custom text labels when sidebar collapsed */
-.m-side-navigation:not(.-open) .nav-item-text {
+/* Hide labels when sidebar is collapsed */
+.m-side-navigation:not(.-open) .a-menu-item__label {
     display: none;
 }
 
-/* Hide FROK's header title when collapsed */
-.m-side-navigation:not(.-open) .a-side-navigation__header-title {
+/* Hide header label when collapsed */
+.m-side-navigation:not(.-open) .m-side-navigation__header__label {
     display: none;
 }
 
@@ -1003,6 +1032,17 @@ dialog.visual-grounding-dialog[open],
     background: var(--g-gray-15, #232628) !important;
     border-color: var(--g-gray-30, #43464a) !important;
     color: var(--g-gray-95, #eff1f2) !important;
+}
+
+/* ============================================================
+   MEMBERS LIST — suppress FROK global li::before bullet squares
+   ============================================================ */
+
+.members-list > li::before,
+.members-list > li:before {
+    content: none !important;
+    display: none !important;
+    background: none !important;
 }
 
 /* Pipeline toolbar step items hover */

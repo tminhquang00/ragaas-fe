@@ -8,6 +8,7 @@ interface AuthContextType {
     tenantId: string;
     isAuthenticated: boolean;
     isLoading: boolean;
+    isAdmin: boolean;
     user: AccountInfo | null;
     accessToken: string | null;
     apiClient: RAGaaSClient;
@@ -51,6 +52,7 @@ const AuthProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     );
     const [apiClient] = useState<RAGaaSClient>(() => initializeApiClient(tenantId));
     const [accessToken, setAccessToken] = useState<string | null>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
     const isLoading = false;
 
     useEffect(() => {
@@ -101,6 +103,10 @@ const AuthProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
                     }
                 }
 
+                // Probe admin access (runs after token + tenantId are set)
+                const admin = await apiClient.probeAdminAccess();
+                setIsAdmin(admin);
+
             } catch {
                 // Silent acquisition failed — try redirect, fall back to defaultTenantId on total failure
                 try {
@@ -146,6 +152,7 @@ const AuthProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
                 tenantId,
                 isAuthenticated,
                 isLoading,
+                isAdmin,
                 user,
                 accessToken,
                 apiClient,
@@ -166,11 +173,14 @@ const AuthProviderLocal: React.FC<{ children: ReactNode }> = ({ children }) => {
         () => localStorage.getItem('ragaas_tenant_id') || defaultTenantId
     );
     const [apiClient] = useState<RAGaaSClient>(() => initializeApiClient(tenantId));
+    const [isAdmin, setIsAdmin] = useState(false);
     const isLoading = false;
 
     useEffect(() => {
         localStorage.setItem('ragaas_tenant_id', tenantId);
         apiClient.setTenantId(tenantId);
+        // Re-probe admin access when tenant ID changes
+        apiClient.probeAdminAccess().then(setIsAdmin);
     }, [tenantId, apiClient]);
 
     const login  = async () => { /* no-op in local mode */ };
@@ -185,6 +195,7 @@ const AuthProviderLocal: React.FC<{ children: ReactNode }> = ({ children }) => {
                 tenantId,
                 isAuthenticated: true,
                 isLoading,
+                isAdmin,
                 user: null,
                 accessToken: null,
                 apiClient,

@@ -45,6 +45,10 @@
   align-items: start;
 }
 
+.overview-card--wide {
+  grid-column: 1 / -1;
+}
+
 /* Overview Cards */
 .overview-card.a-tile {
   padding: 1.25rem;

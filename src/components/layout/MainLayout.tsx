@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { MinimalHeader, SideNavigation, Icon, ContextMenu } from '@bosch/react-frok';
+import { MinimalHeader, SideNavigation, ContextMenu, Button } from '@bosch/react-frok';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -11,15 +11,20 @@ interface NavItemDef {
     value: string;
 }
 
-const navItems: NavItemDef[] = [
-    { label: 'Dashboard', path: '/', icon: 'home', value: 'dashboard' },
-    { label: 'Projects', path: '/projects', icon: 'folder', value: 'projects' },
-    { label: 'Settings', path: '/settings', icon: 'settings', value: 'settings' },
-];
+/** Strips parenthetical department suffix, e.g. "Alice Smith (SX/EIT-MM)" → "Alice Smith" */
+const stripDepartment = (name?: string) =>
+    name ? name.replace(/\s*\(.*\)\s*$/, '').trim() : '';
 
 export const MainLayout: React.FC = () => {
     const { mode, toggleTheme } = useTheme();
-    const { tenantId, user, logout } = useAuth();
+    const { tenantId, user, logout, isAdmin } = useAuth();
+
+    const navItems: NavItemDef[] = [
+        { label: 'Dashboard', path: '/', icon: 'home', value: 'dashboard' },
+        { label: 'Projects', path: '/projects', icon: 'folder', value: 'projects' },
+        ...(isAdmin ? [{ label: 'Admin', path: '/admin', icon: 'security-user', value: 'admin' }] : []),
+        { label: 'Settings', path: '/settings', icon: 'settings', value: 'settings' },
+    ];
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -27,16 +32,20 @@ export const MainLayout: React.FC = () => {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
 
     const currentPath = location.pathname;
-    const selectedNav = navItems.find(
+    const currentNavItem = navItems.find(
         (item) => currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path))
-    )?.value ?? 'dashboard';
+    );
+    const selectedNav = currentNavItem?.value ?? 'dashboard';
+    const currentPageLabel = currentNavItem?.label ?? 'Dashboard';
+
+    const displayName = stripDepartment(user?.name) || tenantId;
+    const avatarInitial = (user?.name?.charAt(0) ?? 'U').toUpperCase();
 
     const handleNavClick = useCallback((path: string) => {
         navigate(path);
     }, [navigate]);
 
-    const NavBody = SideNavigation.Body;
-    const NavItem = SideNavigation.Item;
+    const NavItem = SideNavigation.Item!;
 
     return (
         <div className={`app-layout-wrapper ${sideNavOpen ? 'sidebar-open' : 'sidebar-collapsed'}`}>
@@ -44,53 +53,48 @@ export const MainLayout: React.FC = () => {
                 logo={{ href: '/' }}
                 sideNavigation={
                     <SideNavigation
-                        open={sideNavOpen}
-                        onOpenChange={setSideNavOpen}
                         defaultSelectedItem={selectedNav}
                         onSelectedItemChange={(_ev, data) => {
                             const item = navItems.find(i => i.value === data.value);
                             if (item) handleNavClick(item.path);
                         }}
-                        header={{ title: 'Ragaas' }}
+                        header={{ label: 'RAGaaS' }}
                     >
-                        {NavBody && NavItem && (
-                            <NavBody>
-                                {navItems.map((item) => (
-                                    <NavItem
-                                        key={item.value}
-                                        value={item.value}
-                                    >
-                                        <Icon iconName={item.icon} />
-                                        <span className="nav-item-text">{item.label}</span>
-                                    </NavItem>
-                                ))}
-                            </NavBody>
-                        )}
+                        {navItems.map((item) => (
+                            <NavItem
+                                key={item.value}
+                                value={item.value}
+                                icon={item.icon as React.ComponentProps<typeof NavItem>['icon']}
+                                label={item.label}
+                            />
+                        ))}
                     </SideNavigation>
                 }
-                burger={{ 'aria-label': 'Toggle navigation' }}
+                burger={{
+                    'aria-label': 'Toggle navigation',
+                    onClick: () => setSideNavOpen(prev => !prev),
+                }}
                 open={sideNavOpen}
                 onOpenChange={setSideNavOpen}
                 actions={{
                     children: (
-                        <div className="header-actions-list">
-                            <div className="header-action-item">
-                                <button
-                                    type="button"
-                                    className="header-theme-button"
+                        <>
+                            <li>
+                                <Button
+                                    mode="integrated"
+                                    icon={mode === 'dark' ? 'sun' : 'moon'}
+                                    aria-label={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}
                                     onClick={toggleTheme}
-                                    aria-label="Toggle theme"
-                                >
-                                    <Icon iconName={mode === 'dark' ? 'sun' : 'moon'} />
-                                </button>
-                            </div>
-                            <div className="header-action-item">
+                                />
+                            </li>
+                            <li>
                                 <ContextMenu
                                     open={userMenuOpen}
                                     onOpenChange={setUserMenuOpen}
                                     trigger={
-                                        <button type="button" className="header-avatar-button" aria-label="User menu">
-                                            {user?.name?.charAt(0) || 'U'}
+                                        <button type="button" className="header-user-trigger" aria-label="User menu">
+                                            <span className="header-user-avatar">{avatarInitial}</span>
+                                            <span className="header-user-name">{displayName}</span>
                                         </button>
                                     }
                                     popover={{ position: 'bottom-right' }}
@@ -98,7 +102,7 @@ export const MainLayout: React.FC = () => {
                                 >
                                     <div className="user-menu-header">
                                         <div className="user-menu-avatar">
-                                            {user?.name?.charAt(0) || 'U'}
+                                            {avatarInitial}
                                         </div>
                                         <div className="user-menu-info">
                                             <div className="user-menu-name">{user?.name || 'Demo User'}</div>
@@ -122,18 +126,14 @@ export const MainLayout: React.FC = () => {
                                         }}
                                     />
                                 </ContextMenu>
-                            </div>
-                        </div>
+                            </li>
+                        </>
                     ),
                 }}
             >
-                <div className="header-title-section">
-                    <span className="header-app-name">Bosch RAGaaS</span>
-                    <span className="header-app-subtitle">AI-Powered Knowledge</span>
-                </div>
+                <span className="header-page-title">{currentPageLabel}</span>
             </MinimalHeader>
 
-            {/* Main Content */}
             <main className={`app-main-content ${sideNavOpen ? 'sidebar-open' : ''}`}>
                 <div className="app-content-wrapper">
                     <Outlet />

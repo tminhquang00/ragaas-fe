@@ -1,5 +1,7 @@
 import { ConfigEditor } from '../components/projects';
 import { PipelineEditor } from '../components/pipeline';
+import { QuotaStatusWidget, QuotaBanner, RequestBundleDialog } from '../components/quota';
+import { ApiHttpError } from '../services/api';
 import './ProjectDetailPage.css';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -106,6 +108,10 @@ export const ProjectDetailPage: React.FC = () => {
     // Pipeline State
     const [pendingPipelineConfig, setPendingPipelineConfig] = useState<PipelineConfig | null>(null);
     const [pipelineDirty, setPipelineDirty] = useState(false);
+
+    // Quota state
+    const [quotaExhausted, setQuotaExhausted] = useState(false);
+    const [requestBundleOpen, setRequestBundleOpen] = useState(false);
 
     const fetchProject = useCallback(async () => {
         if (!apiClient || !projectId) return;
@@ -661,7 +667,11 @@ export const ProjectDetailPage: React.FC = () => {
                 cancelAnimationFrame(rafIdRef.current);
                 rafIdRef.current = null;
             }
-            setError(err instanceof Error ? err.message : 'Chat failed');
+            if (err instanceof ApiHttpError && err.status === 429) {
+                setQuotaExhausted(true);
+            } else {
+                setError(err instanceof Error ? err.message : 'Chat failed');
+            }
         } finally {
             setChatLoading(false);
         }
@@ -861,6 +871,7 @@ export const ProjectDetailPage: React.FC = () => {
                             </div>
                         </div>
                     </Tile>
+                    <QuotaStatusWidget projectId={projectId!} isOwner={isOwner} />
                 </div>
             </TabPanel>
 
@@ -951,6 +962,13 @@ export const ProjectDetailPage: React.FC = () => {
                             Database connected — you can ask questions about your <strong>{dbDisplayName}</strong>.
                         </Notification>
                     </div>
+                )}
+                {quotaExhausted && (
+                    <QuotaBanner
+                        isOwner={isOwner}
+                        onClose={() => setQuotaExhausted(false)}
+                        onRequestBundle={() => setRequestBundleOpen(true)}
+                    />
                 )}
                 <div className="project-chat-tile">
                     <ChatInterface
@@ -1109,6 +1127,15 @@ export const ProjectDetailPage: React.FC = () => {
                     </div>
                 )}
             </TabPanel>
+
+            {/* Quota request dialog — available from Overview quota widget and Chat banner */}
+            {isOwner && (
+                <RequestBundleDialog
+                    open={requestBundleOpen}
+                    onClose={() => setRequestBundleOpen(false)}
+                    projectId={projectId!}
+                />
+            )}
         </div>
     );
 };

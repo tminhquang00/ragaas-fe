@@ -3,7 +3,7 @@ import './styles/frok-overrides.css';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, ThemeProvider } from './context';
 import { MainLayout } from './components/layout';
-import { DashboardPage, ProjectsPage, ProjectDetailPage, SettingsPage, PipelinePlaygroundPage } from './pages';
+import { DashboardPage, ProjectsPage, ProjectDetailPage, SettingsPage, PipelinePlaygroundPage, AdminPage } from './pages';
 
 function App() {
   return (
@@ -17,6 +17,7 @@ function App() {
               <Route path="projects/:projectId" element={<ProjectDetailPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="pipeline-playground" element={<PipelinePlaygroundPage />} />
+              <Route path="admin" element={<AdminPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

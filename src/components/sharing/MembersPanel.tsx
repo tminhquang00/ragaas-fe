@@ -136,7 +136,7 @@ export const MembersPanel: React.FC<MembersPanelProps> = ({
                         </p>
                     </div>
                 ) : (
-                    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                    <ul className="members-list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                         {members.map((member, idx) => (
                             <React.Fragment key={member.user_id}>
                                 {idx > 0 && <Divider />}
