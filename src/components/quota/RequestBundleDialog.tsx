@@ -126,6 +126,7 @@ export const RequestBundleDialog: React.FC<RequestBundleDialogProps> = ({ open, 
                         </div>
 
                         <TextArea
+                            id="request-bundle-note"
                             label="Note to admin (optional)"
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Button,
     TabNavigation,
@@ -6,11 +6,12 @@ import {
     Notification,
     ActivityIndicator,
     Layout,
+    Icon,
 } from '@bosch/react-frok';
 import { ProjectCard, CreateProjectDialog } from '../components/projects';
 import { ApiKeyModal } from '../components/common';
 import { useAuth } from '../context';
-import { Project, CreateProjectRequest, getUserRole } from '../types';
+import { Project, CreateProjectRequest, CreateFromTemplateRequest, getUserRole } from '../types';
 
 export const ProjectsPage: React.FC = () => {
     const { apiClient, tenantId } = useAuth();
@@ -26,6 +27,7 @@ export const ProjectsPage: React.FC = () => {
         name: '',
     });
     const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [searchQuery, setSearchQuery] = useState('');
 
     const fetchProjects = async () => {
         if (!apiClient) return;
@@ -52,6 +54,24 @@ export const ProjectsPage: React.FC = () => {
         setCreateLoading(true);
         try {
             const response = await apiClient.createProject(data);
+            setCreateDialogOpen(false);
+            setApiKeyModal({
+                open: true,
+                key: response.api_key,
+                name: response.project.name,
+            });
+            fetchProjects();
+        } finally {
+            setCreateLoading(false);
+        }
+    };
+
+    const handleCreateFromTemplate = async (request: CreateFromTemplateRequest) => {
+        if (!apiClient) return;
+
+        setCreateLoading(true);
+        try {
+            const response = await apiClient.createProjectFromTemplate(request);
             setCreateDialogOpen(false);
             setApiKeyModal({
                 open: true,
@@ -118,17 +138,36 @@ export const ProjectsPage: React.FC = () => {
         }
     };
 
-    const filteredProjects = projects;
+    const statusCounts = useMemo(() => {
+        const counts = { all: projects.length, active: 0, draft: 0, archived: 0 };
+        projects.forEach((p) => {
+            if (p.status === 'active') counts.active++;
+            else if (p.status === 'draft') counts.draft++;
+            else if (p.status === 'archived') counts.archived++;
+        });
+        return counts;
+    }, [projects]);
+
+    const filteredProjects = useMemo(() => {
+        if (!searchQuery.trim()) return projects;
+        const q = searchQuery.toLowerCase();
+        return projects.filter(
+            (p) =>
+                p.name.toLowerCase().includes(q) ||
+                (p.description && p.description.toLowerCase().includes(q))
+        );
+    }, [projects, searchQuery]);
+
+    const addAnimIndex = (list: Project[]) =>
+        list.map((p, i) => ({ ...p, _animIndex: i }));
 
     return (
         <Layout fullWidth className="projects-page">
-            {/* Header */}
-            <div className="projects-page-header">
-                <div>
-                    <h4 className="projects-page-title">
-                        Projects
-                    </h4>
-                    <p className="projects-page-subtitle">
+            {/* Hero header */}
+            <div className="projects-hero">
+                <div className="projects-hero__content">
+                    <h4 className="projects-hero__title">Projects</h4>
+                    <p className="projects-hero__subtitle">
                         Manage your RAG knowledge bases
                     </p>
                 </div>
@@ -141,8 +180,33 @@ export const ProjectsPage: React.FC = () => {
                 </Button>
             </div>
 
-            {/* Filters */}
-            <div className="projects-page-filters">
+            {/* Stats bar */}
+            {!loading && projects.length > 0 && (
+                <div className="projects-stats">
+                    <div className="projects-stats__item">
+                        <span className="projects-stats__value">{statusCounts.all}</span>
+                        <span className="projects-stats__label">Total</span>
+                    </div>
+                    <div className="projects-stats__divider" />
+                    <div className="projects-stats__item projects-stats__item--active">
+                        <span className="projects-stats__value">{statusCounts.active}</span>
+                        <span className="projects-stats__label">Active</span>
+                    </div>
+                    <div className="projects-stats__divider" />
+                    <div className="projects-stats__item projects-stats__item--draft">
+                        <span className="projects-stats__value">{statusCounts.draft}</span>
+                        <span className="projects-stats__label">Draft</span>
+                    </div>
+                    <div className="projects-stats__divider" />
+                    <div className="projects-stats__item projects-stats__item--archived">
+                        <span className="projects-stats__value">{statusCounts.archived}</span>
+                        <span className="projects-stats__label">Archived</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Filter bar: tabs + search */}
+            <div className="projects-filterbar">
                 <TabNavigation
                     selectedValue={statusFilter}
                     onTabSelect={(_ev, data) => setStatusFilter(data.value as string)}
@@ -152,6 +216,26 @@ export const ProjectsPage: React.FC = () => {
                     <Tab value="draft">Draft</Tab>
                     <Tab value="archived">Archived</Tab>
                 </TabNavigation>
+
+                <div className="projects-search">
+                    <Icon iconName="search" isUiIcon className="projects-search__icon" />
+                    <input
+                        type="text"
+                        className="projects-search__input"
+                        placeholder="Search projects..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    {searchQuery && (
+                        <button
+                            className="projects-search__clear"
+                            onClick={() => setSearchQuery('')}
+                            aria-label="Clear search"
+                        >
+                            <Icon iconName="close" isUiIcon />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Error */}
@@ -175,19 +259,33 @@ export const ProjectsPage: React.FC = () => {
                 </div>
             ) : filteredProjects.length === 0 ? (
                 <div className="projects-page-empty">
-                    <h6 className="projects-page-empty-title">
-                        No projects yet
-                    </h6>
-                    <p className="projects-page-empty-description">
-                        Create your first project to get started with AI-powered document Q&A
-                    </p>
-                    <Button
-                        mode="primary"
-                        icon="add"
-                        onClick={() => setCreateDialogOpen(true)}
-                    >
-                        Create Project
-                    </Button>
+                    {searchQuery ? (
+                        <>
+                            <Icon iconName="search" className="projects-page-empty__icon" />
+                            <h6 className="projects-page-empty-title">No matching projects</h6>
+                            <p className="projects-page-empty-description">
+                                No projects match "{searchQuery}". Try a different search term.
+                            </p>
+                            <Button mode="secondary" onClick={() => setSearchQuery('')}>
+                                Clear Search
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Icon iconName="folder-open" className="projects-page-empty__icon" />
+                            <h6 className="projects-page-empty-title">No projects yet</h6>
+                            <p className="projects-page-empty-description">
+                                Create your first project to get started with AI-powered document Q&A
+                            </p>
+                            <Button
+                                mode="primary"
+                                icon="add"
+                                onClick={() => setCreateDialogOpen(true)}
+                            >
+                                Create Project
+                            </Button>
+                        </>
+                    )}
                 </div>
             ) : (
                 (() => {
@@ -206,13 +304,13 @@ export const ProjectsPage: React.FC = () => {
                             <div>
                                 <div className="projects-section-header">
                                     <p className="projects-section-title">My Projects</p>
-                                    <p className="projects-section-count">{myProjects.length}</p>
+                                    <span className="projects-section-count">{myProjects.length}</span>
                                 </div>
                                 {myProjects.length === 0 && sharedProjects.length > 0 ? (
                                     <p className="projects-empty-owned">No owned projects.</p>
                                 ) : (
                                     <div className="projects-grid">
-                                        {myProjects.map((project) => (
+                                        {addAnimIndex(myProjects).map((project) => (
                                             <ProjectCard
                                                 key={project.project_id}
                                                 project={project}
@@ -230,10 +328,10 @@ export const ProjectsPage: React.FC = () => {
                                 <div>
                                     <div className="projects-section-header">
                                         <p className="projects-section-title">Shared with me</p>
-                                        <p className="projects-section-count">{sharedProjects.length}</p>
+                                        <span className="projects-section-count">{sharedProjects.length}</span>
                                     </div>
                                     <div className="projects-grid">
-                                        {sharedProjects.map((project) => (
+                                        {addAnimIndex(sharedProjects).map((project) => (
                                             <ProjectCard
                                                 key={project.project_id}
                                                 project={project}
@@ -257,6 +355,7 @@ export const ProjectsPage: React.FC = () => {
                 onClose={() => setCreateDialogOpen(false)}
                 onSubmit={handleCreateProject}
                 onUploadYaml={handleUploadYaml}
+                onCreateFromTemplate={handleCreateFromTemplate}
                 loading={createLoading}
             />
 

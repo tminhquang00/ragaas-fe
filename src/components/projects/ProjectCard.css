@@ -1,62 +1,79 @@
 /* ============================================================
-   ProjectCard — Bosch FROK Design System
-   Clean, professional project cards with status accent
+   ProjectCard — Modern Bosch Design
+   Clean cards with gradient top accents, generous whitespace,
+   smooth transitions, and staggered entrance animation.
    ============================================================ */
+
+/* Entrance animation */
+@keyframes cardEnter {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
 /* Base card */
 .project-card {
+    --card-accent: var(--g-blue-50, #007bc0);
     position: relative;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     height: 100%;
-    min-height: 140px;
+    min-height: 164px;
     cursor: pointer;
     background: #ffffff;
     border: 1px solid #e0e2e5;
     border-radius: 2px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    transition: box-shadow 200ms ease, border-color 200ms ease, transform 150ms ease;
-    overflow: visible; /* Allow popover/tooltip to escape */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 250ms cubic-bezier(.22,.61,.36,1),
+                border-color 250ms ease,
+                transform 250ms cubic-bezier(.22,.61,.36,1);
+    overflow: visible;
     z-index: 1;
+    animation: cardEnter 400ms cubic-bezier(.22,.61,.36,1) both;
 }
 
-/* Raise z-index when menu is open to appear above sibling cards */
 .project-card--menu-open {
     z-index: 100 !important;
 }
 
 .project-card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    border-color: #c1c7cc;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+    border-color: color-mix(in srgb, var(--card-accent) 35%, #e0e2e5);
 }
 
 .project-card:focus-visible {
-    outline: 2px solid #007bc0;
-    outline-offset: 1px;
+    outline: 2px solid var(--g-blue-50, #007bc0);
+    outline-offset: 2px;
 }
 
-/* Left accent stripe */
+/* Top accent bar — gradient stripe at top of card */
 .project-card__accent {
-    width: 4px;
+    height: 3px;
+    width: 100%;
     flex-shrink: 0;
-    transition: width 150ms ease;
+    transition: height 200ms ease;
 }
 
 .project-card:hover .project-card__accent {
-    width: 5px;
+    height: 4px;
 }
 
 .project-card__accent--active {
-    background: linear-gradient(180deg, #007bc0 0%, #00629a 100%);
+    background: linear-gradient(90deg, #007bc0 0%, #00a8b0 60%, #00c7a3 100%);
 }
 
 .project-card__accent--draft {
-    background: linear-gradient(180deg, #ffcf00 0%, #e6ba00 100%);
+    background: linear-gradient(90deg, #ffcf00 0%, #ffab00 60%, #ff8f00 100%);
 }
 
 .project-card__accent--archived {
-    background: linear-gradient(180deg, #a4abb3 0%, #8a9097 100%);
+    background: linear-gradient(90deg, #a4abb3 0%, #8a9097 60%, #71767c 100%);
 }
 
 /* Card body */
@@ -64,8 +81,9 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 0.875rem 1rem;
+    padding: 1rem 1.125rem;
     min-width: 0;
+    gap: 0.25rem;
 }
 
 /* Header section */
@@ -80,28 +98,29 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 0.375rem;
+    gap: 0.5rem;
 }
 
 /* Title */
 .project-card__title {
     margin: 0;
     font-size: 0.9375rem;
-    font-weight: 600;
-    line-height: 1.35;
+    font-weight: 700;
+    line-height: 1.4;
     color: #1a1c1d;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     word-break: break-word;
+    letter-spacing: -0.01em;
 }
 
 /* Description */
 .project-card__description {
     margin: 0;
     font-size: 0.8125rem;
-    line-height: 1.45;
+    line-height: 1.55;
     color: #71767c;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -117,8 +136,8 @@
 }
 
 .project-card__actions .o-context-menu__trigger {
-    opacity: 0.35;
-    transition: opacity 150ms ease;
+    opacity: 0;
+    transition: opacity 200ms ease;
     min-width: 28px !important;
     min-height: 28px !important;
     width: 28px !important;
@@ -143,7 +162,8 @@
     justify-content: space-between;
     gap: 0.75rem;
     margin-top: auto;
-    padding-top: 0.625rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #eff1f2;
 }
 
 /* Tags container */
@@ -162,7 +182,7 @@
     padding: 0.1875rem 0.5rem;
     font-size: 0.6875rem;
     font-weight: 600;
-    letter-spacing: 0.025em;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
     border-radius: 2px;
     white-space: nowrap;
@@ -170,24 +190,24 @@
 }
 
 .project-card__tag-icon {
-    font-size: 0.6875rem !important;
-    width: 0.6875rem !important;
-    height: 0.6875rem !important;
+    font-size: 0.625rem !important;
+    width: 0.625rem !important;
+    height: 0.625rem !important;
 }
 
 /* Status tag variants */
 .project-card__tag--active {
-    color: #00629a;
-    background: #e8f1ff;
+    color: #006699;
+    background: linear-gradient(135deg, #e8f4ff 0%, #d4edff 100%);
 }
 
 .project-card__tag--draft {
-    color: #5c5300;
-    background: #fff5cc;
+    color: #6b5900;
+    background: linear-gradient(135deg, #fff8e1 0%, #fff0b3 100%);
 }
 
 .project-card__tag--archived {
-    color: #656a6f;
+    color: #595e62;
     background: #eff1f2;
 }
 
@@ -195,14 +215,15 @@
 .project-card__tag--role {
     color: #4e5256;
     background: transparent;
-    border: 1px solid #c1c7cc;
+    border: 1px solid #d0d4d8;
     padding: 0.125rem 0.4375rem;
+    font-weight: 500;
 }
 
 /* Public tag */
 .project-card__tag--public {
-    color: #00703c;
-    background: #e6f5ed;
+    color: #006b3f;
+    background: linear-gradient(135deg, #e6f5ed 0%, #ccebdb 100%);
 }
 
 /* Model indicator */
@@ -211,15 +232,20 @@
     align-items: center;
     gap: 0.25rem;
     font-size: 0.6875rem;
-    color: #71767c;
+    color: #8a9097;
     white-space: nowrap;
     flex-shrink: 0;
+    transition: color 200ms ease;
+}
+
+.project-card:hover .project-card__model {
+    color: #71767c;
 }
 
 .project-card__model-icon {
     font-size: 0.875rem !important;
     flex-shrink: 0;
-    color: #8a9097;
+    color: inherit;
 }
 
 .project-card__model-name {
@@ -236,20 +262,24 @@
    Status-specific hover states
    ============================================================ */
 
+.project-card--active { --card-accent: var(--g-blue-50, #007bc0); }
+.project-card--draft  { --card-accent: var(--g-yellow-85, #ffcf00); }
+.project-card--archived { --card-accent: var(--g-gray-60, #8a9097); }
+
 .project-card--active:hover {
-    border-color: #007bc0;
+    border-color: color-mix(in srgb, #007bc0 30%, #e0e2e5);
 }
 
 .project-card--draft:hover {
-    border-color: #e6ba00;
+    border-color: color-mix(in srgb, #ffcf00 40%, #e0e2e5);
 }
 
 .project-card--archived:hover {
-    border-color: #a4abb3;
+    border-color: #c1c7cc;
 }
 
 /* ============================================================
-   Archived project styling - muted appearance
+   Archived project styling
    ============================================================ */
 
 .project-card--archived {
@@ -257,7 +287,7 @@
 }
 
 .project-card--archived .project-card__title {
-    color: #4e5256;
+    color: #595e62;
 }
 
 .project-card--archived .project-card__description {
@@ -265,7 +295,8 @@
 }
 
 .project-card--archived .project-card__footer {
-    opacity: 0.85;
+    opacity: 0.75;
+    border-top-color: #eff1f2;
 }
 
 /* ============================================================
@@ -275,8 +306,8 @@
 .project-card .o-context-menu .m-popover {
     border: 1px solid #d0d4d8;
     border-radius: 2px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    min-width: 140px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+    min-width: 150px;
     z-index: 1000;
 }
 
@@ -286,9 +317,9 @@
 
 .project-card .o-context-menu__item {
     font-size: 0.8125rem;
-    padding: 0.4375rem 0.75rem;
+    padding: 0.5rem 0.875rem;
     gap: 0.5rem;
-    transition: background-color 100ms ease;
+    transition: background-color 120ms ease;
     color: #1a1c1d;
 }
 
@@ -314,11 +345,11 @@
 .-dark-mode .project-card {
     background: var(--g-gray-15, #232628);
     border-color: var(--g-gray-30, #43464a);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 .-dark-mode .project-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.15);
     border-color: var(--g-gray-45, #656a6f);
 }
 
@@ -330,15 +361,19 @@
     color: var(--g-gray-60, #8a9097);
 }
 
+.-dark-mode .project-card__footer {
+    border-top-color: var(--g-gray-25, #383b3e);
+}
+
 /* Status tag variants - dark mode */
 .-dark-mode .project-card__tag--active {
     color: #6bb8ff;
-    background: rgba(0, 123, 192, 0.2);
+    background: rgba(0, 123, 192, 0.18);
 }
 
 .-dark-mode .project-card__tag--draft {
     color: #ffe066;
-    background: rgba(255, 207, 0, 0.15);
+    background: rgba(255, 207, 0, 0.14);
 }
 
 .-dark-mode .project-card__tag--archived {
@@ -349,22 +384,22 @@
 /* Role tag - dark mode */
 .-dark-mode .project-card__tag--role {
     color: var(--g-gray-70, #a4abb3);
-    border-color: var(--g-gray-45, #656a6f);
+    border-color: var(--g-gray-40, #595e62);
 }
 
 /* Public tag - dark mode */
 .-dark-mode .project-card__tag--public {
     color: #4ade80;
-    background: rgba(0, 136, 74, 0.2);
+    background: rgba(0, 136, 74, 0.18);
 }
 
 /* Model indicator - dark mode */
 .-dark-mode .project-card__model {
-    color: var(--g-gray-60, #8a9097);
+    color: var(--g-gray-55, #7d8389);
 }
 
-.-dark-mode .project-card__model-icon {
-    color: var(--g-gray-55, #7d8389);
+.-dark-mode .project-card:hover .project-card__model {
+    color: var(--g-gray-70, #a4abb3);
 }
 
 /* Archived project - dark mode */
@@ -373,7 +408,7 @@
 }
 
 .-dark-mode .project-card--archived .project-card__title {
-    color: var(--g-gray-60, #8a9097);
+    color: var(--g-gray-55, #7d8389);
 }
 
 .-dark-mode .project-card--archived .project-card__description {
@@ -384,7 +419,7 @@
 .-dark-mode .project-card .o-context-menu .m-popover {
     background: var(--g-gray-15, #232628);
     border-color: var(--g-gray-30, #43464a);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
 
 .-dark-mode .project-card .o-context-menu__item {
@@ -405,11 +440,11 @@
 
 @media (max-width: 600px) {
     .project-card {
-        min-height: 110px;
+        min-height: 130px;
     }
 
     .project-card__body {
-        padding: 0.625rem 0.75rem;
+        padding: 0.75rem 0.875rem;
     }
 
     .project-card__title {

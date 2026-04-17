@@ -1,125 +1,166 @@
 import { Edge, Node, Position, MarkerType } from '@xyflow/react';
 import dagre from 'dagre';
-import { PipelineConfig, PipelineStep } from '../types';
+import {
+    PipelineGraph,
+    GraphNode,
+    GraphEdge,
+    GraphNodeType,
+    ConnectionRules,
+    ATTACHMENT_NODE_TYPES,
+    PipelineConfig,
+    PipelineStep,
+} from '../types';
 
-// Define the Node Data type
+// ── React Flow node data ──
+
 export type PipelineNodeData = {
     label: string;
-    type: PipelineStep['type'];
+    type: GraphNodeType;
     config: Record<string, any>;
-    stepIndex: number; // Important to map back to the array
-    branchKeys?: string[]; // For route/parallel steps
+    parentId?: string | null;
+    branchId?: string | null;
+    branchKeys?: string[];
     [key: string]: any;
 };
 
-// Define our specific Node type
 export type PipelineNode = Node<PipelineNodeData>;
 
-const nodeWidth = 250;
-const nodeHeight = 100;
+// ── Constants ──
 
-/**
- * Converts a recursive PipelineConfig into Nodes and Edges for React Flow.
- */
-export const configToFlow = (config: PipelineConfig) => {
-    const nodes: PipelineNode[] = [];
-    const edges: Edge[] = [];
+const STEP_NODE_WIDTH = 250;
+const STEP_NODE_HEIGHT = 100;
+const ATTACHMENT_NODE_WIDTH = 180;
+const ATTACHMENT_NODE_HEIGHT = 70;
 
-    let nodeIdCounter = 0;
-    const generateId = () => `node-${nodeIdCounter++}`;
+export function isAttachmentType(type: GraphNodeType | string): boolean {
+    return ATTACHMENT_NODE_TYPES.includes(type as GraphNodeType);
+}
 
-    // Helper to recursively process steps
-    const processSteps = (steps: PipelineStep[], parentNodeId: string | null, sourceHandle?: string): string | null => {
-        if (!steps || steps.length === 0) return null;
+// ── Backend Graph → React Flow ──
 
-        let previousNodeId = parentNodeId;
-
-        // If it's a branch (parentNodeId is set), we don't start from 'previousNodeId' for the first node,
-        // we connect parent -> first node.
-
-        let lastNodeId = null;
-
-        for (let i = 0; i < steps.length; i++) {
-            const step = steps[i];
-            const nodeId = generateId();
-            lastNodeId = nodeId;
-
-            // For route/parallel steps, extract branch keys for dynamic handle rendering
-            // Branches can be in step.branches OR step.config.branches (API structure)
-            const stepBranches = step.branches || (step.config?.branches as Record<string, PipelineStep[]> | undefined);
-            const branchKeys = stepBranches ? Object.keys(stepBranches) : [];
-
-            nodes.push({
-                id: nodeId,
-                type: 'step',
-                data: {
-                    label: step.name,
-                    type: step.type,
-                    config: step.config || {},
-                    stepIndex: i,
-                    branchKeys, // Pass branch keys for dynamic handle rendering
-                },
-                position: { x: 0, y: 0 },
-            });
-
-            // Connect to previous
-            if (previousNodeId) {
-                edges.push({
-                    id: `e-${previousNodeId}-${nodeId}`,
-                    source: previousNodeId,
-                    target: nodeId,
-                    sourceHandle: i === 0 ? sourceHandle : undefined, // Only use handle for first connection in branch
-                    type: 'smoothstep',
-                    markerEnd: { type: MarkerType.ArrowClosed },
-                });
-            }
-
-            previousNodeId = nodeId;
-
-            // Handle Branches (Route/Parallel) - check both step.branches and step.config.branches
-            if (stepBranches) {
-                Object.entries(stepBranches).forEach(([branchKey, branchSteps]) => {
-                    // Process branch
-                    // The parent is the current node (previousNodeId)
-                    // We need to use handles for Route nodes usually
-                    processSteps(branchSteps as PipelineStep[], nodeId, branchKey);
-                });
-            }
-        }
-
-        return lastNodeId;
-    };
-
-    // Start Node
-    const startNodeId = 'start';
-    nodes.push({
-        id: startNodeId,
-        type: 'input',
-        data: { label: 'Start', type: 'transform' as any, config: {}, stepIndex: -1 },
-        position: { x: 0, y: 0 },
+export function graphToReactFlow(graph: PipelineGraph): { nodes: PipelineNode[]; edges: Edge[] } {
+    const nodes: PipelineNode[] = graph.nodes.map((gn) => {
+        const attachment = isAttachmentType(gn.type);
+        return {
+            id: gn.id,
+            type: attachment ? 'attachment' : 'step',
+            position: gn.position,
+            data: {
+                label: gn.label,
+                type: gn.type,
+                config: gn.data ?? {},
+                parentId: gn.parent_id ?? null,
+                branchId: gn.branch_id ?? null,
+            },
+        };
     });
 
-    // Process Root Steps
-    processSteps(config.steps || [], startNodeId);
+    const edges: Edge[] = graph.edges.map((ge) => edgeFromGraph(ge));
 
     return getLayoutedElements(nodes, edges);
-};
+}
 
-/**
- * Applies Dagre layout to nodes and edges.
- */
-export const getLayoutedElements = (nodes: PipelineNode[], edges: Edge[]) => {
-    const dagreGraph = new dagre.graphlib.Graph();
-    dagreGraph.setDefaultEdgeLabel(() => ({}));
+function edgeFromGraph(ge: GraphEdge): Edge {
+    const base: Edge = {
+        id: ge.id,
+        source: ge.source,
+        target: ge.target,
+        type: 'smoothstep',
+        markerEnd: { type: MarkerType.ArrowClosed },
+    };
 
-    dagreGraph.setGraph({
-        rankdir: 'TB',
-        ranksep: 100,
-        nodesep: 80
+    if (ge.edge_type === 'attachment') {
+        return {
+            ...base,
+            style: { strokeDasharray: '6 3', opacity: 0.7 },
+            className: 'edge-attachment',
+        };
+    }
+
+    if (ge.edge_type === 'branch') {
+        return {
+            ...base,
+            label: ge.label ?? '',
+            sourceHandle: ge.label ?? undefined,
+            className: 'edge-branch',
+        };
+    }
+
+    return base;
+}
+
+// ── React Flow → Backend Graph ──
+
+export function reactFlowToGraph(nodes: PipelineNode[], edges: Edge[]): PipelineGraph {
+    const graphNodes: GraphNode[] = nodes.map((n) => ({
+        id: n.id,
+        type: n.data.type,
+        label: n.data.label,
+        position: n.position,
+        data: n.data.config ?? {},
+        parent_id: n.data.parentId ?? null,
+        branch_id: n.data.branchId ?? null,
+    }));
+
+    const graphEdges: GraphEdge[] = edges.map((e) => {
+        let edge_type: GraphEdge['edge_type'] = 'flow';
+        if (e.className === 'edge-attachment' || e.style?.strokeDasharray) {
+            edge_type = 'attachment';
+        } else if (e.className === 'edge-branch' || e.sourceHandle) {
+            edge_type = 'branch';
+        }
+        return {
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            label: typeof e.label === 'string' ? e.label : undefined,
+            edge_type,
+        };
     });
 
+    return { nodes: graphNodes, edges: graphEdges };
+}
+
+// ── Connection Validation ──
+
+export function validateConnection(
+    sourceType: string,
+    targetType: string,
+    rules: ConnectionRules
+): { valid: boolean; edgeType: GraphEdge['edge_type'] } {
+    if (isAttachmentType(targetType as GraphNodeType)) {
+        const match = rules.valid_edges.find(
+            (r) => r.from_type === sourceType && r.to_type === targetType && r.edge_type === 'attachment'
+        );
+        return match ? { valid: true, edgeType: 'attachment' } : { valid: false, edgeType: 'attachment' };
+    }
+
+    if (isAttachmentType(sourceType as GraphNodeType)) {
+        const match = rules.valid_edges.find(
+            (r) => r.from_type === sourceType && r.to_type === targetType && r.edge_type === 'attachment'
+        );
+        return match ? { valid: true, edgeType: 'attachment' } : { valid: false, edgeType: 'attachment' };
+    }
+
+    const match = rules.valid_edges.find(
+        (r) => r.from_type === sourceType && r.to_type === targetType && (r.edge_type === 'flow' || r.edge_type === 'branch')
+    );
+    return match ? { valid: true, edgeType: match.edge_type } : { valid: false, edgeType: 'flow' };
+}
+
+// ── Dagre Layout ──
+
+export function getLayoutedElements(nodes: PipelineNode[], edges: Edge[]): { nodes: PipelineNode[]; edges: Edge[] } {
+    const dagreGraph = new dagre.graphlib.Graph();
+    dagreGraph.setDefaultEdgeLabel(() => ({}));
+    dagreGraph.setGraph({ rankdir: 'LR', ranksep: 300, nodesep: 200 });
+
     nodes.forEach((node) => {
-        dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+        const isAttachment = node.type === 'attachment';
+        dagreGraph.setNode(node.id, {
+            width: isAttachment ? ATTACHMENT_NODE_WIDTH : STEP_NODE_WIDTH,
+            height: isAttachment ? ATTACHMENT_NODE_HEIGHT : STEP_NODE_HEIGHT,
+        });
     });
 
     edges.forEach((edge) => {
@@ -129,116 +170,139 @@ export const getLayoutedElements = (nodes: PipelineNode[], edges: Edge[]) => {
     dagre.layout(dagreGraph);
 
     const layoutedNodes = nodes.map((node) => {
-        const nodeWithPosition = dagreGraph.node(node.id);
+        const pos = dagreGraph.node(node.id);
+        const isAttachment = node.type === 'attachment';
+        const w = isAttachment ? ATTACHMENT_NODE_WIDTH : STEP_NODE_WIDTH;
+        const h = isAttachment ? ATTACHMENT_NODE_HEIGHT : STEP_NODE_HEIGHT;
 
         return {
             ...node,
-            targetPosition: Position.Top,
-            sourcePosition: Position.Bottom,
-            position: {
-                x: nodeWithPosition.x - nodeWidth / 2,
-                y: nodeWithPosition.y - nodeHeight / 2,
-            },
+            targetPosition: Position.Left,
+            sourcePosition: Position.Right,
+            position: { x: pos.x - w / 2, y: pos.y - h / 2 },
         };
     });
 
     return { nodes: layoutedNodes, edges };
-};
+}
 
-/**
- * Real implementation with Edges
- */
-export const graphToConfig = (nodes: PipelineNode[], edges: Edge[]): PipelineConfig => {
-    const nodeMap = new Map(nodes.map(n => [n.id, n]));
-    const edgesBySource = new Map<string, Edge[]>();
+// ── Legacy helpers (kept for backward compat with PipelineConfig) ──
 
-    edges.forEach(edge => {
-        if (!edgesBySource.has(edge.source)) {
-            edgesBySource.set(edge.source, []);
+export const configToFlow = (config: PipelineConfig): { nodes: PipelineNode[]; edges: Edge[] } => {
+    const nodes: PipelineNode[] = [];
+    const edges: Edge[] = [];
+    let nodeIdCounter = 0;
+    const generateId = () => `node-${nodeIdCounter++}`;
+
+    const processSteps = (steps: PipelineStep[], parentNodeId: string | null, sourceHandle?: string): string | null => {
+        if (!steps || steps.length === 0) return null;
+        let previousNodeId = parentNodeId;
+        let lastNodeId = null;
+
+        for (let i = 0; i < steps.length; i++) {
+            const step = steps[i];
+            const nodeId = generateId();
+            lastNodeId = nodeId;
+
+            const stepBranches = step.branches || (step.config?.branches as Record<string, PipelineStep[]> | undefined);
+            const branchKeys = stepBranches ? Object.keys(stepBranches) : [];
+
+            nodes.push({
+                id: nodeId,
+                type: 'step',
+                data: {
+                    label: step.name,
+                    type: (step.type ?? 'transform') as GraphNodeType,
+                    config: step.config || {},
+                    branchKeys,
+                },
+                position: { x: 0, y: 0 },
+            });
+
+            if (previousNodeId) {
+                edges.push({
+                    id: `e-${previousNodeId}-${nodeId}`,
+                    source: previousNodeId,
+                    target: nodeId,
+                    sourceHandle: i === 0 ? sourceHandle : undefined,
+                    type: 'smoothstep',
+                    markerEnd: { type: MarkerType.ArrowClosed },
+                });
+            }
+
+            previousNodeId = nodeId;
+
+            if (stepBranches) {
+                Object.entries(stepBranches).forEach(([branchKey, branchSteps]) => {
+                    processSteps(branchSteps as PipelineStep[], nodeId, branchKey);
+                });
+            }
         }
-        edgesBySource.get(edge.source)?.push(edge);
+        return lastNodeId;
+    };
+
+    const startNodeId = 'start';
+    nodes.push({
+        id: startNodeId,
+        type: 'input' as any,
+        data: { label: 'Start', type: 'transform' as GraphNodeType, config: {} },
+        position: { x: 0, y: 0 },
     });
 
-    // Re-implementing a proper recursive builder
+    processSteps(config.steps || [], startNodeId);
+    return getLayoutedElements(nodes, edges);
+};
 
-    // 1. Find the first node after 'start'
-    const startNode = nodes.find(n => n.type === 'input' || n.id === 'start');
-    if (!startNode) return { type: 'simple_rag' as const, steps: [], chat_history_config: { include_history: true, max_history_turns: 3 } };
+export const graphToConfig = (nodes: PipelineNode[], edges: Edge[]): PipelineConfig => {
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+    const edgesBySource = new Map<string, Edge[]>();
+    edges.forEach((edge) => {
+        if (!edgesBySource.has(edge.source)) edgesBySource.set(edge.source, []);
+        edgesBySource.get(edge.source)!.push(edge);
+    });
+
+    const startNode = nodes.find((n) => n.type === ('input' as any) || n.id === 'start');
+    if (!startNode) return { type: 'custom', steps: [] };
 
     const outgoing = edgesBySource.get(startNode.id) || [];
-    if (outgoing.length === 0) return { type: 'simple_rag' as const, steps: [], chat_history_config: { include_history: true, max_history_turns: 3 } };
-
-    // Usually 'start' has one output connecting to the first real step.
+    if (outgoing.length === 0) return { type: 'custom', steps: [] };
     const firstStepId = outgoing[0].target;
 
     const buildChain = (startId: string): PipelineStep[] => {
         const chain: PipelineStep[] = [];
         let currId: string | undefined = startId;
-
         const visited = new Set<string>();
 
         while (currId && !visited.has(currId)) {
             visited.add(currId);
             const node = nodeMap.get(currId);
-            if (!node) break;
+            if (!node || node.type === ('output' as any) || node.id === 'end') break;
 
-            if (node.type === 'output' || node.id === 'end') break;
-
-            const step: PipelineStep = {
-                name: node.data.label,
-                type: node.data.type,
-                config: node.data.config,
-            };
-
-            // Check for branches
-            // If this node is 'route' or 'parallel', we look for outgoing edges with sourceHandles
+            const step: PipelineStep = { name: node.data.label, type: node.data.type as PipelineStep['type'], config: node.data.config };
             const outEdges: Edge[] = edgesBySource.get(currId) || [];
-
-            // Sort edges to ensure determinism?
 
             if (['route', 'parallel'].includes(step.type || '')) {
                 const branches: Record<string, PipelineStep[]> = {};
                 let hasBranches = false;
-
                 outEdges.forEach((edge: Edge) => {
                     if (edge.sourceHandle) {
                         hasBranches = true;
-                        // Recursively build that branch
                         branches[edge.sourceHandle] = buildChain(edge.target);
-                    } else {
-                        // Main continuation? Route nodes usually don't have a "main" continuation that isn't a branch
-                        // Unless it's a mixed mode. Let's assume all outputs from Route are branches if configured.
                     }
                 });
-
                 if (hasBranches) {
-                    // For route/parallel steps, store branches in step.config.branches (API format)
-                    step.config = {
-                        ...step.config,
-                        branches,
-                    };
-                    // Route nodes usually act as terminal for that linear segment in terms of visualization.
+                    step.config = { ...step.config, branches };
                     chain.push(step);
-                    break; // Stop linear chaining here, as control flow moves into branches.
+                    break;
                 }
             }
 
             chain.push(step);
-
             const nextEdge: Edge | undefined = outEdges.find((e: Edge) => !e.sourceHandle);
-            if (nextEdge) {
-                currId = nextEdge.target;
-            } else {
-                currId = undefined;
-            }
+            currId = nextEdge ? nextEdge.target : undefined;
         }
-
         return chain;
     };
 
-    // We need to preserve the pipeline type from the current config or guess it
-    return {
-        type: 'custom', // Default to custom if rebuilding from graph
-        steps: buildChain(firstStepId)
-    };
+    return { type: 'custom', steps: buildChain(firstStepId) };
 };

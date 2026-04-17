@@ -90,6 +90,37 @@ export interface CreateProjectResponse {
   api_key: string; // Only shown once!
 }
 
+export interface TemplateInfo {
+  id: string;
+  name: string;
+  description: string;
+  category: 'rag' | 'agent' | 'extraction' | 'multi_agent';
+  pipeline_type: string;
+  features: string[];
+  icon: string;
+}
+
+export interface TemplateListResponse {
+  templates: TemplateInfo[];
+  total: number;
+}
+
+export interface TemplateOverrides {
+  llm_config_name?: string;
+  weak_llm_config_name?: string;
+  temperature?: number;
+  vector_db_provider?: string;
+  retrieval_method?: string;
+  top_k?: number;
+}
+
+export interface CreateFromTemplateRequest {
+  template_id: string;
+  name: string;
+  description?: string;
+  overrides?: TemplateOverrides;
+}
+
 export interface ProjectListResponse {
   projects: Project[];
   total: number;
@@ -636,6 +667,163 @@ export interface AuditLogResponse {
   total: number;
   limit: number;
   offset: number;
+}
+
+// ============ Pipeline Graph (Visual Builder) ============
+
+export type GraphNodeType =
+  | 'retrieve' | 'generate' | 'classify' | 'transform' | 'route' | 'parallel' | 'agent' | 'project'
+  | 'tool' | 'mcp_server' | 'sub_agent' | 'worker' | 'database';
+
+export const ATTACHMENT_NODE_TYPES: GraphNodeType[] = ['tool', 'mcp_server', 'sub_agent', 'worker', 'database'];
+export const STEP_NODE_TYPES: GraphNodeType[] = ['retrieve', 'generate', 'classify', 'transform', 'route', 'parallel', 'agent', 'project'];
+
+export interface GraphNode {
+  id: string;
+  type: GraphNodeType;
+  label: string;
+  position: { x: number; y: number };
+  data: Record<string, any>;
+  parent_id?: string | null;
+  branch_id?: string | null;
+}
+
+export type GraphEdgeType = 'flow' | 'attachment' | 'branch';
+
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  edge_type: GraphEdgeType;
+}
+
+export interface PipelineGraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface PipelineGraphResponse {
+  graph: PipelineGraph;
+  pipeline_type: string;
+  validation: ValidationResult;
+}
+
+export interface SaveGraphRequest {
+  graph: PipelineGraph;
+  pipeline_type: string;
+}
+
+export interface StepTypeInfo {
+  type: GraphNodeType;
+  label: string;
+  description: string;
+  category: string;
+  config_schema: Record<string, any>;
+  allowed_inputs: string[];
+  allowed_outputs: string[];
+}
+
+export interface AvailableTool {
+  name: string;
+  label: string;
+  description: string;
+  category: string;
+  requires: string[];
+}
+
+export interface AvailableLLM {
+  name: string;
+  provider: string;
+  model_name: string;
+  description: string;
+  temperature: number;
+  max_tokens: number;
+}
+
+export interface PipelineTypeInfo {
+  type: string;
+  label: string;
+  description: string;
+  supports_steps: boolean;
+  supports_agent: boolean;
+  supports_branches: boolean;
+}
+
+export interface WorkerProfile {
+  name: string;
+  description: string;
+  tool_names: string[];
+  max_iterations: number;
+}
+
+export interface ConnectionRule {
+  from_type: string;
+  to_type: string;
+  edge_type: GraphEdgeType;
+}
+
+export interface ConnectionRules {
+  valid_edges: ConnectionRule[];
+  max_parallel_branches: number;
+  max_route_branches: number;
+}
+
+export interface PipelineBuilderMetadata {
+  step_types: StepTypeInfo[];
+  available_tools: AvailableTool[];
+  available_llms: AvailableLLM[];
+  pipeline_types: PipelineTypeInfo[];
+  worker_profiles: WorkerProfile[];
+  connection_rules: ConnectionRules;
+}
+
+export interface ValidateStepRequest {
+  step_type: string;
+  config: Record<string, any>;
+  context?: { pipeline_type?: string };
+}
+
+export interface ValidateStepResponse {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+// ============ Project Summary (Cross-Project Picker) ============
+
+export interface ProjectSummary {
+  project_id: string;
+  name: string;
+  description: string;
+  pipeline_type: string;
+  status: string;
+}
+
+// ============ PDF Backend ============
+
+export type PdfBackend = 'docling' | 'pymupdf';
+
+export interface PdfBackendInfo {
+  id: PdfBackend;
+  label: string;
+  description: string;
+  speed: 'slow' | 'fast' | string;
+  visual_grounding: 'element' | 'page' | string;
+  table_structure: boolean;
+  recommended_for: string;
+}
+
+export interface PdfBackendResponse {
+  project_id: string;
+  pdf_backend: PdfBackend;
+  available_backends: PdfBackendInfo[];
 }
 
 // ============ Quota & Admin ============

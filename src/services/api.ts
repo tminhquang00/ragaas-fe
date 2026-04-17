@@ -45,12 +45,24 @@ import {
     AdminProjectListResponse,
     QuotaRequestListResponse,
     QuotaApprovalResponse,
+    TemplateListResponse,
+    CreateFromTemplateRequest,
+    PipelineBuilderMetadata,
+    PipelineGraphResponse,
+    SaveGraphRequest,
+    ValidateStepRequest,
+    ValidateStepResponse,
+    ProjectSummary,
+    PdfBackend,
+    PdfBackendResponse,
 } from '../types';
 
 /** Thrown by API methods when the server returns a non-2xx status. Carries the HTTP status code so callers can distinguish e.g. 429 from 500. */
 export class ApiHttpError extends Error {
-    constructor(public readonly status: number, message: string) {
+    readonly status: number;
+    constructor(status: number, message: string) {
         super(message);
+        this.status = status;
         this.name = 'ApiHttpError';
     }
 }
@@ -108,6 +120,18 @@ export class RAGaaSClient {
     }
 
     // ============ Projects ============
+
+    async listTemplates(category?: string): Promise<TemplateListResponse> {
+        const params = category ? `?category=${category}` : '';
+        return this.request(`/api/v1/projects/templates${params}`);
+    }
+
+    async createProjectFromTemplate(request: CreateFromTemplateRequest): Promise<CreateProjectResponse> {
+        return this.request('/api/v1/projects/from-template', {
+            method: 'POST',
+            body: JSON.stringify(request),
+        });
+    }
 
     async createProject(data: CreateProjectRequest): Promise<CreateProjectResponse> {
         return this.request('/api/v1/projects', {
@@ -413,6 +437,31 @@ export class RAGaaSClient {
     async deleteDocument(projectId: string, documentId: string): Promise<void> {
         return this.request(`/api/v1/projects/${projectId}/documents/${documentId}`, {
             method: 'DELETE',
+        });
+    }
+
+    // ============ PDF Backend ============
+
+    /**
+     * Read the project's current PDF ingestion backend, plus the catalog of
+     * available backends with capability metadata (speed, visual grounding,
+     * table structure support, recommended use). Used to render the selector.
+     */
+    async getPdfBackend(projectId: string): Promise<PdfBackendResponse> {
+        return this.request(`/api/v1/projects/${projectId}/pdf-backend`);
+    }
+
+    /**
+     * Switch the project's PDF ingestion backend. Only affects PDFs ingested
+     * after the change — existing chunks are NOT re-processed.
+     */
+    async updatePdfBackend(
+        projectId: string,
+        pdfBackend: PdfBackend
+    ): Promise<PdfBackendResponse> {
+        return this.request(`/api/v1/projects/${projectId}/pdf-backend`, {
+            method: 'PATCH',
+            body: JSON.stringify({ pdf_backend: pdfBackend }),
         });
     }
 
@@ -727,6 +776,36 @@ export class RAGaaSClient {
         } catch {
             return false;
         }
+    }
+
+    // ============ Project Summary (for cross-project picker) ============
+
+    async getProjectsSummary(): Promise<ProjectSummary[]> {
+        return this.request('/api/v1/projects/summary');
+    }
+
+    // ============ Pipeline Builder ============
+
+    async getPipelineMetadata(): Promise<PipelineBuilderMetadata> {
+        return this.request('/api/v1/pipeline/metadata');
+    }
+
+    async getPipelineGraph(projectId: string): Promise<PipelineGraphResponse> {
+        return this.request(`/api/v1/projects/${projectId}/pipeline/graph`);
+    }
+
+    async savePipelineGraph(projectId: string, request: SaveGraphRequest): Promise<PipelineGraphResponse> {
+        return this.request(`/api/v1/projects/${projectId}/pipeline/graph`, {
+            method: 'PUT',
+            body: JSON.stringify(request),
+        });
+    }
+
+    async validateStep(request: ValidateStepRequest): Promise<ValidateStepResponse> {
+        return this.request('/api/v1/pipeline/validate-step', {
+            method: 'POST',
+            body: JSON.stringify(request),
+        });
     }
 
     // ============ Health ============

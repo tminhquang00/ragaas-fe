@@ -39,8 +39,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, currentUserId
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleClick()}
+            style={{ animationDelay: `${(project as any)._animIndex != null ? (project as any)._animIndex * 40 : 0}ms` }}
         >
-            {/* Left accent stripe */}
+            {/* Top accent gradient */}
             <div className={`project-card__accent project-card__accent--${tone}`} />
 
             <div className="project-card__body">

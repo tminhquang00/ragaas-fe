@@ -23,7 +23,7 @@ import {
 } from '@bosch/react-frok';
 import { PortalTooltip } from '../components/common/PortalTooltip';
 import { FrokIcon } from '../utils/iconAdapter';
-import { UploadZone, DocumentList } from '../components/documents';
+import { UploadZone, DocumentList, PdfBackendSelector } from '../components/documents';
 import { SharePointBrowser } from '../components/sharepoint';
 import { DocupediaIngest } from '../components/docupedia';
 import { ChatInterface } from '../components/chat';
@@ -31,7 +31,7 @@ import { WidgetEmbed } from '../components/widget';
 import { MembersPanel, RoleBadge } from '../components/sharing';
 import { DatabaseConnection } from '../components/database';
 import { useAuth } from '../context';
-import { Project, Document, SourceReference, UploadTaskStatus, PipelineConfig, StepProgress, AgentAction, ChatSession, getUserRole, hasPermission, ConnectionStatus } from '../types';
+import { Project, Document, SourceReference, UploadTaskStatus, StepProgress, AgentAction, ChatSession, getUserRole, hasPermission, ConnectionStatus } from '../types';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -105,9 +105,8 @@ export const ProjectDetailPage: React.FC = () => {
     const streamingBufferRef = useRef('');
     const rafIdRef = useRef<number | null>(null);
 
-    // Pipeline State
-    const [pendingPipelineConfig, setPendingPipelineConfig] = useState<PipelineConfig | null>(null);
-    const [pipelineDirty, setPipelineDirty] = useState(false);
+    // Pipeline State (only the setter is consumed — via onDirtyChange on PipelineEditor)
+    const [, setPipelineDirty] = useState(false);
 
     // Quota state
     const [quotaExhausted, setQuotaExhausted] = useState(false);
@@ -261,22 +260,7 @@ export const ProjectDetailPage: React.FC = () => {
         }
     };
 
-    const handleSavePipeline = async () => {
-        if (!apiClient || !projectId || !project || !pendingPipelineConfig) return;
-
-        try {
-            const updatedConfig = {
-                ...project.config,
-                pipeline_config: pendingPipelineConfig,
-            };
-            const updated = await apiClient.updateProject(projectId, { config: updatedConfig });
-            setProject(updated);
-            setPipelineDirty(false);
-            setPendingPipelineConfig(null);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to save pipeline');
-        }
-    };
+    // Pipeline save is now handled inside PipelineEditor via the graph API
 
     // Poll for upload task status
     const pollUploadTaskStatus = useCallback(async (taskId: string) => {
@@ -877,6 +861,17 @@ export const ProjectDetailPage: React.FC = () => {
 
             {/* Documents Tab */}
             <TabPanel value={tab} index={1}>
+                {/* PDF processing backend selector */}
+                {apiClient && (
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <PdfBackendSelector
+                            projectId={projectId!}
+                            apiClient={apiClient}
+                            canEdit={isEditorOrAbove}
+                        />
+                    </div>
+                )}
+
                 {/* Source toggle */}
                 <div style={{ marginBottom: '1.5rem' }}>
                     <OptionBar
@@ -997,26 +992,13 @@ export const ProjectDetailPage: React.FC = () => {
             {/* Pipeline Tab */}
             <TabPanel value={tab} index={3}>
                 <div className="project-pipeline-layout" style={{ height: 'calc(100vh - 300px)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-                        {isEditorOrAbove && (
-                            <Button
-                                mode="primary"
-                                icon="save"
-                                onClick={handleSavePipeline}
-                                disabled={!pipelineDirty}
-                            >
-                                Save Pipeline
-                            </Button>
-                        )}
-                    </div>
                     <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                        {project && project.config && (
+                        {project && apiClient && projectId && (
                             <PipelineEditor
-                                initialConfig={project.config.pipeline_config || { type: 'simple_rag', steps: [], chat_history_config: { include_history: true, max_history_turns: 3 } }}
-                                onConfigChange={(newConfig) => {
-                                    setPendingPipelineConfig(newConfig);
-                                    setPipelineDirty(true);
-                                }}
+                                projectId={projectId}
+                                apiClient={apiClient}
+                                readOnly={!isEditorOrAbove}
+                                onDirtyChange={setPipelineDirty}
                             />
                         )}
                     </div>

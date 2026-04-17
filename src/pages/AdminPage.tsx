@@ -78,6 +78,7 @@ const AdminReviewDialog: React.FC<AdminReviewDialogProps> = ({
                         : `The user will be notified their request was rejected.`}
                 </p>
                 <TextArea
+                    id="admin-review-note"
                     label={`Note to user (optional)`}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
@@ -263,51 +264,53 @@ export const AdminPage: React.FC = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {projects.map((proj) => {
-                                    const rawQuota = (proj as Project & { request_quota?: { used_count: number; total_allocated: number; remaining?: number } }).request_quota;
-                                    const quota = rawQuota ? {
-                                        ...rawQuota,
-                                        remaining: rawQuota.remaining ?? (rawQuota.total_allocated - rawQuota.used_count),
-                                    } : undefined;
-                                    const isExhausted = quota && quota.remaining === 0;
-                                    return (
-                                        <TableRow key={proj.project_id}>
-                                            <TableCell secondary>{proj.name}</TableCell>
-                                            <TableCell>{proj.tenant_id}</TableCell>
-                                            <TableCell>
-                                                <Badge type={
-                                                    proj.status === 'active' ? 'success' :
-                                                    proj.status === 'draft' ? 'warning' : undefined
-                                                }>
-                                                    {proj.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                {quota ? `${quota.used_count.toLocaleString()} / ${quota.total_allocated.toLocaleString()}` : '—'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {quota ? (
-                                                    <span style={{ color: isExhausted ? 'var(--bosch-red-50)' : undefined, fontWeight: isExhausted ? 700 : undefined }}>
-                                                        {quota.remaining.toLocaleString()}
-                                                    </span>
-                                                ) : '—'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {quota ? quota.total_allocated.toLocaleString() : '—'}
-                                            </TableCell>
+                                {([
+                                    ...projects.map((proj) => {
+                                        const rawQuota = (proj as Project & { request_quota?: { used_count: number; total_allocated: number; remaining?: number } }).request_quota;
+                                        const quota = rawQuota ? {
+                                            ...rawQuota,
+                                            remaining: rawQuota.remaining ?? (rawQuota.total_allocated - rawQuota.used_count),
+                                        } : undefined;
+                                        const isExhausted = quota && quota.remaining === 0;
+                                        return (
+                                            <TableRow key={proj.project_id}>
+                                                <TableCell secondary>{proj.name}</TableCell>
+                                                <TableCell>{proj.tenant_id}</TableCell>
+                                                <TableCell>
+                                                    <Badge type={
+                                                        proj.status === 'active' ? 'success' :
+                                                        proj.status === 'draft' ? 'warning' : undefined
+                                                    }>
+                                                        {proj.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {quota ? `${quota.used_count.toLocaleString()} / ${quota.total_allocated.toLocaleString()}` : '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {quota ? (
+                                                        <span style={{ color: isExhausted ? 'var(--bosch-red-50)' : undefined, fontWeight: isExhausted ? 700 : undefined }}>
+                                                            {quota.remaining.toLocaleString()}
+                                                        </span>
+                                                    ) : '—'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {quota ? quota.total_allocated.toLocaleString() : '—'}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    }),
+                                    ...(projects.length === 0 ? [
+                                        <TableRow key="empty">
+                                            <TableCell>No projects found.</TableCell>
+                                            <TableCell>{''}</TableCell>
+                                            <TableCell>{''}</TableCell>
+                                            <TableCell>{''}</TableCell>
+                                            <TableCell>{''}</TableCell>
+                                            <TableCell>{''}</TableCell>
                                         </TableRow>
-                                    );
-                                })}
-                                {projects.length === 0 && (
-                                    <TableRow>
-                                        <TableCell>No projects found.</TableCell>
-                                        <TableCell>{''}</TableCell>
-                                        <TableCell>{''}</TableCell>
-                                        <TableCell>{''}</TableCell>
-                                        <TableCell>{''}</TableCell>
-                                        <TableCell>{''}</TableCell>
-                                    </TableRow>
-                                )}
+                                    ] : []),
+                                ] as any)}
                             </TableBody>
                         </Table>
 
