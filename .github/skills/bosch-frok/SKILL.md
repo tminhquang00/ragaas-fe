@@ -3,14 +3,192 @@ name: bosch-frok
 description: Use this skill whenever working with `@bosch/react-frok` UI components — building UIs, forms, dialogs, navigation, tables, headers, footers, or any Bosch FROK component. Trigger on any mention of Bosch components, react-frok, FROK, Bosch design system, or tasks like "create a Bosch form", "add a dialog", "build a header", "use Bosch components", or any UI task in a project that uses `@bosch/react-frok`. Always use this skill before writing or editing any FROK component code — do not rely on memory alone.
 ---
 
-# Bosch React FROK — Component Skill
+# Bosch React FROK V2 — Component Skill
 
 ## ⚡ Quick Workflow
 
 **Before writing any component code:**
-1. Find the component in the lookup table below
-2. `view` the corresponding reference file to read full props, variants, and examples
-3. Check `design-tokens.md` for theming, colors, or typography needs
+1. Identify every UI element your component needs (button, input, header, modal, spinner, badge, etc.)
+2. Look up EACH element in the **Mandatory HTML → FROK Replacement Map** below
+3. Navigate to the appropriate category folder (`atoms/`, `molecules/`, `organisms/`, `custom/`)
+4. `read_file` the corresponding component file for full props, CSS variables, and examples
+5. Check `design-system/` for theming, colors, typography, or CSS variable customization
+
+---
+
+## 📁 Skill Structure
+
+```
+bosch-frok-v2/
+├── SKILL.md                     # This file (entry point)
+├── design-system/
+│   ├── index.md                 # Token architecture overview
+│   ├── color-gradations.md      # --g-{color}-{level} tokens (140+ tokens)
+│   ├── semantic-tokens.md       # State tokens (300+ variables, light/dark)
+│   ├── typography.md            # Font sizes, weights, line-heights
+│   ├── spacing.md               # Padding, margin, gap patterns
+│   └── shadows-motion.md        # Shadows, transitions, animations
+├── atoms/                       # Basic UI elements
+│   ├── index.md                 # Overview + list
+│   ├── button.md, icon.md, badge.md, chip.md, toggle.md, checkbox.md
+│   ├── input.md, tooltip.md, notification.md, pagination.md
+│   ├── rating.md, slider.md, progress-indicator.md, activity-indicator.md, text.md
+├── molecules/                   # Composite components
+│   ├── index.md, dialog.md, form-field.md, popover.md
+│   ├── breadcrumbs.md, step-indicator.md, dropdown.md
+│   ├── search-form.md, tab-navigation.md, side-navigation.md
+├── organisms/                   # App-level components
+│   ├── index.md, header.md, footer.md, form.md
+│   ├── login-form.md, context-menu.md, minimal-header.md
+├── custom/                      # Specialized components
+│   ├── index.md, blade.md, command-bar.md
+│   ├── data-list.md, overlay-activity-indicator.md
+└── patterns/                    # Cross-cutting concerns
+    ├── theming.md               # Light/dark mode switching
+    ├── responsive.md            # Breakpoints + mobile patterns
+    └── accessibility.md         # ARIA patterns + best practices
+```
+
+---
+
+## 🚫 Mandatory HTML → FROK Replacement Map
+
+**You MUST replace every native HTML element with its FROK equivalent.** If you write a native element where a FROK component exists, it is a violation.
+
+| ❌ NEVER Use (Native HTML) | ✅ ALWAYS Use (FROK) | Reference File |
+|---|---|---|
+| `<button>` | `<Button mode="primary\|secondary\|tertiary\|integrated">` | `atoms/button.md` |
+| `<a>` with custom styles | `<Link>` for styled links | `atoms/link.md` |
+| `<input type="text">` | `<TextField>` inside `<FormField>` | `atoms/input.md` |
+| `<textarea>` | `<TextArea>` inside `<FormField>` | `atoms/input.md` |
+| `<input type="checkbox">` | `<Checkbox>` | `atoms/checkbox.md` |
+| `<input type="radio">` | `<RadioButton>` | `molecules/form-field.md` |
+| `<select>` / `<option>` | `<Dropdown>` | `molecules/dropdown.md` |
+| `<form>` | `<Form description="...">` | `organisms/form.md` |
+| `<label>` + `<input>` | `<FormField label="..."><TextField /></FormField>` | `molecules/form-field.md` |
+| `<header>` (app bar) | `<Header>` or `<MinimalHeader>` | `organisms/header.md` |
+| `<nav>` tabs | `<TabNavigation>` + `<Tab>` | `molecules/tab-navigation.md` |
+| `<ul>` / `<li>` menu | `<List>` + `<MenuItem>` | `atoms/list.md` |
+| `<table>` / `<tr>` / `<td>` | `<Table>` + `<TableHead>` + `<TableBody>` + `<TableRow>` + `<TableCell>` | `atoms/table.md` |
+| `<dialog>` / custom modal / `window.confirm()` | `<Dialog>` (controlled) | `molecules/dialog.md` |
+| `<img>` | `<Image>` | `atoms/image.md` |
+| Custom CSS spinner | `<ActivityIndicator>` | `atoms/activity-indicator.md` |
+| Custom badge `<span>` | `<Badge>` or `<Chip>` | `atoms/badge.md` / `atoms/chip.md` |
+| Custom alert/toast `<div>` | `<Notification>` | `atoms/notification.md` |
+| Custom tooltip `<div>` | `<Tooltip>` | `atoms/tooltip.md` |
+| Custom accordion | `<Accordion>` | `atoms/accordion.md` |
+| Custom breadcrumbs | `<Breadcrumbs>` | `molecules/breadcrumbs.md` |
+| Custom progress bar | `<ProgressIndicator>` or `<StepIndicator>` | `atoms/progress-indicator.md` / `molecules/step-indicator.md` |
+
+**Exceptions** (native HTML is OK):
+- `<input type="file">` with `className="hidden"` — no FROK equivalent, hide and trigger via `<Button>`
+- `<div>`, `<span>`, `<section>`, `<main>` — structural/layout containers (but use `.e-container` class for page layout)
+- `<p>`, `<h1>`–`<h6>` — text content (but use FROK typography CSS classes like `.-size-4xl`, `.highlight`)
+
+---
+
+## 🎨 Styling Rules
+
+### Tailwind CSS Restrictions
+If the project uses Tailwind, it is **only allowed for layout utilities**:
+- ✅ **Allowed:** `flex`, `grid`, `gap-*`, `p-*`, `m-*`, `w-*`, `h-*`, `min-h-*`, `max-w-*`, `hidden`, `block`, `relative`, `absolute`, `sticky`, `z-*`, `overflow-*`, `truncate`, `space-y-*`
+- ❌ **Forbidden:** `bg-*`, `text-*` (colors), `border-*` (colors), `font-*`, `shadow-*`, `rounded-*` for component styling — use Bosch design tokens or FROK component props instead
+
+### Color Rules
+| ❌ WRONG | ✅ CORRECT |
+|---|---|
+| `className="bg-blue-600"` | `style={{ background: 'var(--g-blue-50)' }}` or `<Button mode="primary">` |
+| `className="text-red-500"` | `style={{ color: 'var(--g-red-50)' }}` or `<Notification variant="error">` |
+| `className="bg-gray-50"` | `style={{ background: 'var(--g-gray-95)' }}` or use `.-light-mode` class |
+| `color: #007bc0` | `color: var(--g-blue-50)` |
+
+### Font Rules
+| ❌ WRONG | ✅ CORRECT |
+|---|---|
+| `font-family: Inter, sans-serif` | Let Frontend Kit CSS provide `boschsans` automatically |
+| `@import url('fonts.googleapis.com/...')` | Remove — `boschsans` comes from `@bosch/frontend.kit-npm` |
+| `className="text-2xl font-bold"` | `className="-size-3xl highlight"` |
+
+---
+
+## 📄 Full Page Example
+
+```tsx
+import '@bosch/frontend.kit-npm/styles/frontend-kit.complete.css'; // Only in App.tsx
+import {
+  Header, Button, Icon, Form, FormField, TextField,
+  Notification, ActivityIndicator, Dialog, Badge
+} from '@bosch/react-frok';
+import { useState } from 'react';
+
+function CreateItemPage() {
+  const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  return (
+    <div>
+      <Header appName="My Bosch App" />
+
+      <main className="e-container" style={{ paddingTop: '2rem' }}>
+        <h1 className="-size-4xl highlight" style={{ marginBottom: '0.5rem' }}>
+          Create Item
+        </h1>
+        <p className="-size-m" style={{ color: 'var(--g-gray-50)', marginBottom: '2rem' }}>
+          Fill in the details below
+        </p>
+
+        {error && (
+          <Notification variant="error" title="Error" style={{ marginBottom: '1rem' }}>
+            {error}
+          </Notification>
+        )}
+
+        <Form description="Create Item Form">
+          <FormField label="Item Name">
+            <TextField
+              name="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter item name"
+            />
+          </FormField>
+
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+            <Button mode="primary" type="submit" disabled={!name.trim() || isLoading}>
+              {isLoading ? 'Creating...' : 'Create'}
+            </Button>
+            <Button mode="secondary" onClick={() => history.back()}>
+              Cancel
+            </Button>
+          </div>
+        </Form>
+
+        {isLoading && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 0' }}>
+            <ActivityIndicator />
+          </div>
+        )}
+
+        <Badge variant="success">Active</Badge>
+
+        <Dialog
+          title="Confirm Delete"
+          variant="warning"
+          open={showConfirm}
+          onOpenChange={setShowConfirm}
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          onConfirm={() => { /* handle delete */ }}
+        >
+          Are you sure you want to delete this item?
+        </Dialog>
+      </main>
+    </div>
+  );
+}
+```
 
 ---
 
@@ -18,15 +196,18 @@ description: Use this skill whenever working with `@bosch/react-frok` UI compone
 
 | Component(s) | Reference File |
 |---|---|
-| `Button`, `Link`, `Icon`, `Sticker`, `ValueModificator` | `references/actions.md` |
-| `TextField`, `TextArea`, `Checkbox`, `RadioButton`, `Toggle`, `Slider`, `Rating`, `SelectableTile`, `FormField`, `SearchForm`, `SearchSuggestions`, `ProgressIndicator` | `references/forms.md` |
-| `Badge`, `Chip`, `Notification`, `ActivityIndicator`, `StepIndicator` | `references/feedback.md` |
-| `Tile`, `Box`, `Divider`, `Layout`, `Form`, `TextImage`, `SideNavigation` | `references/layout.md` |
-| `List`, `MenuItem`, `Dropdown`, `TabNavigation`, `PageIndicator`, `Breadcrumbs`, `OptionBar`, `OptionBarItem`, `LanguageSelector` | `references/navigation.md` |
-| `Tooltip`, `Popover`, `Accordion`, `Dialog`, `Lightbox`, `Image`, `Table`, `TableHead`, `TableBody`, `TableRow`, `TableCell`, `Background`, `Text`, `Video` | `references/display.md` |
-| `Header`, `Footer`, `FooterLinks`, `ContextMenu`, `MinimalHeader`, `LoginForm` | `references/organisms.md` |
-| `CommandBar`, `Blade`, `DataList`, `OverlayActivityIndicator` | `references/custom.md` |
-| Colors, typography, spacing, semantic tokens, theming | `design-tokens.md` |
+| `Button`, `Link`, `Icon`, `Sticker`, `ValueModificator` | `atoms/` |
+| `Toggle`, `Checkbox`, `TextField`, `TextArea`, `Slider`, `Rating`, `SelectableTile` | `atoms/` |
+| `Badge`, `Chip`, `Notification`, `ActivityIndicator`, `ProgressIndicator` | `atoms/` |
+| `Tile`, `Box`, `Divider`, `Image`, `Text`, `Video`, `Background` | `atoms/` |
+| `List`, `MenuItem`, `TabNavigation`, `PageIndicator`, `OptionBar` | `atoms/` |
+| `Table`, `TableHead`, `TableBody`, `TableRow`, `TableCell`, `Tooltip`, `Accordion` | `atoms/` |
+| `FormField`, `SearchForm`, `SearchSuggestions`, `RadioButton` | `molecules/` |
+| `Dialog`, `Popover`, `Lightbox`, `Dropdown`, `Breadcrumbs`, `StepIndicator` | `molecules/` |
+| `SideNavigation`, `LanguageSelector` | `molecules/` |
+| `Header`, `Footer`, `FooterLinks`, `ContextMenu`, `MinimalHeader`, `LoginForm`, `Form` | `organisms/` |
+| `CommandBar`, `Blade`, `DataList`, `OverlayActivityIndicator` | `custom/` |
+| Colors, typography, spacing, semantic tokens, theming | `design-system/` |
 
 ---
 
@@ -36,7 +217,7 @@ description: Use this skill whenever working with `@bosch/react-frok` UI compone
 npm install @bosch/react-frok @bosch/frontend.kit-npm @bosch/bdds.tokens-npm styled-components
 ```
 
-### Vite Config (required — package uses `style` condition only, not `import`)
+### Vite Config (required)
 
 ```js
 // vite.config.js
@@ -57,27 +238,12 @@ export default defineConfig({
 })
 ```
 
-### CSS Import (add to App.tsx or main app component)
-
-**⚠️ IMPORTANT:** Import the CSS in your **App.tsx** (or root app component), NOT in main.tsx:
+### CSS Import (add to App.tsx)
 
 ```tsx
 // App.tsx - CORRECT ✅
 import '@bosch/frontend.kit-npm/styles/frontend-kit.complete.css';
-import ProductListingPage from './ProductListingPage';
-
-function App() {
-  return <ProductListingPage />;
-}
 ```
-
-```tsx
-// main.tsx - WRONG ❌
-// Don't import Bosch CSS here - it won't apply properly
-import '@bosch/frontend.kit-npm/styles/frontend-kit.complete.css';  // DON'T DO THIS
-```
-
-The CSS must be imported in the same file where your App component is defined, before any component imports.
 
 Available CSS bundles:
 - `frontend-kit.complete.css` — All styles (recommended)
@@ -88,75 +254,29 @@ Available CSS bundles:
 
 ---
 
-## Common Patterns
+## CSS Class Conventions
 
-### Primary Button
+| Prefix | Type | Example |
+|--------|------|---------|
+| `.a-` | Atom | `.a-button`, `.a-icon`, `.a-toggle` |
+| `.m-` | Molecule | `.m-dialog`, `.m-popover` |
+| `.o-` | Organism | `.o-header`, `.o-footer` |
+| `.e-` | Element/Layout | `.e-container` |
 
-```tsx
-import { Button } from '@bosch/react-frok';
-<Button mode="primary" onClick={handleClick}>Submit</Button>
-// Modes: 'primary' | 'secondary' | 'tertiary' | 'integrated'
-```
+---
 
-### Form with Fields
+## Common Gotchas
 
-```tsx
-import { Form, FormField, TextField, Button, Checkbox } from '@bosch/react-frok';
-
-<Form description="Login Form">
-  <FormField label="Username">
-    <TextField name="username" />
-  </FormField>
-  <FormField label="Password">
-    <TextField type="password" name="password" />
-  </FormField>
-  <FormField>
-    <Checkbox label="Remember me" />
-  </FormField>
-  <Button mode="primary" type="submit">Login</Button>
-</Form>
-```
-
-### Confirmation Dialog
-
-```tsx
-import { Dialog } from '@bosch/react-frok';
-
-<Dialog
-  title="Confirm Delete"
-  variant="warning"
-  open={isOpen}
-  onOpenChange={setIsOpen}
-  confirmLabel="Delete"
-  cancelLabel="Cancel"
-  onConfirm={handleDelete}
->
-  Are you sure you want to delete this item?
-</Dialog>
-```
-
-### Tab Navigation
-
-```tsx
-import { TabNavigation, Tab } from '@bosch/react-frok';
-
-<TabNavigation defaultValue="overview">
-  <Tab value="overview">Overview</Tab>
-  <Tab value="details">Details</Tab>
-  <Tab value="settings">Settings</Tab>
-</TabNavigation>
-```
-
-### Icons
-
-```tsx
-import { Icon } from '@bosch/react-frok';
-
-<Icon iconName="settings" />               // Bosch icon (3000+ available)
-<Icon iconName="close" isUiIcon />         // UI icon
-<Icon iconName="info" aria-label="Info" /> // Accessible standalone icon
-// Do NOT include the 'boschicon-bosch-ic-' prefix — the component adds it
-```
+| Problem | Fix |
+|---|---|
+| Icons not rendering | Check CSS import + do NOT add `boschicon-bosch-ic-` prefix to `iconName` |
+| Styles missing / unstyled | Import CSS in `App.tsx`, NOT in `main.tsx` |
+| `styled-components` error | Install `styled-components` separately; it's a peer dependency |
+| Dark mode not applying | Wrap in `<div className="-dark-mode">`, not `:root` override |
+| Dialog not closing | Use controlled pattern: `open={state}` + `onOpenChange={setState}` |
+| Form not submitting | Wrap with `<Form>` organism, use `<Button type="submit">` |
+| CSS not overriding | Check for CSS custom properties (e.g., `--max-dialog-width`) and override them |
+| Need more details | Investigate `node_modules/@bosch/react-frok/lib/cjs/` for source |
 
 ---
 
@@ -178,58 +298,4 @@ import { Icon } from '@bosch/react-frok';
 <div className="-contrast">...</div>      /* High contrast */
 ```
 
-See `design-tokens.md` for the full token reference.
-
----
-
-## CSS Class Conventions
-
-| Prefix | Type | Example |
-|--------|------|---------|
-| `.a-` | Atom | `.a-button`, `.a-icon`, `.a-toggle` |
-| `.m-` | Molecule | `.m-dialog`, `.m-table` |
-| `.o-` | Organism | `.o-header`, `.o-footer` |
-| `.e-` | Element/Layout | `.e-container` |
-
-```css
-/* Container utility */
-.e-container          /* max-width 1132px, auto margin */
-.e-container.-full-width  /* full-width with padding */
-```
-
----
-
-## Controlled vs Uncontrolled
-
-Many components support both patterns:
-
-```tsx
-// Controlled
-<Dialog open={isOpen} onOpenChange={setIsOpen} />
-
-// Uncontrolled
-<Dialog defaultOpen onOpenChange={(open) => console.log(open)} />
-```
-
----
-
-## Common Gotchas
-
-| Problem | Fix |
-|---|---|
-| Icons not rendering | Check you have `@bosch/frontend.kit-npm` CSS imported and do NOT add `boschicon-bosch-ic-` prefix to `iconName` |
-| **Styles missing / components look unstyled** | **Import CSS in `App.tsx`, NOT in `main.tsx`** — the CSS must be imported in the same file as your App component |
-| `styled-components` error | Install `styled-components` separately; it's a peer dependency |
-| Dark mode not applying | Wrap in `<div className="-dark-mode">`, not `:root` override |
-| Dialog not closing | Use controlled pattern: `open={state}` + `onOpenChange={setState}` |
-| Form not submitting | Wrap with `<Form>` organism, use `<Button type="submit">` |
-
----
-
-## Versions
-
-| Package | Version |
-|---|---|
-| `@bosch/react-frok` | 1.1.2 |
-| `@bosch/frontend.kit-npm` | 4.1.2 |
-| `@bosch/bdds.tokens-npm` | 1.1.0 |
+See `design-system/` folder for full token reference.
