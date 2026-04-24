@@ -58,7 +58,7 @@ export const MainLayout: React.FC = () => {
                             const item = navItems.find(i => i.value === data.value);
                             if (item) handleNavClick(item.path);
                         }}
-                        header={{ label: 'RAGaaS' }}
+                        header={{ label: 'Babbage' }}
                     >
                         {navItems.map((item) => (
                             <NavItem

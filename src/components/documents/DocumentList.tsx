@@ -90,7 +90,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                     No documents yet
                 </h6>
                 <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--app-text-secondary)' }}>
-                    Upload documents to get started with your knowledge base
+                    Upload documents to provide context for your AI agents
                 </p>
             </div>
         );

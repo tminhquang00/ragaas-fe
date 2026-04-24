@@ -168,7 +168,7 @@ export const ProjectsPage: React.FC = () => {
                 <div className="projects-hero__content">
                     <h4 className="projects-hero__title">Projects</h4>
                     <p className="projects-hero__subtitle">
-                        Manage your RAG knowledge bases
+                        Manage your AI agent workflows
                     </p>
                 </div>
                 <Button
@@ -275,7 +275,7 @@ export const ProjectsPage: React.FC = () => {
                             <Icon iconName="folder-open" className="projects-page-empty__icon" />
                             <h6 className="projects-page-empty-title">No projects yet</h6>
                             <p className="projects-page-empty-description">
-                                Create your first project to get started with AI-powered document Q&A
+                                Create your first project to start automating workflows with AI agents
                             </p>
                             <Button
                                 mode="primary"

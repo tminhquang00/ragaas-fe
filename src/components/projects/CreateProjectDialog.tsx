@@ -541,7 +541,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         rows={3}
-                        placeholder="A document Q&A system for…"
+                        placeholder="An automated workflow agent for…"
                     />
                     <Accordion headline="Advanced Settings" size="small">
                         <div className="cpd-advanced">

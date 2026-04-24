@@ -100,7 +100,7 @@ export const DashboardPage: React.FC = () => {
                     Dashboard
                 </h1>
                 <p style={{ margin: 0, fontSize: '1rem', color: 'var(--app-text-secondary)' }}>
-                    Welcome to RAG-as-a-Service. Manage your AI-powered knowledge bases.
+                    Welcome to Babbage - Enterprise Agent Foundry. Design, deploy, and monitor AI agents that automate your enterprise workflows.
                 </p>
             </div>
 
@@ -150,7 +150,7 @@ export const DashboardPage: React.FC = () => {
                 }}>
                     <ActionCard
                         title="Create Your First Project"
-                        description="Set up a new RAG project to start building your AI-powered knowledge base. Upload documents, configure your LLM, and start chatting."
+                        description="Create a new agent project to start automating workflows. Define your pipeline, configure your AI agents, and deploy in minutes."
                         onClick={() => navigate('/projects')}
                     />
                     <ActionCard

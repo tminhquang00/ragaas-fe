@@ -661,10 +661,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 <FrokIcon name="Chat" style={{ fontSize: 40, color: 'white' }} />
                             </div>
                             <h3 className="chat-empty-title">
-                                Ask me anything about your documents
+                                Chat with your AI agent
                             </h3>
                             <p className="chat-empty-subtitle">
-                                I'll search through your knowledge base to find answers
+                                Ask questions, trigger actions, or monitor your automated workflows
                             </p>
                             <div className="chat-empty-tip-box">
                                 <span className="chat-empty-tip">
