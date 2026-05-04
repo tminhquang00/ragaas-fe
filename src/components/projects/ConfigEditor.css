@@ -56,6 +56,39 @@
     max-width: 320px;
 }
 
+.config-llm-model-row {
+    align-items: flex-start;
+}
+
+.config-llm-model-control {
+    flex: 1;
+    max-width: 520px;
+}
+
+.config-llm-model-control .a-dropdown {
+    width: 100%;
+}
+
+.config-field-hint {
+    display: block;
+    margin-top: 4px;
+    color: var(--app-text-secondary, #71767c);
+    font-size: 0.75rem;
+}
+
+.config-llm-models-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    color: var(--app-text-secondary, #71767c);
+    font-size: 0.8125rem;
+}
+
+.config-llm-models-notice {
+    margin-bottom: 12px;
+}
+
 .config-field-toggle {
     margin-bottom: 12px;
     display: flex;

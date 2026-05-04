@@ -491,10 +491,18 @@ export const DatabaseConnection: React.FC<Props> = ({
 
                     {/* ── Authentication Mode ── */}
                     <div>
-                        <p style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                        <p style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem' }}>
                             Authentication Mode
                         </p>
-                        <div role="radiogroup">
+                        <div
+                            role="radiogroup"
+                            aria-label="Authentication Mode"
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.75rem',
+                            }}
+                        >
                             {/* Connection String — always available */}
                             <RadioButton
                                 name="authType"
@@ -502,7 +510,12 @@ export const DatabaseConnection: React.FC<Props> = ({
                                 value="connection_string"
                                 checked={authType === 'connection_string'}
                                 onChange={() => handleAuthTypeChange('connection_string')}
-                                label={<span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><FrokIcon name="Lock" /> Connection String</span>}
+                                label={
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                        <FrokIcon name="Lock" />
+                                        <span>Connection String</span>
+                                    </span>
+                                }
                             />
 
                             {/* Service Principal — SQL Server only */}
@@ -514,8 +527,9 @@ export const DatabaseConnection: React.FC<Props> = ({
                                     checked={authType === 'service_principal'}
                                     onChange={() => handleAuthTypeChange('service_principal')}
                                     label={
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                            <FrokIcon name="Key" /> My Azure App (Service Principal)
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                            <FrokIcon name="Key" />
+                                            <span>My Azure App (Service Principal)</span>
                                             <Chip label="SQL Server" />
                                         </span>
                                     }
@@ -533,7 +547,7 @@ export const DatabaseConnection: React.FC<Props> = ({
                                             : ''
                                     }
                                 >
-                                    <span>
+                                    <span style={{ display: 'inline-block' }}>
                                         <RadioButton
                                             name="authType"
                                             id="auth-app-service-principal"
@@ -542,8 +556,9 @@ export const DatabaseConnection: React.FC<Props> = ({
                                             disabled={appSpAvailable !== true}
                                             onChange={() => handleAuthTypeChange('app_service_principal')}
                                             label={
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                                    <FrokIcon name="Cloud" /> Platform App
+                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                    <FrokIcon name="Cloud" />
+                                                    <span>Platform App</span>
                                                     <Chip
                                                         label={
                                                             appSpAvailable === null ? 'Checking…' :

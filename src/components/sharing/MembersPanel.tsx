@@ -7,8 +7,9 @@ import {
 } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
 import { PortalTooltip } from '../common/PortalTooltip';
+import { PaginationControls } from '../common';
 
-import { ProjectMemberResponse, ProjectRole } from '../../types';
+import { ProjectMemberListResponse, ProjectMemberResponse, ProjectRole } from '../../types';
 import { ShareDialog } from './ShareDialog';
 
 // ── Role badge colours ────────────────────────────────────────────────────────
@@ -46,7 +47,7 @@ interface MembersPanelProps {
     onShare: (userId: string, role: 'editor' | 'viewer') => Promise<void>;
     onRevoke: (userId: string) => Promise<void>;
     /** Pass a function to fetch the current member list on mount / after mutations */
-    fetchMembers: (projectId: string) => Promise<ProjectMemberResponse[]>;
+    fetchMembers: (projectId: string, page: number, pageSize: number) => Promise<ProjectMemberListResponse>;
 }
 
 export const MembersPanel: React.FC<MembersPanelProps> = ({
@@ -61,13 +62,19 @@ export const MembersPanel: React.FC<MembersPanelProps> = ({
     const [error, setError] = useState('');
     const [shareOpen, setShareOpen] = useState(false);
     const [removingId, setRemovingId] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
 
-    const loadMembers = async () => {
+    const pageSize = 20;
+
+    const loadMembers = async (nextPage: number = page) => {
         setLoading(true);
         setError('');
         try {
-            const data = await fetchMembers(projectId);
-            setMembers(data);
+            const data = await fetchMembers(projectId, nextPage, pageSize);
+            setMembers(data.members);
+            setPage(data.page);
+            setTotal(data.total);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load members');
         } finally {
@@ -76,20 +83,20 @@ export const MembersPanel: React.FC<MembersPanelProps> = ({
     };
 
     useEffect(() => {
-        loadMembers();
+        loadMembers(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [projectId]);
 
     const handleShare = async (userId: string, role: 'editor' | 'viewer') => {
         await onShare(userId, role);
-        await loadMembers();
+        await loadMembers(1);
     };
 
     const handleRevoke = async (userId: string) => {
         setRemovingId(userId);
         try {
             await onRevoke(userId);
-            await loadMembers();
+            await loadMembers(page);
         } finally {
             setRemovingId(null);
         }
@@ -181,6 +188,15 @@ export const MembersPanel: React.FC<MembersPanelProps> = ({
                     </ul>
                 )}
             </div>
+
+            <PaginationControls
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                onPageChange={loadMembers}
+                disabled={loading}
+                label="members"
+            />
 
             <ShareDialog
                 open={shareOpen}

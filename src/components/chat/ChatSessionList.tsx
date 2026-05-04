@@ -14,6 +14,9 @@ interface ChatSessionListProps {
     onUpdateSession: (sessionId: string, title: string) => Promise<void>;
     onSearch?: (query: string) => void;
     isLoading?: boolean;
+    hasMore?: boolean;
+    onLoadMore?: () => void;
+    isLoadingMore?: boolean;
 }
 
 export const ChatSessionList: React.FC<ChatSessionListProps> = ({
@@ -25,6 +28,9 @@ export const ChatSessionList: React.FC<ChatSessionListProps> = ({
     onUpdateSession,
     onSearch,
     isLoading = false,
+    hasMore = false,
+    onLoadMore,
+    isLoadingMore = false,
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [editingSession, setEditingSession] = useState<{ id: string; title: string } | null>(null);
@@ -145,47 +151,60 @@ export const ChatSessionList: React.FC<ChatSessionListProps> = ({
                         <span className="session-list-empty-hint">Start a new conversation to begin</span>
                     </div>
                 ) : (
-                    Object.entries(groupedSessions).map(([label, groupSessions]) => (
-                        <React.Fragment key={label}>
-                            <div className="session-list-group-label">
-                                {label}
-                            </div>
-                            {groupSessions.map((session) => {
-                                const isSelected = session.session_id === currentSessionId;
-                                return (
-                                    <div
-                                        key={session.session_id}
-                                        className={`session-item ${isSelected ? 'selected' : ''}`}
-                                        onClick={() => onSelectSession(session.session_id)}
-                                        role="button"
-                                        tabIndex={0}
-                                        onKeyDown={(e) => { if (e.key === 'Enter') onSelectSession(session.session_id); }}
-                                    >
-                                        <span className="session-item-icon">
-                                            <FrokIcon
-                                                name="Chat"
-                                                style={{
-                                                    fontSize: 18,
-                                                    color: isSelected ? cssVar('--g-blue-50') : cssVar('--g-gray-50'),
-                                                }}
-                                            />
-                                        </span>
-                                        <span className="session-item-title">
-                                            {session.title || 'Untitled Session'}
-                                        </span>
-                                        <button
-                                            className="session-item-menu"
-                                            onClick={(e) => handleMenuOpen(e, session.session_id)}
-                                            aria-label="Session options"
-                                            type="button"
+                    <>
+                        {Object.entries(groupedSessions).map(([label, groupSessions]) => (
+                            <React.Fragment key={label}>
+                                <div className="session-list-group-label">
+                                    {label}
+                                </div>
+                                {groupSessions.map((session) => {
+                                    const isSelected = session.session_id === currentSessionId;
+                                    return (
+                                        <div
+                                            key={session.session_id}
+                                            className={`session-item ${isSelected ? 'selected' : ''}`}
+                                            onClick={() => onSelectSession(session.session_id)}
+                                            role="button"
+                                            tabIndex={0}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') onSelectSession(session.session_id); }}
                                         >
-                                            <FrokIcon name="MoreVert" style={{ fontSize: 18 }} />
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </React.Fragment>
-                    ))
+                                            <span className="session-item-icon">
+                                                <FrokIcon
+                                                    name="Chat"
+                                                    style={{
+                                                        fontSize: 18,
+                                                        color: isSelected ? cssVar('--g-blue-50') : cssVar('--g-gray-50'),
+                                                    }}
+                                                />
+                                            </span>
+                                            <span className="session-item-title">
+                                                {session.title || 'Untitled Session'}
+                                            </span>
+                                            <button
+                                                className="session-item-menu"
+                                                onClick={(e) => handleMenuOpen(e, session.session_id)}
+                                                aria-label="Session options"
+                                                type="button"
+                                            >
+                                                <FrokIcon name="MoreVert" style={{ fontSize: 18 }} />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </React.Fragment>
+                        ))}
+                        {hasMore && onLoadMore && (
+                            <div className="session-list-load-more">
+                                <Button
+                                    mode="tertiary"
+                                    onClick={onLoadMore}
+                                    disabled={isLoadingMore}
+                                >
+                                    {isLoadingMore ? 'Loading...' : 'Load more chats'}
+                                </Button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

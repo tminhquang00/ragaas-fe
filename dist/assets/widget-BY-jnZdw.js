@@ -1,0 +1,1 @@
+import{ab as r,j as t,r as o,aa as i}from"./WidgetApp-BLubkQHw.js";const e=document.getElementById("widget-root");if(!e)throw new Error("RAGaaS widget: missing #widget-root element");r.createRoot(e).render(t.jsx(o.StrictMode,{children:t.jsx(i,{})}));

@@ -4,6 +4,7 @@
 
 export interface LLMConfig {
   config_name: string;
+  weak_llm_config_name?: string;
   temperature?: number;
   max_tokens?: number;
 }
@@ -100,9 +101,13 @@ export interface TemplateInfo {
   icon: string;
 }
 
+export type TemplateCategory = TemplateInfo['category'];
+
 export interface TemplateListResponse {
   templates: TemplateInfo[];
   total: number;
+  page: number;
+  page_size: number;
 }
 
 export interface TemplateOverrides {
@@ -112,6 +117,34 @@ export interface TemplateOverrides {
   vector_db_provider?: string;
   retrieval_method?: string;
   top_k?: number;
+}
+
+export interface LLMModelInfo {
+  config_name: string;
+  label?: string | null;
+  display_name?: string | null;
+  description?: string | null;
+  provider?: string | null;
+  model_name?: string | null;
+  is_current?: boolean;
+  is_current_weak?: boolean;
+  is_default?: boolean;
+  is_default_weak?: boolean;
+  [key: string]: unknown;
+}
+
+export interface LLMModelsResponse {
+  config_name: string;
+  weak_llm_config_name?: string | null;
+  default_config_name?: string | null;
+  default_weak_llm_config_name?: string | null;
+  platform_default_config_name?: string | null;
+  platform_default_weak_llm_config_name?: string | null;
+  platform_defaults?: {
+    config_name?: string | null;
+    weak_llm_config_name?: string | null;
+  } | null;
+  available_models: LLMModelInfo[];
 }
 
 export interface CreateFromTemplateRequest {
@@ -333,6 +366,7 @@ export interface ChatRequest {
   temperature?: number;
   top_k?: number;
   conversation_history?: ChatMessage[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface SourceReference {
@@ -382,13 +416,77 @@ export interface ChatResponse {
   model: string;
   session_id: string;
   next_suggestions?: string[];
+  trace_id?: string;
 }
 
 export interface StreamingChunk {
   chunk_id?: string;
-  type: 'step_start' | 'step_end' | 'agent_action' | 'content' | 'source' | 'complete' | 'error';
+  type: 'step_start' | 'step_end' | 'agent_action' | 'tool_start' | 'tool_end' | 'content' | 'source' | 'complete' | 'error';
   data: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface TraceError {
+  type: string;
+  message: string;
+}
+
+export interface StepTrace {
+  name: string;
+  type: string;
+  status: 'ok' | 'error';
+  latency_ms: number;
+  input_size: number;
+  output_size: number;
+  error?: TraceError | null;
+}
+
+export interface TracePayloads {
+  query?: string | null;
+  rendered_prompt?: unknown;
+  llm_response?: unknown;
+  retrieved_chunks?: Record<string, unknown>[];
+  step_io?: Record<string, { input?: unknown; output?: unknown }>;
+  [key: string]: unknown;
+}
+
+export interface ProcessingEvent {
+  event_id: string;
+  type:
+    | 'step_start'
+    | 'step_end'
+    | 'agent_action'
+    | 'tool_start'
+    | 'tool_end'
+    | 'complete'
+    | 'error';
+  name?: string | null;
+  parent_step?: string | null;
+  status?: 'running' | 'completed' | 'error' | 'cancelled' | null;
+  message?: string | null;
+  duration_ms?: number | null;
+  input_summary?: string | null;
+  output_summary?: string | null;
+  metadata: Record<string, unknown>;
+  timestamp: string;
+}
+
+export interface PipelineTraceResponse {
+  trace_id: string;
+  query_log_id?: string | null;
+  tenant_id: string;
+  project_id: string;
+  session_id?: string | null;
+  user_id?: string | null;
+  pipeline_type: string;
+  execution_mode: string;
+  status: 'ok' | 'error';
+  error?: TraceError | null;
+  total_latency_ms: number;
+  steps: StepTrace[];
+  processing_events: ProcessingEvent[];
+  payloads?: TracePayloads | null;
+  created_at: string;
 }
 
 // Step progress for pipeline visualization
@@ -405,6 +503,10 @@ export interface AgentAction {
   action: string;
   tool?: string;
   input?: string;
+  output?: string;
+  parent_step?: string;
+  status?: 'running' | 'completed' | 'error' | 'cancelled';
+  duration_ms?: number;
 }
 
 
@@ -438,6 +540,13 @@ export interface SessionListResponse {
   total: number;
   page: number;
   page_size: number;
+}
+
+export interface SessionMessagesResponse {
+  session_id: string;
+  messages: ChatMessage[];
+  has_more: boolean;
+  next_cursor: string | null;
 }
 
 // ============ Widget ============
@@ -511,6 +620,13 @@ export interface ProjectMemberResponse {
   role: ProjectRole;
   added_at: string;
   added_by: string | null;
+}
+
+export interface ProjectMemberListResponse {
+  members: ProjectMemberResponse[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 export interface MigrationResult {
@@ -669,6 +785,59 @@ export interface AuditLogResponse {
   offset: number;
 }
 
+// ============ MCP Servers ============
+
+export type MCPTransport = 'stdio' | 'http';
+
+export interface MCPServerConfig {
+  name: string;
+  transport: MCPTransport;
+  command?: string | null;
+  args: string[];
+  env: Record<string, string>;
+  url?: string | null;
+  headers: Record<string, string>;
+  enabled: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface MCPServerListResponse {
+  servers: MCPServerConfig[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface MCPServerPatchRequest {
+  enabled: boolean;
+}
+
+export interface MCPToolInfo {
+  name: string;
+  description?: string | null;
+}
+
+export type MCPServerTestErrorType =
+  | 'validation_error'
+  | 'import_error'
+  | 'timeout'
+  | 'command_not_found'
+  | 'connection_error'
+  | 'unknown_error'
+  | string;
+
+export interface MCPServerTestResult {
+  success: boolean;
+  server_name: string;
+  transport: MCPTransport;
+  latency_ms: number;
+  tool_count: number;
+  tools: MCPToolInfo[];
+  error_type: MCPServerTestErrorType | null;
+  error: string | null;
+}
+
 // ============ Pipeline Graph (Visual Builder) ============
 
 export type GraphNodeType =
@@ -806,6 +975,13 @@ export interface ProjectSummary {
   status: string;
 }
 
+export interface ProjectSummaryListResponse {
+  projects: ProjectSummary[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 // ============ PDF Backend ============
 
 export type PdfBackend = 'docling' | 'pymupdf';
@@ -828,3 +1004,6 @@ export interface PdfBackendResponse {
 
 // ============ Quota & Admin ============
 export * from './quota';
+
+// ============ Dashboard ============
+export * from './dashboard';

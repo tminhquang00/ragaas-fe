@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     Button,
     TabNavigation,
@@ -9,7 +9,7 @@ import {
     Icon,
 } from '@bosch/react-frok';
 import { ProjectCard, CreateProjectDialog } from '../components/projects';
-import { ApiKeyModal } from '../components/common';
+import { ApiKeyModal, PaginationControls } from '../components/common';
 import { useAuth } from '../context';
 import { Project, CreateProjectRequest, CreateFromTemplateRequest, getUserRole } from '../types';
 
@@ -28,25 +28,31 @@ export const ProjectsPage: React.FC = () => {
     });
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [page, setPage] = useState(1);
+    const [totalProjects, setTotalProjects] = useState(0);
 
-    const fetchProjects = async () => {
+    const pageSize = 20;
+
+    const fetchProjects = useCallback(async (nextPage: number = page) => {
         if (!apiClient) return;
 
         try {
             setLoading(true);
             setError('');
-            const response = await apiClient.listProjects(1, 50, statusFilter === 'all' ? undefined : statusFilter);
+            const response = await apiClient.listProjects(nextPage, pageSize, statusFilter === 'all' ? undefined : statusFilter);
             setProjects(response.projects);
+            setTotalProjects(response.total);
+            setPage(response.page);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load projects');
         } finally {
             setLoading(false);
         }
-    };
+    }, [apiClient, page, statusFilter]);
 
     useEffect(() => {
-        fetchProjects();
-    }, [apiClient, statusFilter]);
+        fetchProjects(page);
+    }, [fetchProjects, page]);
 
     const handleCreateProject = async (data: CreateProjectRequest) => {
         if (!apiClient) return;
@@ -209,7 +215,10 @@ export const ProjectsPage: React.FC = () => {
             <div className="projects-filterbar">
                 <TabNavigation
                     selectedValue={statusFilter}
-                    onTabSelect={(_ev, data) => setStatusFilter(data.value as string)}
+                    onTabSelect={(_ev, data) => {
+                        setStatusFilter(data.value as string);
+                        setPage(1);
+                    }}
                 >
                     <Tab value="all">All</Tab>
                     <Tab value="active">Active</Tab>
@@ -347,6 +356,17 @@ export const ProjectsPage: React.FC = () => {
                         </div>
                     );
                 })()
+            )}
+
+            {!loading && filteredProjects.length > 0 && (
+                <PaginationControls
+                    page={page}
+                    pageSize={pageSize}
+                    total={totalProjects}
+                    onPageChange={setPage}
+                    disabled={loading}
+                    label="projects"
+                />
             )}
 
             {/* Create Project Dialog */}

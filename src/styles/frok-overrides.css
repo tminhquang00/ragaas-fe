@@ -1141,6 +1141,12 @@ body:has(.a-box--modal.-show) {
     max-height: calc(65vh - 140px);
 }
 
+.cpd-template-count {
+    margin: 12px 24px 0;
+    color: var(--app-text-secondary);
+    font-size: 0.8125rem;
+}
+
 @media (max-width: 700px) {
     .cpd-templates-grid {
         grid-template-columns: 1fr;

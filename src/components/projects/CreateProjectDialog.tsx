@@ -197,6 +197,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
     const [templates, setTemplates] = useState<TemplateInfo[]>([]);
     const [templatesLoading, setTemplatesLoading] = useState(false);
     const [templatesError, setTemplatesError] = useState('');
+    const [templatesTotal, setTemplatesTotal] = useState(0);
     const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
     const [selectedTemplate, setSelectedTemplate] = useState<TemplateInfo | null>(null);
 
@@ -215,23 +216,27 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
         setTemplatesLoading(true);
         setTemplatesError('');
         try {
-            const response = await apiClient.listTemplates();
+            const response = await apiClient.listTemplates({
+                category: categoryFilter === 'all' ? undefined : categoryFilter,
+                page: 1,
+                page_size: 100,
+            });
             setTemplates(response.templates);
+            setTemplatesTotal(response.total);
         } catch (err) {
             setTemplatesError(err instanceof Error ? err.message : 'Failed to load templates');
         } finally {
             setTemplatesLoading(false);
         }
-    }, [apiClient]);
+    }, [apiClient, categoryFilter]);
 
     useEffect(() => {
-        if (open && mode === 'templates' && templates.length === 0) {
+        if (open && mode === 'templates') {
             fetchTemplates();
         }
-    }, [open, mode, fetchTemplates, templates.length]);
+    }, [open, mode, fetchTemplates]);
 
-    const filteredTemplates =
-        categoryFilter === 'all' ? templates : templates.filter((t) => t.category === categoryFilter);
+    const filteredTemplates = templates;
 
     const handleReset = () => {
         setMode('templates');
@@ -413,17 +418,24 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                             <p className="cpd-templates-loading-text">Loading templates…</p>
                         </div>
                     ) : (
-                        <div className="cpd-templates-grid">
-                            {filteredTemplates.map((template) => (
-                                <TemplateCard key={template.id} template={template} onSelect={handleSelectTemplate} />
-                            ))}
-                            {filteredTemplates.length === 0 && (
-                                <div className="cpd-templates-empty">
-                                    <Icon iconName="search" />
-                                    <p>No templates in this category</p>
-                                </div>
+                        <>
+                            {templatesTotal > filteredTemplates.length && (
+                                <p className="cpd-template-count">
+                                    Showing first {filteredTemplates.length} of {templatesTotal} templates
+                                </p>
                             )}
-                        </div>
+                            <div className="cpd-templates-grid">
+                                {filteredTemplates.map((template) => (
+                                    <TemplateCard key={template.id} template={template} onSelect={handleSelectTemplate} />
+                                ))}
+                                {filteredTemplates.length === 0 && (
+                                    <div className="cpd-templates-empty">
+                                        <Icon iconName="search" />
+                                        <p>No templates in this category</p>
+                                    </div>
+                                )}
+                            </div>
+                        </>
                     )}
                 </div>
             )}

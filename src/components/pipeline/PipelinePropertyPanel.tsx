@@ -197,6 +197,8 @@ const ProjectNodeConfig = ({
     currentProjectId,
     projectSearch,
     projectPickerOpen,
+    projectSummariesLoading,
+    projectSummariesTotal,
     onSearchChange,
     onPickerToggle,
     onSelectProject,
@@ -207,6 +209,8 @@ const ProjectNodeConfig = ({
     currentProjectId?: string;
     projectSearch: string;
     projectPickerOpen: boolean;
+    projectSummariesLoading: boolean;
+    projectSummariesTotal: number;
     onSearchChange: (v: string) => void;
     onPickerToggle: (v: boolean) => void;
     onSelectProject: (s: ProjectSummary) => void;
@@ -215,15 +219,17 @@ const ProjectNodeConfig = ({
     const available = projectSummaries.filter(
         (p) => p.project_id !== currentProjectId && p.status === 'active'
     );
-    const filtered = projectSearch
-        ? available.filter(
-              (p) =>
-                  p.name.toLowerCase().includes(projectSearch.toLowerCase()) ||
-                  p.description?.toLowerCase().includes(projectSearch.toLowerCase())
-          )
-        : available;
 
-    const selectedProject = available.find((p) => p.project_id === config.project_id);
+    const selectedProject = available.find((p) => p.project_id === config.project_id)
+        ?? (config.project_id
+            ? {
+                project_id: config.project_id,
+                name: config.project_name || config.project_id,
+                description: '',
+                pipeline_type: config.pipeline_type || 'project',
+                status: 'active',
+            } satisfies ProjectSummary
+            : undefined);
 
     const pipelineTypeColors: Record<string, string> = {
         simple_rag: '#007bc0',
@@ -313,33 +319,25 @@ const ProjectNodeConfig = ({
                         }}
                     >
                         <div style={{ padding: '0.375rem' }}>
-                            <input
-                                type="text"
+                            <TextField
+                                id="project-picker-search"
                                 value={projectSearch}
                                 onChange={(e) => onSearchChange(e.target.value)}
                                 placeholder="Search projects..."
                                 autoFocus
-                                style={{
-                                    width: '100%',
-                                    padding: '0.375rem 0.5rem',
-                                    border: '1px solid var(--app-border)',
-                                    borderRadius: 2,
-                                    background: 'var(--app-bg)',
-                                    color: 'var(--app-text)',
-                                    fontSize: '0.8125rem',
-                                    fontFamily: 'inherit',
-                                    outline: 'none',
-                                    boxSizing: 'border-box',
-                                }}
                             />
                         </div>
                         <div style={{ overflowY: 'auto', flex: 1 }}>
-                            {filtered.length === 0 ? (
+                            {projectSummariesLoading ? (
+                                <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8125rem', color: 'var(--app-text-secondary)' }}>
+                                    Loading projects...
+                                </div>
+                            ) : available.length === 0 ? (
                                 <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8125rem', color: 'var(--app-text-secondary)' }}>
                                     No matching projects
                                 </div>
                             ) : (
-                                filtered.map((p) => (
+                                available.map((p) => (
                                     <button
                                         key={p.project_id}
                                         onClick={() => onSelectProject(p)}
@@ -398,6 +396,11 @@ const ProjectNodeConfig = ({
                                 ))
                             )}
                         </div>
+                        {projectSummariesTotal > available.length && (
+                            <div style={{ padding: '0.375rem 0.625rem', borderTop: '1px solid var(--app-border)', fontSize: '0.6875rem', color: 'var(--app-text-secondary)' }}>
+                                Showing {available.length} of {projectSummariesTotal}. Refine search to narrow results.
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -425,6 +428,8 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
     const [config, setConfig] = useState<Record<string, any>>({});
     const [label, setLabel] = useState('');
     const [projectSummaries, setProjectSummaries] = useState<ProjectSummary[]>([]);
+    const [projectSummariesLoading, setProjectSummariesLoading] = useState(false);
+    const [projectSummariesTotal, setProjectSummariesTotal] = useState(0);
     const [projectSearch, setProjectSearch] = useState('');
     const [projectPickerOpen, setProjectPickerOpen] = useState(false);
     const { apiClient } = useAuth();
@@ -438,10 +443,28 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
     }, [selectedNode]);
 
     useEffect(() => {
-        if (selectedNode?.data.type === 'project' && apiClient && projectSummaries.length === 0) {
-            apiClient.getProjectsSummary().then(setProjectSummaries).catch(() => {});
-        }
-    }, [selectedNode?.data.type, apiClient]);
+        if (selectedNode?.data.type !== 'project' || !apiClient || !projectPickerOpen) return;
+
+        const timer = window.setTimeout(async () => {
+            setProjectSummariesLoading(true);
+            try {
+                const response = await apiClient.getProjectsSummary({
+                    q: projectSearch.trim() || undefined,
+                    page: 1,
+                    page_size: 20,
+                });
+                setProjectSummaries(response.projects);
+                setProjectSummariesTotal(response.total);
+            } catch {
+                setProjectSummaries([]);
+                setProjectSummariesTotal(0);
+            } finally {
+                setProjectSummariesLoading(false);
+            }
+        }, projectSearch.trim() ? 300 : 0);
+
+        return () => window.clearTimeout(timer);
+    }, [selectedNode?.data.type, apiClient, projectPickerOpen, projectSearch]);
 
     const handleConfigChange = (key: string, value: any) => {
         const newConfig = { ...config, [key]: value };
@@ -581,6 +604,8 @@ export const PipelinePropertyPanel = ({ selectedNode, onUpdateNode, onDeleteNode
                             currentProjectId={currentProjectId}
                             projectSearch={projectSearch}
                             projectPickerOpen={projectPickerOpen}
+                            projectSummariesLoading={projectSummariesLoading}
+                            projectSummariesTotal={projectSummariesTotal}
                             onSearchChange={setProjectSearch}
                             onPickerToggle={setProjectPickerOpen}
                             onSelectProject={handleSelectProject}

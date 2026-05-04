@@ -30,8 +30,12 @@ import { ChatInterface } from '../components/chat';
 import { WidgetEmbed } from '../components/widget';
 import { MembersPanel, RoleBadge } from '../components/sharing';
 import { DatabaseConnection } from '../components/database';
+import { TracingPanel } from '../components/tracing';
+import { McpServersPanel } from '../components/mcp';
+import { PaginationControls } from '../components/common';
 import { useAuth } from '../context';
-import { Project, Document, SourceReference, UploadTaskStatus, StepProgress, AgentAction, ChatSession, getUserRole, hasPermission, ConnectionStatus } from '../types';
+import { Project, Document, SourceReference, UploadTaskStatus, StepProgress, AgentAction, ChatSession, ChatMessage as BackendChatMessage, getUserRole, hasPermission, ConnectionStatus } from '../types';
+import { buildSourceReference, getStreamErrorMessage, getStreamTraceId, numberValue, parseStreamObject, stringValue } from '../utils/chatStream';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -43,6 +47,19 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
         {value === index && children}
     </div>
 );
+
+const PROJECT_DETAIL_TABS = {
+    OVERVIEW: 0,
+    DOCUMENTS: 1,
+    CHAT: 2,
+    PIPELINE: 3,
+    WIDGET: 4,
+    DATABASE: 5,
+    MCP_SERVERS: 6,
+    SETTINGS: 7,
+    MEMBERS: 8,
+    TRACING: 9,
+} as const;
 
 interface ChatMessage {
     id: string;
@@ -65,13 +82,36 @@ interface UploadFile {
     error?: string;
 }
 
+const DOCUMENT_PAGE_SIZE = 20;
+const SESSION_PAGE_SIZE = 20;
+const MESSAGE_PAGE_SIZE = 50;
+
+const mapBackendMessages = (backendMessages: BackendChatMessage[]): ChatMessage[] =>
+    backendMessages.map((m) => ({
+        id: m.message_id,
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+        timestamp: new Date(m.timestamp),
+        sources: m.metadata?.sources as SourceReference[] | undefined,
+        images: m.images,
+        metadata: m.metadata,
+    }));
+
+const mergeSessionsById = (existing: ChatSession[], incoming: ChatSession[]): ChatSession[] => {
+    const seen = new Set(existing.map((session) => session.session_id));
+    return [...existing, ...incoming.filter((session) => !seen.has(session.session_id))];
+};
+
 export const ProjectDetailPage: React.FC = () => {
     const { projectId } = useParams<{ projectId: string }>();
     const navigate = useNavigate();
-    const { apiClient, tenantId } = useAuth();
+    const { apiClient, tenantId, isAdmin } = useAuth();
 
     const [project, setProject] = useState<Project | null>(null);
     const [documents, setDocuments] = useState<Document[]>([]);
+    const [documentsPage, setDocumentsPage] = useState(1);
+    const [documentsTotal, setDocumentsTotal] = useState(0);
+    const [documentsLoading, setDocumentsLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [tab, setTab] = useState(0);
@@ -88,6 +128,7 @@ export const ProjectDetailPage: React.FC = () => {
     // Database connection status (for badge + chat hint)
     const [dbStatus, setDbStatus] = useState<ConnectionStatus | null>(null);
     const [dbDisplayName, setDbDisplayName] = useState<string | null>(null);
+    const [selectedTraceId, setSelectedTraceId] = useState<string | undefined>();
 
     // Chat state
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -96,6 +137,13 @@ export const ProjectDetailPage: React.FC = () => {
     const [sessionId, setSessionId] = useState<string | undefined>();
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [sessionsLoading, setSessionsLoading] = useState(false);
+    const [sessionsLoadingMore, setSessionsLoadingMore] = useState(false);
+    const [sessionsPage, setSessionsPage] = useState(1);
+    const [sessionsTotal, setSessionsTotal] = useState(0);
+    const [sessionsQuery, setSessionsQuery] = useState('');
+    const [olderMessagesLoading, setOlderMessagesLoading] = useState(false);
+    const [olderMessagesCursor, setOlderMessagesCursor] = useState<string | null>(null);
+    const [hasOlderMessages, setHasOlderMessages] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [isStreaming, setIsStreaming] = useState(false);
     const [steps, setSteps] = useState<StepProgress[]>([]);
@@ -131,39 +179,63 @@ export const ProjectDetailPage: React.FC = () => {
         }
     }, [apiClient, projectId, navigate]);
 
-    const fetchDocuments = useCallback(async () => {
+    const fetchDocuments = useCallback(async (page: number = 1) => {
         if (!apiClient || !projectId) return;
 
         try {
-            const response = await apiClient.listDocuments(projectId);
+            setDocumentsLoading(true);
+            const response = await apiClient.listDocuments(projectId, page, DOCUMENT_PAGE_SIZE);
             setDocuments(response.documents);
+            setDocumentsPage(response.page);
+            setDocumentsTotal(response.total);
         } catch (err) {
             console.error('Failed to load documents:', err);
+        } finally {
+            setDocumentsLoading(false);
         }
     }, [apiClient, projectId]);
 
-    const fetchSessions = useCallback(async () => {
+    const fetchSessions = useCallback(async (
+        page: number = 1,
+        options?: { append?: boolean; query?: string }
+    ) => {
         if (!apiClient || !projectId) return;
+        const query = options?.query ?? sessionsQuery;
+        const append = options?.append ?? false;
         try {
-            setSessionsLoading(true);
-            const data = await apiClient.getSessions(projectId);
-            setSessions(data.sessions);
+            if (append) {
+                setSessionsLoadingMore(true);
+            } else {
+                setSessionsLoading(true);
+            }
+            const data = query.trim()
+                ? await apiClient.searchSessions(projectId, query.trim(), page, SESSION_PAGE_SIZE)
+                : await apiClient.getSessions(projectId, page, SESSION_PAGE_SIZE);
+            setSessions((prev) => append ? mergeSessionsById(prev, data.sessions) : data.sessions);
+            setSessionsPage(data.page);
+            setSessionsTotal(data.total);
         } catch (err) {
             console.error('Failed to load sessions:', err);
         } finally {
             setSessionsLoading(false);
+            setSessionsLoadingMore(false);
         }
-    }, [apiClient, projectId]);
+    }, [apiClient, projectId, sessionsQuery]);
 
     useEffect(() => {
         fetchProject();
-        fetchDocuments();
+        fetchDocuments(1);
     }, [fetchProject, fetchDocuments]);
+
+    const handleViewTrace = useCallback((traceId: string) => {
+        setSelectedTraceId(traceId);
+        setTab(PROJECT_DETAIL_TABS.TRACING);
+    }, []);
 
     // Fetch sessions when chat tab is active
     useEffect(() => {
-        if (tab === 2) {
-            fetchSessions();
+        if (tab === PROJECT_DETAIL_TABS.CHAT) {
+            fetchSessions(1, { query: sessionsQuery });
         }
     }, [tab, fetchSessions]);
 
@@ -172,6 +244,8 @@ export const ProjectDetailPage: React.FC = () => {
         const loadSessionMessages = async () => {
             if (!sessionId) {
                 setMessages([]);
+                setHasOlderMessages(false);
+                setOlderMessagesCursor(null);
                 return;
             }
 
@@ -179,32 +253,23 @@ export const ProjectDetailPage: React.FC = () => {
 
             try {
                 setChatLoading(true);
-                const msgs = await apiClient.getSessionMessages(projectId, sessionId);
+                const msgs = await apiClient.getSessionMessages(projectId, sessionId, MESSAGE_PAGE_SIZE);
 
-                // Convert backend messages to frontend format
-                const chatMsgs: ChatMessage[] = msgs.messages.map(m => ({
-                    id: m.message_id,
-                    role: m.role as 'user' | 'assistant',
-                    content: m.content,
-                    timestamp: new Date(m.timestamp),
-                    // Note: Basic message retrieval might not include full source details 
-                    // dependent on backend implementation. Assuming basic content for now.
-                    sources: m.metadata?.sources as SourceReference[] | undefined,
-                    images: m.images,
-                    // Pass through metadata to display uploaded files in chat history
-                    metadata: m.metadata,
-                }));
-                setMessages(chatMsgs);
+                setMessages(mapBackendMessages(msgs.messages));
+                setHasOlderMessages(msgs.has_more);
+                setOlderMessagesCursor(msgs.next_cursor);
             } catch (err) {
                 console.error('Failed to load session messages:', err);
                 // Fallback to empty if failed
                 setMessages([]);
+                setHasOlderMessages(false);
+                setOlderMessagesCursor(null);
             } finally {
                 setChatLoading(false);
             }
         };
 
-        if (tab === 2) {
+        if (tab === PROJECT_DETAIL_TABS.CHAT) {
             loadSessionMessages();
         }
     }, [sessionId, apiClient, projectId, tab]);
@@ -218,11 +283,11 @@ export const ProjectDetailPage: React.FC = () => {
         if (processingDocs.length === 0) return;
 
         const interval = setInterval(() => {
-            fetchDocuments();
+            fetchDocuments(documentsPage);
         }, 3000);
 
         return () => clearInterval(interval);
-    }, [documents, fetchDocuments]);
+    }, [documents, documentsPage, fetchDocuments]);
 
     const handleActivate = async () => {
         if (!apiClient || !projectId) return;
@@ -290,12 +355,12 @@ export const ProjectDetailPage: React.FC = () => {
                     pollingIntervalRef.current = null;
                 }
                 setUploadTaskId(null);
-                fetchDocuments();
+                fetchDocuments(documentsPage);
             }
         } catch (err) {
             console.error('Failed to poll task status:', err);
         }
-    }, [apiClient, projectId, fetchDocuments]);
+    }, [apiClient, projectId, documentsPage, fetchDocuments]);
 
     // Start polling when task ID is set
     useEffect(() => {
@@ -363,7 +428,7 @@ export const ProjectDetailPage: React.FC = () => {
 
         try {
             await apiClient.deleteDocument(projectId, documentId);
-            fetchDocuments();
+            fetchDocuments(documentsPage);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to delete document');
         }
@@ -372,6 +437,8 @@ export const ProjectDetailPage: React.FC = () => {
     const handleCreateSession = useCallback(() => {
         setSessionId(undefined); // Clears current session, backend creates new one on first message
         setMessages([]);
+        setHasOlderMessages(false);
+        setOlderMessagesCursor(null);
         setSteps([]);
         setSuggestions([]);
     }, []);
@@ -387,36 +454,57 @@ export const ProjectDetailPage: React.FC = () => {
             if (sessionId === sid) {
                 handleCreateSession();
             }
-            fetchSessions();
+            fetchSessions(1, { query: sessionsQuery });
         } catch (err) {
             console.error('Failed to delete session:', err);
         }
-    }, [apiClient, projectId, sessionId, handleCreateSession, fetchSessions]);
+    }, [apiClient, projectId, sessionId, handleCreateSession, fetchSessions, sessionsQuery]);
 
     const handleUpdateSession = useCallback(async (sid: string, title: string) => {
         if (!apiClient || !projectId) return;
         try {
             await apiClient.updateSession(projectId, sid, { title });
-            fetchSessions();
+            fetchSessions(1, { query: sessionsQuery });
         } catch (err) {
             console.error('Failed to update session:', err);
         }
-    }, [apiClient, projectId, fetchSessions]);
+    }, [apiClient, projectId, fetchSessions, sessionsQuery]);
 
-    const handleSearchSessions = useCallback(async (query: string) => {
+    const handleSearchSessions = useCallback((query: string) => {
         if (!apiClient || !projectId) return;
-        if (!query.trim()) {
-            fetchSessions();
-            return;
-        }
+        setSessionsQuery(query);
+    }, [apiClient, projectId]);
 
+    const handleLoadMoreSessions = useCallback(() => {
+        fetchSessions(sessionsPage + 1, { append: true, query: sessionsQuery });
+    }, [fetchSessions, sessionsPage, sessionsQuery]);
+
+    const handleLoadOlderMessages = useCallback(async () => {
+        if (!apiClient || !projectId || !sessionId || !olderMessagesCursor) return;
         try {
-            const result = await apiClient.searchSessions(projectId, query);
-            setSessions(result.sessions);
+            setOlderMessagesLoading(true);
+            const result = await apiClient.getSessionMessages(
+                projectId,
+                sessionId,
+                MESSAGE_PAGE_SIZE,
+                olderMessagesCursor
+            );
+            const olderMessages = mapBackendMessages(result.messages);
+            setMessages((prev) => {
+                const existing = new Set(prev.map((message) => message.id));
+                return [
+                    ...olderMessages.filter((message) => !existing.has(message.id)),
+                    ...prev,
+                ];
+            });
+            setHasOlderMessages(result.has_more);
+            setOlderMessagesCursor(result.next_cursor);
         } catch (err) {
-            console.error('Failed to search sessions:', err);
+            console.error('Failed to load older messages:', err);
+        } finally {
+            setOlderMessagesLoading(false);
         }
-    }, [apiClient, projectId, fetchSessions]);
+    }, [apiClient, projectId, sessionId, olderMessagesCursor]);
 
 
     const handleSendMessage = async (query: string, sid?: string, files?: File[]) => {
@@ -472,6 +560,7 @@ export const ProjectDetailPage: React.FC = () => {
 
             let fullContent = '';
             const sources: SourceReference[] = [];
+            let traceId: string | undefined;
             // Use current sessionId if not explicitly provided
             let newSessionId = sid || sessionId;
 
@@ -508,10 +597,8 @@ export const ProjectDetailPage: React.FC = () => {
             streamingBufferRef.current = '';
 
             for await (const chunk of apiClient.streamChat(projectId, chatRequest)) {
-                // Check for error chunk type - cast to any to handle potential type mismatches
-                if ((chunk as any).type === 'error') {
-                    const errorMsg = typeof chunk.data === 'string' ? chunk.data : (chunk.data as any)?.message || 'Unknown error';
-                    throw new Error(errorMsg);
+                if (chunk.type === 'error') {
+                    throw new Error(getStreamErrorMessage(chunk));
                 }
 
                 // Handle different chunk types
@@ -522,43 +609,11 @@ export const ProjectDetailPage: React.FC = () => {
                         scheduleUpdate();
                         break;
                     case 'source':
-                        // ... (source parsing unchanged)
-                        let sourceData: Record<string, unknown> | null = null;
-                        if (chunk.data) {
-                            try {
-                                sourceData = typeof chunk.data === 'string'
-                                    ? JSON.parse(chunk.data)
-                                    : chunk.data as Record<string, unknown>;
-                            } catch (e) {
-                                // Removed console.warn as per instruction
+                        {
+                            const sourceData = parseStreamObject(chunk.data, chunk.metadata);
+                            if (sourceData) {
+                                sources.push(buildSourceReference(sourceData));
                             }
-                        }
-                        // Fallback to metadata if data parsing failed or was empty, 
-                        // but only if metadata looks like a source (has document_id)
-                        if (!sourceData && chunk.metadata && chunk.metadata.document_id) {
-                            sourceData = chunk.metadata as Record<string, unknown>;
-                        }
-
-                        if (sourceData) {
-                            const sourceRef: SourceReference = {
-                                document_id: String(sourceData.document_id || ''),
-                                document_name: String(sourceData.document_name || sourceData.source_doc_name || 'Unknown'),
-                                chunk_id: String(sourceData.chunk_id || ''),
-                                excerpt: String(sourceData.excerpt || sourceData.content || ''),
-                                relevance_score: Number(sourceData.relevance_score || sourceData.score || 0),
-                                position: sourceData.position as string | undefined,
-                                source_type: (sourceData.source_type as SourceReference['source_type']) || undefined,
-                                page_number: sourceData.page_number !== undefined && sourceData.page_number !== null
-                                    ? Number(sourceData.page_number) : undefined,
-                                bounding_box: sourceData.bounding_box as SourceReference['bounding_box'],
-                                page_image_url: sourceData.page_image_url as string | undefined,
-                                source_url: sourceData.source_url as string | undefined,
-                                section: sourceData.section as string | undefined,
-                                sheet_name: sourceData.sheet_name as string | undefined,
-                                cell_range: sourceData.cell_range as string | undefined,
-                                binary_hash: sourceData.binary_hash as string | undefined,
-                            };
-                            sources.push(sourceRef);
                         }
                         break;
                     case 'complete':
@@ -568,51 +623,107 @@ export const ProjectDetailPage: React.FC = () => {
                         if (chunk.metadata?.next_suggestions) {
                             setSuggestions(chunk.metadata.next_suggestions as string[]);
                         }
+                        {
+                            const metadataTraceId = getStreamTraceId(chunk.metadata);
+                            if (metadataTraceId) traceId = metadataTraceId;
+                        }
                         setAgentAction(null);
                         break;
-                    case 'step_start':
-                        // ...
-                        const stepData = chunk.data ? JSON.parse(chunk.data) : chunk.metadata;
+                    case 'step_start': {
+                        const stepData = parseStreamObject(chunk.data, chunk.metadata);
                         if (stepData) {
-                            setSteps(prev => [...prev, {
-                                name: stepData.name || 'Unknown step',
-                                step_type: stepData.step_type || 'unknown',
-                                status: 'running',
-                            }]);
-                        }
-                        break;
-                    case 'step_end':
-                        // ...
-                        const endData = chunk.data ? JSON.parse(chunk.data) : chunk.metadata;
-                        if (endData) {
-                            setSteps(prev => prev.map(s =>
-                                s.name === endData.name
-                                    ? { ...s, status: endData.status === 'error' ? 'error' : 'completed', duration_ms: endData.duration_ms }
-                                    : s
-                            ));
-                        }
-                        break;
-                    case 'agent_action':
-                        // ...
-                        const actionData = chunk.data ? JSON.parse(chunk.data) : chunk.metadata;
-                        if (actionData) {
-                            setAgentAction({
-                                step: actionData.step || '',
-                                action: actionData.action || '',
-                                tool: actionData.tool,
-                                input: actionData.input,
+                            const stepName = stringValue(stepData.name ?? stepData.step ?? stepData.step_name, 'Unknown step');
+                            const stepType = stringValue(stepData.step_type ?? stepData.type, 'unknown');
+                            setSteps(prev => {
+                                if (prev.some((step) => step.name === stepName)) {
+                                    return prev.map((step) =>
+                                        step.name === stepName
+                                            ? { ...step, step_type: stepType, status: 'running' }
+                                            : step
+                                    );
+                                }
+
+                                return [...prev, {
+                                    name: stepName,
+                                    step_type: stepType,
+                                    status: 'running',
+                                }];
                             });
                         }
                         break;
-                    case 'error':
-                        // ...
-                        const errorData = chunk.data ? JSON.parse(chunk.data) : chunk.metadata;
-                        const errorMessage = errorData?.message || errorData?.error || 'An error occurred';
-                        setError(errorMessage);
-                        setSteps(prev => prev.map(s =>
-                            s.status === 'running' ? { ...s, status: 'error' } : s
-                        ));
+                    }
+                    case 'step_end': {
+                        const endData = parseStreamObject(chunk.data, chunk.metadata);
+                        if (endData) {
+                            const stepName = stringValue(endData.name ?? endData.step ?? endData.step_name, 'Unknown step');
+                            const stepType = stringValue(endData.step_type ?? endData.type, 'unknown');
+                            const duration = numberValue(endData.duration_ms);
+                            const nextStatus = stringValue(endData.status) === 'error' ? 'error' : 'completed';
+                            setSteps(prev => {
+                                if (!prev.some((step) => step.name === stepName)) {
+                                    return [...prev, {
+                                        name: stepName,
+                                        step_type: stepType,
+                                        status: nextStatus,
+                                        duration_ms: duration,
+                                    }];
+                                }
+
+                                return prev.map(s =>
+                                    s.name === stepName
+                                        ? { ...s, step_type: stepType, status: nextStatus, duration_ms: duration }
+                                        : s
+                                );
+                            });
+                        }
                         break;
+                    }
+                    case 'agent_action': {
+                        const actionData = parseStreamObject(chunk.data, chunk.metadata);
+                        if (actionData) {
+                            const input = stringValue(actionData.input ?? actionData.input_summary);
+                            setAgentAction({
+                                step: stringValue(actionData.step ?? actionData.parent_step ?? actionData.name),
+                                action: stringValue(actionData.action ?? actionData.message ?? chunk.data, 'Agent activity'),
+                                tool: stringValue(actionData.tool ?? actionData.name) || undefined,
+                                input: input || undefined,
+                                parent_step: stringValue(actionData.parent_step) || undefined,
+                                status: (actionData.status as AgentAction['status']) || undefined,
+                            });
+                        }
+                        break;
+                    }
+                    case 'tool_start': {
+                        const toolData = parseStreamObject(chunk.data, chunk.metadata);
+                        if (toolData) {
+                            const input = stringValue(toolData.input ?? toolData.input_summary);
+                            setAgentAction({
+                                step: stringValue(toolData.parent_step ?? 'tool'),
+                                action: stringValue(toolData.message, 'Calling tool'),
+                                tool: stringValue(toolData.name ?? toolData.tool, 'tool'),
+                                input: input || undefined,
+                                parent_step: stringValue(toolData.parent_step) || undefined,
+                                status: 'running',
+                            });
+                        }
+                        break;
+                    }
+                    case 'tool_end': {
+                        const toolData = parseStreamObject(chunk.data, chunk.metadata);
+                        if (toolData) {
+                            const output = stringValue(toolData.output ?? toolData.output_summary);
+                            setAgentAction({
+                                step: stringValue(toolData.parent_step ?? 'tool'),
+                                action: stringValue(toolData.message, 'Tool completed'),
+                                tool: stringValue(toolData.name ?? toolData.tool, 'tool'),
+                                output: output || undefined,
+                                parent_step: stringValue(toolData.parent_step) || undefined,
+                                status: (toolData.status as AgentAction['status']) || 'completed',
+                                duration_ms: numberValue(toolData.duration_ms),
+                            });
+                        }
+                        break;
+                    }
                 }
             }
 
@@ -629,6 +740,7 @@ export const ProjectDetailPage: React.FC = () => {
                 content: fullContent,
                 sources,
                 timestamp: new Date(),
+                metadata: traceId ? { trace_id: traceId } : undefined,
             };
             setMessages((prev) => [...prev, assistantMessage]);
             setStreamingContent('');
@@ -636,7 +748,7 @@ export const ProjectDetailPage: React.FC = () => {
             // Only update session ID if it changed
             if (newSessionId && newSessionId !== sessionId) {
                 setSessionId(newSessionId);
-                fetchSessions(); // Refresh list to show new session
+                fetchSessions(1, { query: sessionsQuery }); // Refresh list to show new session
             }
             // Also refresh sessions if we just added a message to an existing session, 
             // to update the timestamp/summary if needed? 
@@ -651,6 +763,9 @@ export const ProjectDetailPage: React.FC = () => {
                 cancelAnimationFrame(rafIdRef.current);
                 rafIdRef.current = null;
             }
+            setSteps(prev => prev.map(s =>
+                s.status === 'running' ? { ...s, status: 'error' } : s
+            ));
             if (err instanceof ApiHttpError && err.status === 429) {
                 setQuotaExhausted(true);
             } else {
@@ -750,7 +865,7 @@ export const ProjectDetailPage: React.FC = () => {
                         </Button>
                     )}
                     <PortalTooltip content="Refresh">
-                        <Button mode="integrated" icon="refresh" aria-label="Refresh" onClick={() => { fetchProject(); fetchDocuments(); }} />
+                        <Button mode="integrated" icon="refresh" aria-label="Refresh" onClick={() => { fetchProject(); fetchDocuments(documentsPage); }} />
                     </PortalTooltip>
                 </div>
             </div>
@@ -779,12 +894,12 @@ export const ProjectDetailPage: React.FC = () => {
                     selectedValue={tab}
                     onTabSelect={(_ev, data) => setTab(data.value as number)}
                 >
-                    <Tab value={0}>Overview</Tab>
-                    <Tab value={1}>Documents</Tab>
-                    <Tab value={2} disabled={project.status !== 'active'}>Chat</Tab>
-                    <Tab value={3}>Pipeline</Tab>
-                    <Tab value={4} disabled={project.status !== 'active'}>Widget</Tab>
-                    <Tab value={5}>
+                    <Tab value={PROJECT_DETAIL_TABS.OVERVIEW}>Overview</Tab>
+                    <Tab value={PROJECT_DETAIL_TABS.DOCUMENTS}>Documents</Tab>
+                    <Tab value={PROJECT_DETAIL_TABS.CHAT} disabled={project.status !== 'active'}>Chat</Tab>
+                    <Tab value={PROJECT_DETAIL_TABS.PIPELINE}>Pipeline</Tab>
+                    <Tab value={PROJECT_DETAIL_TABS.WIDGET} disabled={project.status !== 'active'}>Widget</Tab>
+                    <Tab value={PROJECT_DETAIL_TABS.DATABASE}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                             <FrokIcon name="Storage" />
                             Database
@@ -793,13 +908,20 @@ export const ProjectDetailPage: React.FC = () => {
                             )}
                         </span>
                     </Tab>
-                    <Tab value={6}>Settings</Tab>
-                    <Tab value={7}>Members</Tab>
+                    <Tab value={PROJECT_DETAIL_TABS.MCP_SERVERS}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <FrokIcon name="Extension" />
+                            MCP Servers
+                        </span>
+                    </Tab>
+                    <Tab value={PROJECT_DETAIL_TABS.SETTINGS}>Settings</Tab>
+                    <Tab value={PROJECT_DETAIL_TABS.MEMBERS}>Members</Tab>
+                    <Tab value={PROJECT_DETAIL_TABS.TRACING}>Tracing</Tab>
                 </TabNavigation>
             </div>
 
             {/* Overview Tab */}
-            <TabPanel value={tab} index={0}>
+            <TabPanel value={tab} index={PROJECT_DETAIL_TABS.OVERVIEW}>
                 <div className="project-overview-grid">
                     <Tile background="floating" className="overview-card">
                         <div className="overview-card-header">
@@ -833,7 +955,7 @@ export const ProjectDetailPage: React.FC = () => {
                         <div className="overview-card-content">
                             <div className="overview-stat-row">
                                 <span className="overview-stat-label">Documents</span>
-                                <span className="overview-stat-value overview-stat-highlight">{documents.length}</span>
+                                <span className="overview-stat-value overview-stat-highlight">{documentsTotal}</span>
                             </div>
                             <div className="overview-stat-row">
                                 <span className="overview-stat-label">Total Chunks</span>
@@ -860,7 +982,7 @@ export const ProjectDetailPage: React.FC = () => {
             </TabPanel>
 
             {/* Documents Tab */}
-            <TabPanel value={tab} index={1}>
+            <TabPanel value={tab} index={PROJECT_DETAIL_TABS.DOCUMENTS}>
                 {/* PDF processing backend selector */}
                 {apiClient && (
                     <div style={{ marginBottom: '1.5rem' }}>
@@ -944,13 +1066,22 @@ export const ProjectDetailPage: React.FC = () => {
                     </h6>
                     <DocumentList
                         documents={documents}
+                        loading={documentsLoading}
                         onDelete={isEditorOrAbove ? handleDocumentDelete : undefined}
+                    />
+                    <PaginationControls
+                        page={documentsPage}
+                        pageSize={DOCUMENT_PAGE_SIZE}
+                        total={documentsTotal}
+                        onPageChange={fetchDocuments}
+                        disabled={documentsLoading}
+                        label="documents"
                     />
                 </div>
             </TabPanel>
 
             {/* Chat Tab */}
-            <TabPanel value={tab} index={2}>
+            <TabPanel value={tab} index={PROJECT_DETAIL_TABS.CHAT}>
                 {dbStatus === 'connected' && dbDisplayName && (
                     <div style={{ marginBottom: '1rem' }}>
                         <Notification type="neutral" icon={"database" as any} defaultOpen>
@@ -985,12 +1116,19 @@ export const ProjectDetailPage: React.FC = () => {
                         onUpdateSession={handleUpdateSession}
                         onSearch={handleSearchSessions}
                         isLoadingSessions={sessionsLoading}
+                        hasMoreSessions={sessions.length < sessionsTotal}
+                        onLoadMoreSessions={handleLoadMoreSessions}
+                        isLoadingMoreSessions={sessionsLoadingMore}
+                        hasOlderMessages={hasOlderMessages}
+                        onLoadOlderMessages={handleLoadOlderMessages}
+                        isLoadingOlderMessages={olderMessagesLoading}
+                        onViewTrace={handleViewTrace}
                     />
                 </div>
             </TabPanel>
 
             {/* Pipeline Tab */}
-            <TabPanel value={tab} index={3}>
+            <TabPanel value={tab} index={PROJECT_DETAIL_TABS.PIPELINE}>
                 <div className="project-pipeline-layout" style={{ height: 'calc(100vh - 300px)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                         {project && apiClient && projectId && (
@@ -1006,7 +1144,7 @@ export const ProjectDetailPage: React.FC = () => {
             </TabPanel>
 
             {/* Widget Tab */}
-            <TabPanel value={tab} index={4}>
+            <TabPanel value={tab} index={PROJECT_DETAIL_TABS.WIDGET}>
                 {project && apiClient && (
                     <WidgetEmbed
                         projectId={projectId!}
@@ -1017,7 +1155,7 @@ export const ProjectDetailPage: React.FC = () => {
             </TabPanel>
 
             {/* Database Tab */}
-            <TabPanel value={tab} index={5}>
+            <TabPanel value={tab} index={PROJECT_DETAIL_TABS.DATABASE}>
                 {apiClient && (
                     <DatabaseConnection
                         projectId={projectId!}
@@ -1028,18 +1166,31 @@ export const ProjectDetailPage: React.FC = () => {
                 )}
             </TabPanel>
 
+            {/* MCP Servers Tab */}
+            <TabPanel value={tab} index={PROJECT_DETAIL_TABS.MCP_SERVERS}>
+                {apiClient && (
+                    <McpServersPanel
+                        projectId={projectId!}
+                        apiClient={apiClient}
+                        canManage={isOwner || isAdmin}
+                    />
+                )}
+            </TabPanel>
+
             {/* Settings Tab */}
-            <TabPanel value={tab} index={6}>
+            <TabPanel value={tab} index={PROJECT_DETAIL_TABS.SETTINGS}>
                 {project && project.config && (
                     <ConfigEditor
                         config={project.config}
                         onSave={isEditorOrAbove ? handleUpdateProjectConfig : async () => { setError('Insufficient permissions. Required role: editor'); }}
+                        projectId={projectId}
+                        apiClient={apiClient}
                     />
                 )}
             </TabPanel>
 
             {/* Members Tab */}
-            <TabPanel value={tab} index={7}>
+            <TabPanel value={tab} index={PROJECT_DETAIL_TABS.MEMBERS}>
                 {apiClient && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         {/* Visibility Toggle — owner only */}
@@ -1104,9 +1255,21 @@ export const ProjectDetailPage: React.FC = () => {
                             onRevoke={async (userId) => {
                                 await apiClient.revokeMember(projectId!, userId);
                             }}
-                            fetchMembers={(pid) => apiClient.listMembers(pid)}
+                            fetchMembers={(pid, page, pageSize) => apiClient.listMembers(pid, page, pageSize)}
                         />
                     </div>
+                )}
+            </TabPanel>
+
+            {/* Tracing Tab */}
+            <TabPanel value={tab} index={PROJECT_DETAIL_TABS.TRACING}>
+                {apiClient && (
+                    <TracingPanel
+                        apiClient={apiClient}
+                        projectId={projectId!}
+                        selectedTraceId={selectedTraceId}
+                        onSelectedTraceIdChange={setSelectedTraceId}
+                    />
                 )}
             </TabPanel>
 

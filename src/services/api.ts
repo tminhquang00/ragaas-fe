@@ -7,6 +7,7 @@ import {
     ProcessingConfig,
     DocumentListResponse,
     DocumentChunk,
+    TemplateCategory,
     ConfluenceSyncRequest,
     ConfluenceIngestResponse,
     ChatRequest,
@@ -14,6 +15,7 @@ import {
     StreamingChunk,
     ChatSession,
     SessionListResponse,
+    SessionMessagesResponse,
     ChatMessage,
     WidgetConfig,
     WidgetEmbedCode,
@@ -28,6 +30,7 @@ import {
     SharePointCheckStatusRequest,
     SharePointCheckStatusResponse,
     ProjectMemberResponse,
+    ProjectMemberListResponse,
     ShareProjectRequest,
     SetVisibilityRequest,
     MigrationResult,
@@ -52,9 +55,22 @@ import {
     SaveGraphRequest,
     ValidateStepRequest,
     ValidateStepResponse,
-    ProjectSummary,
+    ProjectSummaryListResponse,
     PdfBackend,
     PdfBackendResponse,
+    PipelineTraceResponse,
+    MCPServerConfig,
+    MCPServerListResponse,
+    MCPServerPatchRequest,
+    MCPServerTestResult,
+    LLMModelsResponse,
+    DashboardOverview,
+    DashboardActivityResponse,
+    DashboardGranularity,
+    DashboardRange,
+    PipelineHealthResponse,
+    TopProjectsMetric,
+    TopProjectsResponse,
 } from '../types';
 
 /** Thrown by API methods when the server returns a non-2xx status. Carries the HTTP status code so callers can distinguish e.g. 429 from 500. */
@@ -87,29 +103,36 @@ export class RAGaaSClient {
         this.accessToken = token;
     }
 
+    private getAuthHeaders(): Record<string, string> {
+        return this.accessToken
+            ? { Authorization: `Bearer ${this.accessToken}` }
+            : {};
+    }
+
+    private async getErrorDetail(response: Response): Promise<string> {
+        const error: ApiError = await response.json().catch(() => ({
+            detail: `HTTP ${response.status}: ${response.statusText}`,
+        }));
+
+        return error.detail;
+    }
+
     private async request<T>(
         endpoint: string,
         options: RequestInit = {}
     ): Promise<T> {
-        const authHeaders: Record<string, string> = this.accessToken
-            ? { Authorization: `Bearer ${this.accessToken}` }
-            : {};
-
         const response = await fetch(`${this.baseUrl}${endpoint}`, {
             ...options,
             headers: {
                 'Content-Type': 'application/json',
                 'X-User-ID': this.tenantId,
-                ...authHeaders,
+                ...this.getAuthHeaders(),
                 ...options.headers,
             },
         });
 
         if (!response.ok) {
-            const error: ApiError = await response.json().catch(() => ({
-                detail: `HTTP ${response.status}: ${response.statusText}`,
-            }));
-            throw new Error(error.detail);
+            throw new Error(await this.getErrorDetail(response));
         }
 
         if (response.status === 204) {
@@ -121,9 +144,17 @@ export class RAGaaSClient {
 
     // ============ Projects ============
 
-    async listTemplates(category?: string): Promise<TemplateListResponse> {
-        const params = category ? `?category=${category}` : '';
-        return this.request(`/api/v1/projects/templates${params}`);
+    async listTemplates(params?: {
+        category?: TemplateCategory;
+        page?: number;
+        page_size?: number;
+    }): Promise<TemplateListResponse> {
+        const q = new URLSearchParams();
+        if (params?.category) q.set('category', params.category);
+        if (params?.page) q.set('page', String(params.page));
+        if (params?.page_size) q.set('page_size', String(params.page_size));
+        const qs = q.toString();
+        return this.request(`/api/v1/projects/templates${qs ? `?${qs}` : ''}`);
     }
 
     async createProjectFromTemplate(request: CreateFromTemplateRequest): Promise<CreateProjectResponse> {
@@ -177,6 +208,10 @@ export class RAGaaSClient {
 
     async getProject(projectId: string): Promise<Project> {
         return this.request(`/api/v1/projects/${projectId}`);
+    }
+
+    async getProjectLLMModels(projectId: string): Promise<LLMModelsResponse> {
+        return this.request(`/api/v1/projects/${projectId}/llm-models`);
     }
 
     async listProjects(
@@ -237,8 +272,12 @@ export class RAGaaSClient {
         });
     }
 
-    async listMembers(projectId: string): Promise<ProjectMemberResponse[]> {
-        return this.request(`/api/v1/projects/${projectId}/members`);
+    async listMembers(
+        projectId: string,
+        page: number = 1,
+        pageSize: number = 20
+    ): Promise<ProjectMemberListResponse> {
+        return this.request(`/api/v1/projects/${projectId}/members?page=${page}&page_size=${pageSize}`);
     }
 
     async revokeMember(projectId: string, targetUserId: string): Promise<void> {
@@ -474,27 +513,54 @@ export class RAGaaSClient {
         });
     }
 
+    async getPipelineTrace(traceId: string): Promise<PipelineTraceResponse> {
+        const response = await fetch(
+            `${this.baseUrl}/api/v1/traces/${encodeURIComponent(traceId)}`,
+            {
+                headers: {
+                    Accept: 'application/json',
+                    'X-User-ID': this.tenantId,
+                    ...this.getAuthHeaders(),
+                },
+            }
+        );
+
+        if (!response.ok) {
+            throw new ApiHttpError(response.status, await this.getErrorDetail(response));
+        }
+
+        return response.json();
+    }
+
     async *streamChat(
         projectId: string,
         request: ChatRequest
     ): AsyncGenerator<StreamingChunk> {
+        const parseSseData = (event: string): string => {
+            const dataLines = event
+                .split(/\r?\n/)
+                .filter((line) => line.startsWith('data:'))
+                .map((line) => line.slice(5).replace(/^ /, ''));
+
+            return dataLines.join('\n').trim();
+        };
+
         const response = await fetch(
             `${this.baseUrl}/api/v1/projects/${projectId}/chat/stream`,
             {
                 method: 'POST',
                 headers: {
+                    Accept: 'text/event-stream',
                     'Content-Type': 'application/json',
                     'X-User-ID': this.tenantId,
+                    ...this.getAuthHeaders(),
                 },
                 body: JSON.stringify(request),
             }
         );
 
         if (!response.ok) {
-            const error: ApiError = await response.json().catch(() => ({
-                detail: `HTTP ${response.status}: ${response.statusText}`,
-            }));
-            throw new ApiHttpError(response.status, error.detail);
+            throw new ApiHttpError(response.status, await this.getErrorDetail(response));
         }
 
         const reader = response.body?.getReader();
@@ -508,24 +574,34 @@ export class RAGaaSClient {
 
         while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done) {
+                buffer += decoder.decode();
+                break;
+            }
 
             buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
+            const events = buffer.split(/\r?\n\r?\n/);
+            buffer = events.pop() || '';
 
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const data = line.slice(6).trim();
-                    if (data === '[DONE]') return;
-                    if (data) {
-                        try {
-                            yield JSON.parse(data);
-                        } catch {
-                            // Ignore parse errors for incomplete chunks
-                        }
-                    }
+            for (const event of events) {
+                const data = parseSseData(event);
+                if (data === '[DONE]') return;
+                if (!data) continue;
+
+                try {
+                    yield JSON.parse(data);
+                } catch {
+                    // Ignore malformed non-terminal events; the stream can continue.
                 }
+            }
+        }
+
+        const data = parseSseData(buffer);
+        if (data && data !== '[DONE]') {
+            try {
+                yield JSON.parse(data);
+            } catch {
+                // Ignore a trailing malformed event.
             }
         }
     }
@@ -545,9 +621,13 @@ export class RAGaaSClient {
 
     async searchSessions(
         projectId: string,
-        query: string
+        query: string,
+        page: number = 1,
+        pageSize: number = 20
     ): Promise<SessionListResponse> {
-        return this.request(`/api/v1/projects/${projectId}/sessions/search?q=${encodeURIComponent(query)}`);
+        return this.request(
+            `/api/v1/projects/${projectId}/sessions/search?q=${encodeURIComponent(query)}&page=${page}&page_size=${pageSize}`
+        );
     }
 
     async createSession(projectId: string, data: { user_id?: string; title?: string; custom_fields?: Record<string, any> }): Promise<ChatSession> {
@@ -571,11 +651,12 @@ export class RAGaaSClient {
     async getSessionMessages(
         projectId: string,
         sessionId: string,
-        limit: number = 50
-    ): Promise<{ messages: ChatMessage[]; session_id: string }> {
-        return this.request(
-            `/api/v1/projects/${projectId}/sessions/${sessionId}/messages?limit=${limit}`
-        );
+        limit: number = 50,
+        beforeMessageId?: string
+    ): Promise<SessionMessagesResponse> {
+        const q = new URLSearchParams({ limit: String(limit) });
+        if (beforeMessageId) q.set('before_message_id', beforeMessageId);
+        return this.request(`/api/v1/projects/${projectId}/sessions/${sessionId}/messages?${q.toString()}`);
     }
 
     async addSessionMessage(projectId: string, sessionId: string, data: { role: string; content: string; metadata?: Record<string, any> }): Promise<ChatMessage> {
@@ -669,6 +750,64 @@ export class RAGaaSClient {
         return this.request(
             `/api/v1/projects/${projectId}/database-connection/audit-log${qs ? `?${qs}` : ''}`
         );
+    }
+
+    // ============ MCP Servers ============
+
+    async listMcpServers(
+        projectId: string,
+        page: number = 1,
+        pageSize: number = 20
+    ): Promise<MCPServerListResponse> {
+        return this.request(`/api/v1/projects/${projectId}/mcp-servers?page=${page}&page_size=${pageSize}`);
+    }
+
+    async createMcpServer(
+        projectId: string,
+        data: MCPServerConfig
+    ): Promise<MCPServerConfig> {
+        return this.request(`/api/v1/projects/${projectId}/mcp-servers`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async updateMcpServer(
+        projectId: string,
+        name: string,
+        data: MCPServerConfig
+    ): Promise<MCPServerConfig> {
+        return this.request(`/api/v1/projects/${projectId}/mcp-servers/${encodeURIComponent(name)}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async patchMcpServer(
+        projectId: string,
+        name: string,
+        data: MCPServerPatchRequest
+    ): Promise<MCPServerConfig> {
+        return this.request(`/api/v1/projects/${projectId}/mcp-servers/${encodeURIComponent(name)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteMcpServer(projectId: string, name: string): Promise<void> {
+        return this.request(`/api/v1/projects/${projectId}/mcp-servers/${encodeURIComponent(name)}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async testMcpServer(
+        projectId: string,
+        data: MCPServerConfig
+    ): Promise<MCPServerTestResult> {
+        return this.request(`/api/v1/projects/${projectId}/mcp-servers/test`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
     }
 
     /**
@@ -780,8 +919,17 @@ export class RAGaaSClient {
 
     // ============ Project Summary (for cross-project picker) ============
 
-    async getProjectsSummary(): Promise<ProjectSummary[]> {
-        return this.request('/api/v1/projects/summary');
+    async getProjectsSummary(params?: {
+        q?: string;
+        page?: number;
+        page_size?: number;
+    }): Promise<ProjectSummaryListResponse> {
+        const query = new URLSearchParams();
+        if (params?.q) query.set('q', params.q);
+        if (params?.page) query.set('page', String(params.page));
+        if (params?.page_size) query.set('page_size', String(params.page_size));
+        const qs = query.toString();
+        return this.request(`/api/v1/projects/summary${qs ? `?${qs}` : ''}`);
     }
 
     // ============ Pipeline Builder ============
@@ -806,6 +954,52 @@ export class RAGaaSClient {
             method: 'POST',
             body: JSON.stringify(request),
         });
+    }
+
+    // ============ Dashboard ============
+
+    /**
+     * Aggregate overview for the dashboard landing page: lifetime + range-scoped
+     * KPIs with period-over-period deltas, plus capped recent-projects and
+     * recent-sessions lists. See docs/dashboard-api-spec.md.
+     */
+    async getDashboardOverview(range: DashboardRange = '30d'): Promise<DashboardOverview> {
+        return this.request(`/api/v1/dashboard/overview?range=${range}`);
+    }
+
+    /**
+     * Activity time series for the dashboard chart. Server returns gap-filled
+     * points and echoes the actual `granularity` used.
+     */
+    async getDashboardActivity(
+        range: DashboardRange = '30d',
+        granularity?: DashboardGranularity
+    ): Promise<DashboardActivityResponse> {
+        const params = new URLSearchParams({ range });
+        if (granularity) params.set('granularity', granularity);
+        return this.request(`/api/v1/dashboard/activity?${params.toString()}`);
+    }
+
+    /**
+     * Top N projects ranked by the chosen `metric` within the range.
+     * Server clamps `limit` to 10.
+     */
+    async getTopProjects(
+        range: DashboardRange = '30d',
+        metric: TopProjectsMetric = 'sessions',
+        limit: number = 5
+    ): Promise<TopProjectsResponse> {
+        const params = new URLSearchParams({
+            range,
+            metric,
+            limit: String(limit),
+        });
+        return this.request(`/api/v1/dashboard/top-projects?${params.toString()}`);
+    }
+
+    /** Last 24h pipeline health rollup (success/error/latency). */
+    async getPipelineHealth(): Promise<PipelineHealthResponse> {
+        return this.request('/api/v1/dashboard/pipeline-health');
     }
 
     // ============ Health ============

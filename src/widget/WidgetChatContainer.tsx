@@ -7,9 +7,11 @@ import {
   StepProgress,
   AgentAction,
   ChatSession,
+  ChatMessage as BackendChatMessage,
   ImageContent,
 } from '../types';
 import { useWidgetAuth } from './WidgetAuthProvider';
+import { buildSourceReference, getStreamErrorMessage, getStreamTraceId, numberValue, parseStreamObject, stringValue } from '../utils/chatStream';
 
 interface ChatMessage {
   id: string;
@@ -29,6 +31,25 @@ interface WidgetChatContainerProps {
   projectId: string;
 }
 
+const SESSION_PAGE_SIZE = 20;
+const MESSAGE_PAGE_SIZE = 50;
+
+const mapBackendMessages = (backendMessages: BackendChatMessage[]): ChatMessage[] =>
+  backendMessages.map((m) => ({
+    id: m.message_id,
+    role: m.role === 'assistant' ? 'assistant' : 'user',
+    content: m.content,
+    timestamp: new Date(m.timestamp),
+    sources: m.metadata?.sources as SourceReference[] | undefined,
+    images: m.images,
+    metadata: m.metadata,
+  }));
+
+const mergeSessionsById = (existing: ChatSession[], incoming: ChatSession[]): ChatSession[] => {
+  const seen = new Set(existing.map((session) => session.session_id));
+  return [...existing, ...incoming.filter((session) => !seen.has(session.session_id))];
+};
+
 /**
  * Container that replicates the chat state + streaming handlers from
  * `ProjectDetailPage` and wires them into the shared `<ChatInterface />`.
@@ -43,6 +64,13 @@ export const WidgetChatContainer: React.FC<WidgetChatContainerProps> = ({ projec
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsLoadingMore, setSessionsLoadingMore] = useState(false);
+  const [sessionsPage, setSessionsPage] = useState(1);
+  const [sessionsTotal, setSessionsTotal] = useState(0);
+  const [sessionsQuery, setSessionsQuery] = useState('');
+  const [olderMessagesLoading, setOlderMessagesLoading] = useState(false);
+  const [olderMessagesCursor, setOlderMessagesCursor] = useState<string | null>(null);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [steps, setSteps] = useState<StepProgress[]>([]);
@@ -54,45 +82,56 @@ export const WidgetChatContainer: React.FC<WidgetChatContainerProps> = ({ projec
 
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-  const fetchSessions = useCallback(async () => {
+  const fetchSessions = useCallback(async (
+    page: number = 1,
+    options?: { append?: boolean; query?: string }
+  ) => {
     if (!projectId) return;
+    const query = options?.query ?? sessionsQuery;
+    const append = options?.append ?? false;
     try {
-      setSessionsLoading(true);
-      const data = await apiClient.getSessions(projectId);
-      setSessions(data.sessions);
+      if (append) {
+        setSessionsLoadingMore(true);
+      } else {
+        setSessionsLoading(true);
+      }
+      const data = query.trim()
+        ? await apiClient.searchSessions(projectId, query.trim(), page, SESSION_PAGE_SIZE)
+        : await apiClient.getSessions(projectId, page, SESSION_PAGE_SIZE);
+      setSessions((prev) => append ? mergeSessionsById(prev, data.sessions) : data.sessions);
+      setSessionsPage(data.page);
+      setSessionsTotal(data.total);
     } catch (err) {
       console.error('Widget: failed to load sessions:', err);
     } finally {
       setSessionsLoading(false);
+      setSessionsLoadingMore(false);
     }
-  }, [apiClient, projectId]);
+  }, [apiClient, projectId, sessionsQuery]);
 
   useEffect(() => {
-    fetchSessions();
+    fetchSessions(1, { query: sessionsQuery });
   }, [fetchSessions]);
 
   useEffect(() => {
     const loadSessionMessages = async () => {
       if (!sessionId) {
         setMessages([]);
+        setHasOlderMessages(false);
+        setOlderMessagesCursor(null);
         return;
       }
       try {
         setChatLoading(true);
-        const msgs = await apiClient.getSessionMessages(projectId, sessionId);
-        const chatMsgs: ChatMessage[] = msgs.messages.map((m) => ({
-          id: m.message_id,
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-          timestamp: new Date(m.timestamp),
-          sources: m.metadata?.sources as SourceReference[] | undefined,
-          images: m.images,
-          metadata: m.metadata,
-        }));
-        setMessages(chatMsgs);
+        const msgs = await apiClient.getSessionMessages(projectId, sessionId, MESSAGE_PAGE_SIZE);
+        setMessages(mapBackendMessages(msgs.messages));
+        setHasOlderMessages(msgs.has_more);
+        setOlderMessagesCursor(msgs.next_cursor);
       } catch (err) {
         console.error('Widget: failed to load session messages:', err);
         setMessages([]);
+        setHasOlderMessages(false);
+        setOlderMessagesCursor(null);
       } finally {
         setChatLoading(false);
       }
@@ -104,6 +143,8 @@ export const WidgetChatContainer: React.FC<WidgetChatContainerProps> = ({ projec
   const handleCreateSession = useCallback(() => {
     setSessionId(undefined);
     setMessages([]);
+    setHasOlderMessages(false);
+    setOlderMessagesCursor(null);
     setSteps([]);
     setSuggestions([]);
   }, []);
@@ -119,41 +160,63 @@ export const WidgetChatContainer: React.FC<WidgetChatContainerProps> = ({ projec
         if (sessionId === sid) {
           handleCreateSession();
         }
-        fetchSessions();
+        fetchSessions(1, { query: sessionsQuery });
       } catch (err) {
         console.error('Widget: failed to delete session:', err);
       }
     },
-    [apiClient, projectId, sessionId, handleCreateSession, fetchSessions],
+    [apiClient, projectId, sessionId, handleCreateSession, fetchSessions, sessionsQuery],
   );
 
   const handleUpdateSession = useCallback(
     async (sid: string, title: string) => {
       try {
         await apiClient.updateSession(projectId, sid, { title });
-        fetchSessions();
+        fetchSessions(1, { query: sessionsQuery });
       } catch (err) {
         console.error('Widget: failed to update session:', err);
       }
     },
-    [apiClient, projectId, fetchSessions],
+    [apiClient, projectId, fetchSessions, sessionsQuery],
   );
 
   const handleSearchSessions = useCallback(
-    async (query: string) => {
-      if (!query.trim()) {
-        fetchSessions();
-        return;
-      }
-      try {
-        const result = await apiClient.searchSessions(projectId, query);
-        setSessions(result.sessions);
-      } catch (err) {
-        console.error('Widget: failed to search sessions:', err);
-      }
+    (query: string) => {
+      setSessionsQuery(query);
     },
-    [apiClient, projectId, fetchSessions],
+    [],
   );
+
+  const handleLoadMoreSessions = useCallback(() => {
+    fetchSessions(sessionsPage + 1, { append: true, query: sessionsQuery });
+  }, [fetchSessions, sessionsPage, sessionsQuery]);
+
+  const handleLoadOlderMessages = useCallback(async () => {
+    if (!sessionId || !olderMessagesCursor) return;
+    try {
+      setOlderMessagesLoading(true);
+      const result = await apiClient.getSessionMessages(
+        projectId,
+        sessionId,
+        MESSAGE_PAGE_SIZE,
+        olderMessagesCursor,
+      );
+      const olderMessages = mapBackendMessages(result.messages);
+      setMessages((prev) => {
+        const existing = new Set(prev.map((message) => message.id));
+        return [
+          ...olderMessages.filter((message) => !existing.has(message.id)),
+          ...prev,
+        ];
+      });
+      setHasOlderMessages(result.has_more);
+      setOlderMessagesCursor(result.next_cursor);
+    } catch (err) {
+      console.error('Widget: failed to load older messages:', err);
+    } finally {
+      setOlderMessagesLoading(false);
+    }
+  }, [apiClient, projectId, sessionId, olderMessagesCursor]);
 
   const handleSendMessage = async (query: string, sid?: string, files?: File[]) => {
     if (!projectId) return;
@@ -203,6 +266,7 @@ export const WidgetChatContainer: React.FC<WidgetChatContainerProps> = ({ projec
 
       let fullContent = '';
       const sources: SourceReference[] = [];
+      let traceId: string | undefined;
       let newSessionId = sid || sessionId;
 
       const chatRequest: {
@@ -231,12 +295,8 @@ export const WidgetChatContainer: React.FC<WidgetChatContainerProps> = ({ projec
       streamingBufferRef.current = '';
 
       for await (const chunk of apiClient.streamChat(projectId, chatRequest)) {
-        if ((chunk as any).type === 'error') {
-          const errorMsg =
-            typeof chunk.data === 'string'
-              ? chunk.data
-              : (chunk.data as any)?.message || 'Unknown error';
-          throw new Error(errorMsg);
+        if (chunk.type === 'error') {
+          throw new Error(getStreamErrorMessage(chunk));
         }
 
         switch (chunk.type) {
@@ -246,44 +306,9 @@ export const WidgetChatContainer: React.FC<WidgetChatContainerProps> = ({ projec
             scheduleUpdate();
             break;
           case 'source': {
-            let sourceData: Record<string, unknown> | null = null;
-            if (chunk.data) {
-              try {
-                sourceData =
-                  typeof chunk.data === 'string'
-                    ? JSON.parse(chunk.data)
-                    : (chunk.data as Record<string, unknown>);
-              } catch {
-                /* ignore malformed source payloads */
-              }
-            }
-            if (!sourceData && chunk.metadata && chunk.metadata.document_id) {
-              sourceData = chunk.metadata as Record<string, unknown>;
-            }
+            const sourceData = parseStreamObject(chunk.data, chunk.metadata);
             if (sourceData) {
-              const sourceRef: SourceReference = {
-                document_id: String(sourceData.document_id || ''),
-                document_name: String(
-                  sourceData.document_name || sourceData.source_doc_name || 'Unknown',
-                ),
-                chunk_id: String(sourceData.chunk_id || ''),
-                excerpt: String(sourceData.excerpt || sourceData.content || ''),
-                relevance_score: Number(sourceData.relevance_score || sourceData.score || 0),
-                position: sourceData.position as string | undefined,
-                source_type: (sourceData.source_type as SourceReference['source_type']) || undefined,
-                page_number:
-                  sourceData.page_number !== undefined && sourceData.page_number !== null
-                    ? Number(sourceData.page_number)
-                    : undefined,
-                bounding_box: sourceData.bounding_box as SourceReference['bounding_box'],
-                page_image_url: sourceData.page_image_url as string | undefined,
-                source_url: sourceData.source_url as string | undefined,
-                section: sourceData.section as string | undefined,
-                sheet_name: sourceData.sheet_name as string | undefined,
-                cell_range: sourceData.cell_range as string | undefined,
-                binary_hash: sourceData.binary_hash as string | undefined,
-              };
-              sources.push(sourceRef);
+              sources.push(buildSourceReference(sourceData));
             }
             break;
           }
@@ -294,58 +319,116 @@ export const WidgetChatContainer: React.FC<WidgetChatContainerProps> = ({ projec
             if (chunk.metadata?.next_suggestions) {
               setSuggestions(chunk.metadata.next_suggestions as string[]);
             }
+            {
+              const metadataTraceId = getStreamTraceId(chunk.metadata);
+              if (metadataTraceId) traceId = metadataTraceId;
+            }
             setAgentAction(null);
             break;
           case 'step_start': {
-            const stepData = chunk.data ? JSON.parse(chunk.data) : chunk.metadata;
+            const stepData = parseStreamObject(chunk.data, chunk.metadata);
             if (stepData) {
-              setSteps((prev) => [
-                ...prev,
-                {
-                  name: stepData.name || 'Unknown step',
-                  step_type: stepData.step_type || 'unknown',
-                  status: 'running',
-                },
-              ]);
-            }
-            break;
-          }
-          case 'step_end': {
-            const endData = chunk.data ? JSON.parse(chunk.data) : chunk.metadata;
-            if (endData) {
-              setSteps((prev) =>
-                prev.map((s) =>
-                  s.name === endData.name
-                    ? {
-                        ...s,
-                        status: endData.status === 'error' ? 'error' : 'completed',
-                        duration_ms: endData.duration_ms,
-                      }
-                    : s,
-                ),
-              );
-            }
-            break;
-          }
-          case 'agent_action': {
-            const actionData = chunk.data ? JSON.parse(chunk.data) : chunk.metadata;
-            if (actionData) {
-              setAgentAction({
-                step: actionData.step || '',
-                action: actionData.action || '',
-                tool: actionData.tool,
-                input: actionData.input,
+              const stepName = stringValue(stepData.name ?? stepData.step ?? stepData.step_name, 'Unknown step');
+              const stepType = stringValue(stepData.step_type ?? stepData.type, 'unknown');
+              setSteps((prev) => {
+                if (prev.some((step) => step.name === stepName)) {
+                  return prev.map((step) =>
+                    step.name === stepName
+                      ? { ...step, step_type: stepType, status: 'running' }
+                      : step,
+                  );
+                }
+
+                return [
+                  ...prev,
+                  {
+                    name: stepName,
+                    step_type: stepType,
+                    status: 'running',
+                  },
+                ];
               });
             }
             break;
           }
-          case 'error': {
-            const errorData = chunk.data ? JSON.parse(chunk.data) : chunk.metadata;
-            const errorMessage = errorData?.message || errorData?.error || 'An error occurred';
-            setError(errorMessage);
-            setSteps((prev) =>
-              prev.map((s) => (s.status === 'running' ? { ...s, status: 'error' } : s)),
-            );
+          case 'step_end': {
+            const endData = parseStreamObject(chunk.data, chunk.metadata);
+            if (endData) {
+              const stepName = stringValue(endData.name ?? endData.step ?? endData.step_name, 'Unknown step');
+              const stepType = stringValue(endData.step_type ?? endData.type, 'unknown');
+              const duration = numberValue(endData.duration_ms);
+              const nextStatus = stringValue(endData.status) === 'error' ? 'error' : 'completed';
+              setSteps((prev) => {
+                if (!prev.some((step) => step.name === stepName)) {
+                  return [
+                    ...prev,
+                    {
+                      name: stepName,
+                      step_type: stepType,
+                      status: nextStatus,
+                      duration_ms: duration,
+                    },
+                  ];
+                }
+
+                return prev.map((s) =>
+                  s.name === stepName
+                    ? {
+                        ...s,
+                        step_type: stepType,
+                        status: nextStatus,
+                        duration_ms: duration,
+                      }
+                    : s,
+                );
+              });
+            }
+            break;
+          }
+          case 'agent_action': {
+            const actionData = parseStreamObject(chunk.data, chunk.metadata);
+            if (actionData) {
+              const input = stringValue(actionData.input ?? actionData.input_summary);
+              setAgentAction({
+                step: stringValue(actionData.step ?? actionData.parent_step ?? actionData.name),
+                action: stringValue(actionData.action ?? actionData.message ?? chunk.data, 'Agent activity'),
+                tool: stringValue(actionData.tool ?? actionData.name) || undefined,
+                input: input || undefined,
+                parent_step: stringValue(actionData.parent_step) || undefined,
+                status: (actionData.status as AgentAction['status']) || undefined,
+              });
+            }
+            break;
+          }
+          case 'tool_start': {
+            const toolData = parseStreamObject(chunk.data, chunk.metadata);
+            if (toolData) {
+              const input = stringValue(toolData.input ?? toolData.input_summary);
+              setAgentAction({
+                step: stringValue(toolData.parent_step ?? 'tool'),
+                action: stringValue(toolData.message, 'Calling tool'),
+                tool: stringValue(toolData.name ?? toolData.tool, 'tool'),
+                input: input || undefined,
+                parent_step: stringValue(toolData.parent_step) || undefined,
+                status: 'running',
+              });
+            }
+            break;
+          }
+          case 'tool_end': {
+            const toolData = parseStreamObject(chunk.data, chunk.metadata);
+            if (toolData) {
+              const output = stringValue(toolData.output ?? toolData.output_summary);
+              setAgentAction({
+                step: stringValue(toolData.parent_step ?? 'tool'),
+                action: stringValue(toolData.message, 'Tool completed'),
+                tool: stringValue(toolData.name ?? toolData.tool, 'tool'),
+                output: output || undefined,
+                parent_step: stringValue(toolData.parent_step) || undefined,
+                status: (toolData.status as AgentAction['status']) || 'completed',
+                duration_ms: numberValue(toolData.duration_ms),
+              });
+            }
             break;
           }
         }
@@ -363,13 +446,14 @@ export const WidgetChatContainer: React.FC<WidgetChatContainerProps> = ({ projec
         content: fullContent,
         sources,
         timestamp: new Date(),
+        metadata: traceId ? { trace_id: traceId } : undefined,
       };
       setMessages((prev) => [...prev, assistantMessage]);
       setStreamingContent('');
 
       if (newSessionId && newSessionId !== sessionId) {
         setSessionId(newSessionId);
-        fetchSessions();
+        fetchSessions(1, { query: sessionsQuery });
       }
 
       setSteps([]);
@@ -380,6 +464,9 @@ export const WidgetChatContainer: React.FC<WidgetChatContainerProps> = ({ projec
         cancelAnimationFrame(rafIdRef.current);
         rafIdRef.current = null;
       }
+      setSteps((prev) =>
+        prev.map((s) => (s.status === 'running' ? { ...s, status: 'error' } : s)),
+      );
       if (err instanceof ApiHttpError && err.status === 429) {
         setError('The project has reached its usage quota. Please try again later.');
       } else {
@@ -419,6 +506,12 @@ export const WidgetChatContainer: React.FC<WidgetChatContainerProps> = ({ projec
           onUpdateSession={handleUpdateSession}
           onSearch={handleSearchSessions}
           isLoadingSessions={sessionsLoading}
+          hasMoreSessions={sessions.length < sessionsTotal}
+          onLoadMoreSessions={handleLoadMoreSessions}
+          isLoadingMoreSessions={sessionsLoadingMore}
+          hasOlderMessages={hasOlderMessages}
+          onLoadOlderMessages={handleLoadOlderMessages}
+          isLoadingOlderMessages={olderMessagesLoading}
         />
       </div>
     </>

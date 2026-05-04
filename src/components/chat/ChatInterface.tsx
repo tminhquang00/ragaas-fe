@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Chip, Accordion, ActivityIndicator, Button, Icon, Notification } from '@bosch/react-frok';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { Chip, Accordion, ActivityIndicator, Button, Notification, TextField } from '@bosch/react-frok';
 import { FrokIcon } from '../../utils/iconAdapter';
 import { PortalTooltip } from '../common/PortalTooltip';
 import { alpha, cssVar } from '../../utils/frokTheme';
@@ -100,7 +100,19 @@ interface ChatInterfaceProps {
     onUpdateSession?: (sessionId: string, title: string) => Promise<void>;
     onSearch?: (query: string) => void;
     isLoadingSessions?: boolean;
+    hasMoreSessions?: boolean;
+    onLoadMoreSessions?: () => void;
+    isLoadingMoreSessions?: boolean;
+    hasOlderMessages?: boolean;
+    onLoadOlderMessages?: () => Promise<void>;
+    isLoadingOlderMessages?: boolean;
+    onViewTrace?: (traceId: string) => void;
 }
+
+const getMessageTraceId = (message: Message): string | undefined => {
+    const traceId = message.metadata?.trace_id ?? message.metadata?.traceId;
+    return typeof traceId === 'string' && traceId.trim() ? traceId.trim() : undefined;
+};
 
 // ... (skipping to render)
 
@@ -150,13 +162,13 @@ const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onVi
             }}
             onClick={() => hasVisualGrounding && onViewVisualGrounding?.(source)}
         >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, minWidth: 0, flexWrap: 'wrap' }}>
                 {getSourceTypeIcon(source.source_type)}
-                <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                <span style={{ fontSize: '0.875rem', fontWeight: 500, minWidth: 0, overflowWrap: 'anywhere' }}>
                     {source.document_name}
                 </span>
                 {source.headings && source.headings.length > 0 && (
-                    <span style={{ display: 'block', width: '100%', marginBottom: 4, fontSize: '0.75rem', color: cssVar('--g-gray-60') }}>
+                    <span style={{ display: 'block', flexBasis: '100%', marginBottom: 4, fontSize: '0.75rem', color: cssVar('--g-gray-60'), overflowWrap: 'anywhere' }}>
                         {source.headings.join(' > ')}
                     </span>
                 )}
@@ -184,21 +196,22 @@ const SourceCitation: React.FC<SourceCitationProps> = React.memo(({ source, onVi
                     )}
                     {source.source_url && (
                         <PortalTooltip content="Open source document">
-                            <button
+                            <Button
+                                mode="integrated"
+                                icon="link"
+                                className="source-link-button"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     window.open(source.source_url, '_blank');
                                 }}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
-                            >
-                                <FrokIcon name="Link" style={{ fontSize: 18 }} />
-                            </button>
+                                aria-label="Open source document"
+                            />
                         </PortalTooltip>
                     )}
                     <Chip label={`${Math.round(source.relevance_score * 100)}%`} />
                 </div>
             </div>
-            <span style={{ fontSize: '0.75rem', fontStyle: 'italic', color: cssVar('--g-gray-60') }}>
+            <span style={{ display: 'block', fontSize: '0.75rem', fontStyle: 'italic', color: cssVar('--g-gray-60'), overflowWrap: 'anywhere' }}>
                 "{source.excerpt}"
             </span>
         </div>
@@ -382,6 +395,7 @@ const Base64ImageAttachment: React.FC<{ image: ImageContent }> = React.memo(({ i
 // Memoized markdown renderer - prevents re-parsing on parent re-renders
 const MarkdownRenderer: React.FC<{ content: string }> = React.memo(({ content }) => {
     return (
+        <div className="chat-markdown">
         <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
@@ -477,15 +491,17 @@ const MarkdownRenderer: React.FC<{ content: string }> = React.memo(({ content })
                     </a>
                 ),
                 table: ({ children }) => (
-                    <table
-                        style={{
-                            width: '100%',
-                            margin: '8px 0',
-                            borderCollapse: 'collapse',
-                        }}
-                    >
-                        {children}
-                    </table>
+                    <div className="chat-table-scroll">
+                        <table
+                            style={{
+                                width: '100%',
+                                margin: '8px 0',
+                                borderCollapse: 'collapse',
+                            }}
+                        >
+                            {children}
+                        </table>
+                    </div>
                 ),
                 th: ({ children }) => (
                     <th style={{
@@ -511,6 +527,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = React.memo(({ content })
         >
             {content}
         </ReactMarkdown>
+        </div>
     );
 });
 
@@ -533,12 +550,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     onUpdateSession,
     onSearch,
     isLoadingSessions = false,
+    hasMoreSessions = false,
+    onLoadMoreSessions,
+    isLoadingMoreSessions = false,
+    hasOlderMessages = false,
+    onLoadOlderMessages,
+    isLoadingOlderMessages = false,
+    onViewTrace,
 }) => {
     const [input, setInput] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const preserveScrollRef = useRef<{ scrollHeight: number; scrollTop: number; messageCount: number } | null>(null);
 
     // Visual grounding modal state
     const [visualGroundingSource, setVisualGroundingSource] = useState<SourceReference | null>(null);
@@ -560,9 +585,24 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         });
     }, [isStreaming]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
+        const preserveScroll = preserveScrollRef.current;
+        if (preserveScroll && messagesContainerRef.current && messages.length !== preserveScroll.messageCount) {
+            const container = messagesContainerRef.current;
+            container.scrollTop = container.scrollHeight - preserveScroll.scrollHeight + preserveScroll.scrollTop;
+            preserveScrollRef.current = null;
+            return;
+        }
+
+        if (preserveScroll) return;
         scrollToBottom();
     }, [messages, streamingContent, scrollToBottom]);
+
+    useEffect(() => {
+        if (!isLoadingOlderMessages && preserveScrollRef.current?.messageCount === messages.length) {
+            preserveScrollRef.current = null;
+        }
+    }, [isLoadingOlderMessages, messages.length]);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         setAttachedFiles(prev => [...prev, ...acceptedFiles]);
@@ -612,7 +652,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     const handleSuggestionClick = (suggestion: string) => {
         setInput(suggestion);
-        inputRef.current?.focus();
+        window.setTimeout(() => document.getElementById('chat-input')?.focus(), 0);
+    };
+
+    const handleLoadOlderMessages = async () => {
+        if (!onLoadOlderMessages || isLoadingOlderMessages) return;
+        const container = messagesContainerRef.current;
+        if (container) {
+            preserveScrollRef.current = {
+                scrollHeight: container.scrollHeight,
+                scrollTop: container.scrollTop,
+                messageCount: messages.length,
+            };
+        }
+        await onLoadOlderMessages();
     };
 
     const formatFileSize = (bytes: number) => {
@@ -654,7 +707,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 )}
 
                 {/* Messages Area */}
-                <div className="chat-messages">
+                <div className="chat-messages" ref={messagesContainerRef}>
+                    {messages.length > 0 && hasOlderMessages && onLoadOlderMessages && (
+                        <div className="chat-load-older">
+                            <Button
+                                mode="tertiary"
+                                onClick={handleLoadOlderMessages}
+                                disabled={isLoadingOlderMessages}
+                            >
+                                {isLoadingOlderMessages ? 'Loading older messages...' : 'Load older messages'}
+                            </Button>
+                        </div>
+                    )}
+
                     {messages.length === 0 && !streamingContent && (
                         <div className="chat-empty-state">
                             <div className="chat-empty-icon">
@@ -753,6 +818,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     <p className="message-content">
                                         {message.content}
                                     </p>
+                                )}
+
+                                {message.role === 'assistant' && onViewTrace && getMessageTraceId(message) && (
+                                    <div className="message-actions">
+                                        <Button
+                                            mode="tertiary"
+                                            onClick={() => {
+                                                const traceId = getMessageTraceId(message);
+                                                if (traceId) onViewTrace(traceId);
+                                            }}
+                                        >
+                                            View trace
+                                        </Button>
+                                    </div>
                                 )}
 
                                 {/* Sources */}
@@ -869,7 +948,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                 {agentAction.tool || agentAction.action}
                                             </span>
                                         </div>
-                                        {agentAction.input && (
+                                        {(agentAction.input || agentAction.output) && (
                                             <span
                                                 style={{
                                                     display: 'block',
@@ -878,13 +957,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     fontStyle: 'italic',
                                                     fontSize: '0.75rem',
                                                     color: cssVar('--g-gray-60'),
-                                                    maxWidth: 300,
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap',
+                                                    maxWidth: '100%',
+                                                    overflowWrap: 'anywhere',
                                                 }}
                                             >
-                                                {agentAction.input}
+                                                {agentAction.input ?? agentAction.output}
                                             </span>
                                         )}
                                     </div>
@@ -976,16 +1053,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     )}
 
                     <div className="chat-input-row">
-                        <button
+                        <Button
                             type="button"
+                            mode="integrated"
+                            icon="upload"
                             className="chat-input-btn chat-input-btn--upload"
                             onClick={open}
                             disabled={isLoading}
                             aria-label="Attach file"
-                        >
-                            <Icon iconName="upload" />
-                        </button>
-                        <input
+                        />
+                        <TextField
                             type="text"
                             id="chat-input"
                             placeholder="Ask anything..."
@@ -993,18 +1070,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyPress}
                             disabled={isLoading}
-                            ref={inputRef}
                             className="chat-input-field"
                         />
-                        <button
+                        <Button
                             type="button"
+                            mode="primary"
+                            icon="forward-right"
                             className="chat-input-btn chat-input-btn--send"
                             onClick={handleSend}
                             disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
                             aria-label="Send message"
-                        >
-                            <Icon iconName="forward-right" />
-                        </button>
+                        />
                     </div>
                 </div>
             </div>
@@ -1012,14 +1088,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             {/* Session Sidebar */}
             {onSelectSession && isSidebarOpen && onCreateSession && onDeleteSession && onUpdateSession && (
                 <div className="chat-sidebar">
-                    <button
+                    <Button
+                        mode="integrated"
+                        icon="close"
                         className="chat-sidebar-close-btn"
                         onClick={() => setIsSidebarOpen(false)}
                         title="Close chat history"
                         aria-label="Close chat history"
-                    >
-                        <Icon iconName="close" isUiIcon style={{ fontSize: '14px' }} />
-                    </button>
+                    />
                     <ChatSessionList
                         sessions={sessions}
                         currentSessionId={sessionId}
@@ -1029,6 +1105,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         onUpdateSession={onUpdateSession}
                         onSearch={onSearch}
                         isLoading={isLoadingSessions}
+                        hasMore={hasMoreSessions}
+                        onLoadMore={onLoadMoreSessions}
+                        isLoadingMore={isLoadingMoreSessions}
                     />
                 </div>
             )}
