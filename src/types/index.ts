@@ -43,6 +43,7 @@ export interface WidgetConfig {
   welcome_message: string;
   primary_color: string;
   position: 'right' | 'left';
+  show_team_tag?: boolean;
 }
 
 export interface ProjectConfig {
@@ -152,6 +153,69 @@ export interface CreateFromTemplateRequest {
   name: string;
   description?: string;
   overrides?: TemplateOverrides;
+}
+
+// ============ Project Blueprints ============
+
+export type ProjectBlueprintScope = 'tenant' | 'marketplace';
+export type ProjectBlueprintStatus = 'active' | 'disabled';
+
+export type ProjectBlueprintParameterType =
+  | 'string'
+  | 'integer'
+  | 'number'
+  | 'boolean'
+  | 'object'
+  | 'array';
+
+export interface ProjectBlueprintParameter {
+  name: string;
+  type: ProjectBlueprintParameterType;
+  default?: string | number | boolean | Record<string, unknown> | unknown[] | null;
+  editable: boolean;
+  description?: string;
+  required: boolean;
+}
+
+export interface ProjectBlueprintManifest {
+  entrypoint: string;
+  parameters: ProjectBlueprintParameter[];
+  metadata: Record<string, unknown>;
+}
+
+export interface ProjectBlueprintSourceFile {
+  path: string;
+  content: string;
+  sha256: string;
+}
+
+export interface ProjectBlueprint {
+  blueprint_id: string;
+  version: string;
+  tenant_id: string;
+  name: string;
+  description?: string;
+  manifest: ProjectBlueprintManifest;
+  source_files: ProjectBlueprintSourceFile[];
+  signature: string;
+  scope: ProjectBlueprintScope;
+  status: ProjectBlueprintStatus;
+  published_at: string;
+  published_by?: string;
+  disabled_at?: string;
+  disabled_reason?: string;
+}
+
+export interface InstantiateBlueprintRequest {
+  project_name: string;
+  description?: string;
+  parameters: Record<string, unknown>;
+}
+
+export interface InstantiateBlueprintResponse {
+  project: Project;
+  api_key?: string;
+  status: 'instantiated';
 }
 
 export interface ProjectListResponse {
@@ -1004,6 +1068,9 @@ export interface PdfBackendResponse {
 
 // ============ Quota & Admin ============
 export * from './quota';
+
+// ============ Evaluation Framework ============
+export * from './evaluation';
 
 // ============ Dashboard ============
 export * from './dashboard';

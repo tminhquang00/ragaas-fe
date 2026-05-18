@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import {
     TextField,
     TextArea,
@@ -22,7 +23,7 @@ import {
     CreateFromTemplateRequest,
 } from '../../types';
 
-type CreationMode = 'templates' | 'manual' | 'yaml';
+type CreationMode = 'templates' | 'manual' | 'yaml' | 'blueprints';
 type TemplateStep = 'pick' | 'customize';
 type CategoryFilter = 'all' | 'rag' | 'agent' | 'extraction' | 'multi_agent';
 
@@ -190,6 +191,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
     loading = false,
 }) => {
     const { apiClient } = useAuth();
+    const navigate = useNavigate();
 
     const [mode, setMode] = useState<CreationMode>('templates');
     const [templateStep, setTemplateStep] = useState<TemplateStep>('pick');
@@ -314,6 +316,11 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
     };
 
     const handleModeChange = (newMode: string) => {
+        if (newMode === 'blueprints') {
+            handleClose();
+            navigate('/projects/blueprints');
+            return;
+        }
         setMode(newMode as CreationMode);
         setError('');
         if (newMode === 'templates' && templates.length === 0) fetchTemplates();
@@ -372,6 +379,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                         <Tab value="templates" icon={{ iconName: 'flash' }}>Templates</Tab>
                         <Tab value="manual"    icon={{ iconName: 'add'   }}>Manual Setup</Tab>
                         <Tab value="yaml"      icon={{ iconName: 'upload'}}>Upload YAML</Tab>
+                        <Tab value="blueprints" icon={{ iconName: 'document-add' }}>Code Blueprints</Tab>
                     </TabNavigation>
                 </div>
             )}

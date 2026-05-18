@@ -1,8 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { MinimalHeader, SideNavigation, ContextMenu, Button } from '@bosch/react-frok';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+
+const SIDEBAR_HOVER_BREAKPOINT = '(min-width: 1194px)';
+const SIDEBAR_CLOSE_DELAY_MS = 180;
 
 interface NavItemDef {
     label: string;
@@ -28,8 +31,73 @@ export const MainLayout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const [sideNavOpen, setSideNavOpen] = useState(true);
+    const [sideNavOpen, setSideNavOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+    // Auto open the sidebar on hover/focus and auto close when the pointer
+    // leaves it. Only active on desktop (>=1194px); mobile/tablet keep the
+    // explicit burger toggle so touch users aren't trapped.
+    useEffect(() => {
+        const desktopMQ = window.matchMedia(SIDEBAR_HOVER_BREAKPOINT);
+        let closeTimer: number | null = null;
+        let attachedSidebar: HTMLElement | null = null;
+
+        const cancelClose = () => {
+            if (closeTimer !== null) {
+                window.clearTimeout(closeTimer);
+                closeTimer = null;
+            }
+        };
+
+        const handleEnter = () => {
+            if (!desktopMQ.matches) return;
+            cancelClose();
+            setSideNavOpen(true);
+        };
+
+        const handleLeave = () => {
+            if (!desktopMQ.matches) return;
+            cancelClose();
+            closeTimer = window.setTimeout(() => {
+                setSideNavOpen(false);
+                closeTimer = null;
+            }, SIDEBAR_CLOSE_DELAY_MS);
+        };
+
+        const detach = () => {
+            if (attachedSidebar) {
+                attachedSidebar.removeEventListener('mouseenter', handleEnter);
+                attachedSidebar.removeEventListener('mouseleave', handleLeave);
+                attachedSidebar.removeEventListener('focusin', handleEnter);
+                attachedSidebar.removeEventListener('focusout', handleLeave);
+                attachedSidebar = null;
+            }
+        };
+
+        const attach = () => {
+            const sidebar = document.querySelector<HTMLElement>('.m-side-navigation');
+            if (!sidebar || sidebar === attachedSidebar) return;
+            detach();
+            attachedSidebar = sidebar;
+            sidebar.addEventListener('mouseenter', handleEnter);
+            sidebar.addEventListener('mouseleave', handleLeave);
+            sidebar.addEventListener('focusin', handleEnter);
+            sidebar.addEventListener('focusout', handleLeave);
+        };
+
+        attach();
+
+        // FROK may re-mount the sidebar element when toggling open state, so
+        // observe the DOM and re-bind listeners whenever a new instance appears.
+        const observer = new MutationObserver(() => attach());
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        return () => {
+            observer.disconnect();
+            cancelClose();
+            detach();
+        };
+    }, []);
 
     const currentPath = location.pathname;
     const currentNavItem = navItems.find(

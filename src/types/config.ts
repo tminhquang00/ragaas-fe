@@ -64,6 +64,7 @@ export interface WidgetConfig {
     welcome_message: string;
     primary_color: string;
     position: 'right' | 'left';
+    show_team_tag?: boolean;
     allowed_origins: string[];
 }
 

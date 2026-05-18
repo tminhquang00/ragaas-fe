@@ -31,6 +31,13 @@ const colorPresets = [
 
 const DEFAULT_WIDTH = 400;
 const DEFAULT_HEIGHT = 600;
+const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
+    enabled: true,
+    welcome_message: '',
+    primary_color: '#007bc0',
+    position: 'right',
+    show_team_tag: true,
+};
 
 /** Small code-block with copy button — reused across the Guide + Embed tabs. */
 const CodeBlock: React.FC<{
@@ -83,11 +90,9 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [config, setConfig] = useState<WidgetConfig>({
-        enabled: true,
+        ...DEFAULT_WIDGET_CONFIG,
         title: projectName,
         welcome_message: `Hi! I'm here to help you with ${projectName}. Ask me anything!`,
-        primary_color: '#007bc0',
-        position: 'right',
     });
     const [copied, setCopied] = useState<string | null>(null);
     const [baseUrl] = useState(window.location.origin);
@@ -116,7 +121,15 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
             setLoading(true);
             setError('');
             const widgetConfig = await apiClient.getWidgetConfig(projectId);
-            setConfig(widgetConfig);
+            setConfig({
+                ...DEFAULT_WIDGET_CONFIG,
+                ...widgetConfig,
+                title: widgetConfig.title || projectName,
+                welcome_message:
+                    widgetConfig.welcome_message ||
+                    `Hi! I'm here to help you with ${projectName}. Ask me anything!`,
+                show_team_tag: widgetConfig.show_team_tag ?? true,
+            });
         } catch {
             // No config saved yet — defaults already set above
         } finally {
@@ -143,6 +156,7 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
         if (cfg.title) params.set('title', cfg.title);
         if (cfg.primary_color) params.set('primaryColor', cfg.primary_color);
         if (cfg.welcome_message) params.set('welcomeMessage', cfg.welcome_message);
+        params.set('showTeamTag', String(cfg.show_team_tag ?? true));
         return `${baseUrl}/widget.html?${params.toString()}`;
     };
 
@@ -163,23 +177,89 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
         return `<!-- RAGaaS Chat Widget -->
 <script>
   (function () {
-    var iframe = document.createElement('iframe');
-    iframe.src = ${JSON.stringify(snippetUrl)};
-    iframe.title = ${JSON.stringify(config.title || 'Chat Widget')};
-    iframe.allow = 'clipboard-write';
-    iframe.style.cssText = [
-      'position: fixed',
-      '${side}: 20px',
-      'bottom: 20px',
-      'width: ${embedWidth}px',
-      'height: ${embedHeight}px',
-      'border: 0',
-      'border-radius: 16px',
-      'box-shadow: 0 8px 32px rgba(0,0,0,0.3)',
-      'z-index: 9999',
-      'background: transparent'
-    ].join('; ');
-    document.body.appendChild(iframe);
+    var side = ${JSON.stringify(side)};
+    var widgetUrl = ${JSON.stringify(snippetUrl)};
+    var widgetTitle = ${JSON.stringify(config.title || 'Chat Widget')};
+    var iframe;
+    var launcher;
+    var expanded = false;
+
+    function createLauncher() {
+      launcher = document.createElement('button');
+      launcher.type = 'button';
+      launcher.setAttribute('aria-label', 'Open ' + widgetTitle);
+      launcher.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 5.5C4 4.12 5.12 3 6.5 3h11C18.88 3 20 4.12 20 5.5v7c0 1.38-1.12 2.5-2.5 2.5H10l-4.4 3.3c-.66.5-1.6.03-1.6-.8V5.5Zm2.5-.5a.5.5 0 0 0-.5.5v10l3.33-2.5h8.17a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.5-.5h-11Z"/></svg>';
+      launcher.style.cssText = [
+        'position: fixed',
+        side + ': 20px',
+        'bottom: 20px',
+        'width: 44px',
+        'height: 44px',
+        'padding: 0',
+        'border: 0',
+        'border-radius: 50%',
+        'background: ${config.primary_color || '#007bc0'}',
+        'color: #fff',
+        'display: flex',
+        'align-items: center',
+        'justify-content: center',
+        'box-shadow: 0 8px 32px rgba(0,0,0,0.28)',
+        'cursor: pointer',
+        'z-index: 9999'
+      ].join('; ');
+      launcher.onclick = openWidget;
+      document.body.appendChild(launcher);
+    }
+
+    function openWidget() {
+      if (launcher) launcher.style.display = 'none';
+      if (iframe) {
+        iframe.style.display = 'block';
+        applyIframeSize();
+        return;
+      }
+      iframe = document.createElement('iframe');
+      iframe.src = widgetUrl;
+      iframe.title = widgetTitle;
+      iframe.allow = 'clipboard-write';
+      iframe.style.cssText = [
+        'position: fixed',
+        side + ': 20px',
+        'bottom: 20px',
+        'border: 0',
+        'border-radius: 16px',
+        'box-shadow: 0 8px 32px rgba(0,0,0,0.3)',
+        'z-index: 9999',
+        'background: transparent',
+        'transition: width 180ms ease, height 180ms ease'
+      ].join('; ');
+      applyIframeSize();
+      document.body.appendChild(iframe);
+    }
+
+    function applyIframeSize() {
+      if (!iframe) return;
+      iframe.style.width = expanded
+        ? 'min(900px, calc(100vw - 32px))'
+        : 'min(${embedWidth}px, calc(100vw - 32px))';
+      iframe.style.height = expanded
+        ? 'min(760px, calc(100vh - 32px))'
+        : 'min(${embedHeight}px, calc(100vh - 32px))';
+    }
+
+    window.addEventListener('message', function (event) {
+      if (event.data && event.data.type === 'ragaas-widget:close') {
+        expanded = false;
+        if (iframe) iframe.style.display = 'none';
+        if (launcher) launcher.style.display = 'block';
+      }
+      if (event.data && event.data.type === 'ragaas-widget:resize') {
+        expanded = !!event.data.expanded;
+        applyIframeSize();
+      }
+    });
+
+    createLauncher();
   })();
 </script>`;
     };
@@ -217,8 +297,8 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                 onTabSelect={(_, data) => setTab(data.value as string)}
             >
                 <Tab value="guide">How to Use</Tab>
-                <Tab value="embed">Embed Code</Tab>
-                <Tab value="customize">Customize &amp; Preview</Tab>
+                <Tab value="customize">Customize &amp; Embed</Tab>
+                <Tab value="chat-api">Chat API Integration</Tab>
             </TabNavigation>
 
             {/* ─────────────────────────────── Guide Tab ─────────────────────────────── */}
@@ -231,6 +311,26 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                         <code> /widget.html</code> and <code>/assets/*</code>, so third-party origins
                         can embed it without <code>X-Frame-Options</code> blocking.
                     </Notification>
+
+                    <Tile>
+                        <div style={{ padding: '1.5rem' }}>
+                            <h3 style={{ fontWeight: 600, margin: '0 0 0.5rem 0' }}>
+                                Current widget behavior
+                            </h3>
+                            <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: '0 0 0.75rem 0' }}>
+                                The recommended embed now starts as a compact launcher button instead of
+                                an always-open chat window. When users open it, they can expand the popup
+                                for a larger chat surface or hide it again with the close button in the
+                                widget header. The widget sends <code>ragaas-widget:resize</code> and
+                                <code> ragaas-widget:close</code> messages to the host page, and the embed
+                                script resizes the iframe or restores the launcher.
+                            </p>
+                            <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: 0 }}>
+                                The header shows only the configured widget title and Bosch logo mark.
+                                It no longer renders the old <code>RAGaaS assistant</code> eyebrow or plus icon.
+                            </p>
+                        </div>
+                    </Tile>
 
                     {/* 1. Direct URL */}
                     <Tile>
@@ -269,7 +369,8 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                             </h3>
                             <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: '0 0 0.75rem 0' }}>
                                 A plain iframe tag. Use this when the host page can't execute extra
-                                JavaScript (e.g. CMS restrictions).
+                                JavaScript (e.g. CMS restrictions). This version stays visible while the
+                                iframe is present. For the hideable launcher, use the script embed below.
                             </p>
                             <CodeBlock
                                 code={generateIframeCode()}
@@ -284,12 +385,13 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                     <Tile>
                         <div style={{ padding: '1.5rem' }}>
                             <h3 style={{ fontWeight: 600, margin: '0 0 0.25rem 0' }}>
-                                3. Script Embed (floating chat bubble — recommended)
+                                3. Script Embed (hideable launcher — recommended)
                             </h3>
                             <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: '0 0 0.75rem 0' }}>
-                                Paste just before the closing <code>&lt;/body&gt;</code> tag. The iframe
-                                is injected at runtime, so the URL can be updated later without touching
-                                host-page markup.
+                                Paste just before the closing <code>&lt;/body&gt;</code> tag. The script
+                                starts as a compact launcher, opens the iframe on click, supports the
+                                expand button in the widget header, and restores the launcher when the
+                                widget's close button is pressed.
                             </p>
                             <CodeBlock
                                 code={generateScriptCode()}
@@ -307,19 +409,16 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                 4. Get pre-filled snippets from this UI
                             </h3>
                             <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: '0 0 0.75rem 0' }}>
-                                The <strong>Embed Code</strong> tab renders copyable script + iframe
-                                snippets; the <strong>Customize &amp; Preview</strong> tab lets you tweak
-                                the title, welcome message, position, and primary color while watching a
-                                live iframe preview of the real widget. All URLs are built from
+                                The <strong>Customize &amp; Embed</strong> tab lets you tweak the title,
+                                welcome message, position, primary color, and dimensions while watching a
+                                live preview of the real widget. The same tab also renders copyable script
+                                and iframe snippets. All URLs are built from
                                 <code> window.location.origin</code>, so whichever host serves this SPA
                                 also serves the widget.
                             </p>
                             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                <Button mode="secondary" onClick={() => setTab('embed')}>
-                                    Go to Embed Code
-                                </Button>
-                                <Button mode="tertiary" onClick={() => setTab('customize')}>
-                                    Go to Customize &amp; Preview
+                                <Button mode="secondary" onClick={() => setTab('customize')}>
+                                    Go to Customize &amp; Embed
                                 </Button>
                             </div>
                         </div>
@@ -357,10 +456,11 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                             <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: '0 0 0.75rem 0' }}>
                                 With the backend running (<code>uvicorn src.main:app --reload</code>),
                                 open the widget URL directly. You should see the Bosch-styled chat UI
-                                full-bleed. Then drop the iframe snippet into any test HTML file served
+                                full-bleed. Then drop the script snippet into any test HTML file served
                                 from a <em>different</em> origin (e.g. <code>python -m http.server</code>{' '}
-                                on a different port) — it should render inside the iframe without
-                                <code> X-Frame-Options</code> blocking it.
+                                on a different port). It should render a launcher, open the iframe on click,
+                                expand or shrink from the widget header, and restore the launcher when the
+                                widget close button is pressed.
                             </p>
                             <CodeBlock
                                 code={`http://localhost:8000/widget.html?projectId=${projectId}&tenant=${tenantId}`}
@@ -409,160 +509,16 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                 </div>
             )}
 
-            {/* ──────────────────────────────── Embed Code Tab ─────────────────────────────── */}
-            {tab === 'embed' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.5rem' }}>
-                    <Notification type="neutral" defaultOpen>
-                        Copy the code below and paste it into your website's HTML, just before the closing
-                        &nbsp;&lt;/body&gt; tag. The widget is served as a static asset from this app —
-                        no backend widget route required.
-                    </Notification>
-
-                    {/* Widget URL (shared between snippets, handy for direct testing) */}
-                    <Tile>
-                        <div style={{ padding: '1.5rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                                <h3 style={{ fontWeight: 600, margin: 0 }}>Widget URL</h3>
-                                <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                    <Tooltip content="Open in new tab">
-                                        <Button
-                                            mode="integrated"
-                                            onClick={() => window.open(snippetUrl, '_blank', 'noopener')}
-                                            aria-label="Open widget in new tab"
-                                        >
-                                            <FrokIcon name="OpenInNew" />
-                                        </Button>
-                                    </Tooltip>
-                                    <Tooltip content={copied === 'url' ? 'Copied!' : 'Copy URL'}>
-                                        <Button
-                                            mode="integrated"
-                                            onClick={() => handleCopy(snippetUrl, 'url')}
-                                            aria-label="Copy widget URL"
-                                        >
-                                            {copied === 'url' ? <FrokIcon name="Check" /> : <FrokIcon name="ContentCopy" />}
-                                        </Button>
-                                    </Tooltip>
-                                </div>
-                            </div>
-                            <pre
-                                style={{
-                                    padding: '0.75rem 1rem',
-                                    background: 'var(--app-bg-surface)',
-                                    border: '1px solid var(--app-border)',
-                                    overflow: 'auto',
-                                    fontSize: '0.85rem',
-                                    fontFamily: 'monospace',
-                                    margin: 0,
-                                    whiteSpace: 'pre-wrap',
-                                    wordBreak: 'break-all',
-                                }}
-                            >
-                                {snippetUrl}
-                            </pre>
-                        </div>
-                    </Tile>
-
-                    {/* Embed dimensions */}
-                    <Tile>
-                        <div style={{ padding: '1.5rem' }}>
-                            <h3 style={{ fontWeight: 600, margin: '0 0 1rem 0' }}>Iframe Dimensions</h3>
-                            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                                <TextField
-                                    id="widget-width"
-                                    label="Width (px)"
-                                    value={String(embedWidth)}
-                                    onChange={(e) => {
-                                        const n = Number(e.target.value.replace(/\D/g, ''));
-                                        setEmbedWidth(n > 0 ? Math.max(200, n) : DEFAULT_WIDTH);
-                                    }}
-                                />
-                                <TextField
-                                    id="widget-height"
-                                    label="Height (px)"
-                                    value={String(embedHeight)}
-                                    onChange={(e) => {
-                                        const n = Number(e.target.value.replace(/\D/g, ''));
-                                        setEmbedHeight(n > 0 ? Math.max(300, n) : DEFAULT_HEIGHT);
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    </Tile>
-
-                    {/* Script Embed */}
-                    <Tile>
-                        <div style={{ padding: '1.5rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                <h3 style={{ fontWeight: 600, margin: 0 }}>Script Embed (Recommended)</h3>
-                                <Tooltip content={copied === 'script' ? 'Copied!' : 'Copy code'}>
-                                    <Button
-                                        mode="integrated"
-                                        onClick={() => handleCopy(generateScriptCode(), 'script')}
-                                        aria-label="Copy script embed"
-                                    >
-                                        {copied === 'script' ? <FrokIcon name="Check" /> : <FrokIcon name="ContentCopy" />}
-                                    </Button>
-                                </Tooltip>
-                            </div>
-                            <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-                                Injects a floating chat iframe after the page loads. Easier to update in-place
-                                if the widget URL changes later.
-                            </p>
-                            <pre
-                                style={{
-                                    padding: '1rem',
-                                    background: 'var(--app-bg-surface)',
-                                    border: '1px solid var(--app-border)',
-                                    overflow: 'auto',
-                                    fontSize: '0.85rem',
-                                    fontFamily: 'monospace',
-                                    margin: 0,
-                                }}
-                            >
-                                {generateScriptCode()}
-                            </pre>
-                        </div>
-                    </Tile>
-
-                    {/* iFrame Embed */}
-                    <Tile>
-                        <div style={{ padding: '1.5rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                <h3 style={{ fontWeight: 600, margin: 0 }}>iFrame Embed</h3>
-                                <Tooltip content={copied === 'iframe' ? 'Copied!' : 'Copy code'}>
-                                    <Button
-                                        mode="integrated"
-                                        onClick={() => handleCopy(generateIframeCode(), 'iframe')}
-                                        aria-label="Copy iframe embed"
-                                    >
-                                        {copied === 'iframe' ? <FrokIcon name="Check" /> : <FrokIcon name="ContentCopy" />}
-                                    </Button>
-                                </Tooltip>
-                            </div>
-                            <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-                                A plain iframe tag. Use this when you can't run JavaScript (e.g. CMS restrictions).
-                            </p>
-                            <pre
-                                style={{
-                                    padding: '1rem',
-                                    background: 'var(--app-bg-surface)',
-                                    border: '1px solid var(--app-border)',
-                                    overflow: 'auto',
-                                    fontSize: '0.85rem',
-                                    fontFamily: 'monospace',
-                                    margin: 0,
-                                }}
-                            >
-                                {generateIframeCode()}
-                            </pre>
-                        </div>
-                    </Tile>
-                </div>
-            )}
-
-            {/* ───────────────────────── Customize & Preview Tab ───────────────────────── */}
+            {/* ───────────────────────── Customize & Embed Tab ───────────────────────── */}
             {tab === 'customize' && (
                 <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '1.5rem' }}>
+                    <div style={{ width: '100%' }}>
+                        <Notification type="neutral" defaultOpen>
+                            Configure the widget, verify the live preview, then copy the embed code from
+                            the same page. The recommended script renders a hideable, expandable launcher.
+                        </Notification>
+                    </div>
+
                     {/* Configuration Form */}
                     <Tile style={{ flex: 1, minWidth: 320 }}>
                         <div style={{ padding: '1.5rem' }}>
@@ -577,6 +533,36 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                         setConfig({ ...config, enabled: (e.target as HTMLInputElement).checked })
                                     }
                                 />
+
+                                <div
+                                    style={{
+                                        padding: '1rem',
+                                        border: '1px solid var(--app-border)',
+                                        background: 'var(--app-bg-surface)',
+                                    }}
+                                >
+                                    <Toggle
+                                        id="widget-team-tag"
+                                        leftLabel="Show BSGV/SX-EIT-MM attribution tag"
+                                        checked={config.show_team_tag ?? true}
+                                        onChange={(e) =>
+                                            setConfig({
+                                                ...config,
+                                                show_team_tag: (e.target as HTMLInputElement).checked,
+                                            })
+                                        }
+                                    />
+                                    <p
+                                        style={{
+                                            color: 'var(--app-text-secondary)',
+                                            fontSize: '0.8125rem',
+                                            margin: '0.5rem 0 0 0',
+                                        }}
+                                    >
+                                        Adds a small Bosch-styled footer tag that says the solution was
+                                        developed by the BSGV/SX-EIT-MM team.
+                                    </p>
+                                </div>
 
                                 <TextField
                                     id="widget-title"
@@ -605,6 +591,36 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                         { name: 'Bottom Left', value: 'left' },
                                     ]}
                                 />
+
+                                <div>
+                                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                                        Default iframe size
+                                    </p>
+                                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                                        <TextField
+                                            id="widget-width"
+                                            label="Width (px)"
+                                            value={String(embedWidth)}
+                                            onChange={(e) => {
+                                                const n = Number(e.target.value.replace(/\D/g, ''));
+                                                setEmbedWidth(n > 0 ? Math.max(200, n) : DEFAULT_WIDTH);
+                                            }}
+                                        />
+                                        <TextField
+                                            id="widget-height"
+                                            label="Height (px)"
+                                            value={String(embedHeight)}
+                                            onChange={(e) => {
+                                                const n = Number(e.target.value.replace(/\D/g, ''));
+                                                setEmbedHeight(n > 0 ? Math.max(300, n) : DEFAULT_HEIGHT);
+                                            }}
+                                        />
+                                    </div>
+                                    <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.8125rem', margin: '0.5rem 0 0 0' }}>
+                                        The expand button grows the popup up to 900 x 760 px, constrained by
+                                        the user's viewport.
+                                    </p>
+                                </div>
 
                                 <div>
                                     <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
@@ -700,6 +716,219 @@ export const WidgetEmbed: React.FC<WidgetEmbedProps> = ({
                                         background: 'var(--app-bg)',
                                     }}
                                 />
+                            </div>
+                        </div>
+                    </Tile>
+
+                    <Tile style={{ width: '100%' }}>
+                        <div style={{ padding: '1.5rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                <h3 style={{ fontWeight: 600, margin: 0 }}>Widget URL</h3>
+                                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                    <Tooltip content="Open in new tab">
+                                        <Button
+                                            mode="integrated"
+                                            onClick={() => window.open(snippetUrl, '_blank', 'noopener')}
+                                            aria-label="Open widget in new tab"
+                                        >
+                                            <FrokIcon name="OpenInNew" />
+                                        </Button>
+                                    </Tooltip>
+                                    <Tooltip content={copied === 'url' ? 'Copied!' : 'Copy URL'}>
+                                        <Button
+                                            mode="integrated"
+                                            onClick={() => handleCopy(snippetUrl, 'url')}
+                                            aria-label="Copy widget URL"
+                                        >
+                                            {copied === 'url' ? <FrokIcon name="Check" /> : <FrokIcon name="ContentCopy" />}
+                                        </Button>
+                                    </Tooltip>
+                                </div>
+                            </div>
+                            <CodeBlock
+                                code={snippetUrl}
+                                copyKey="url-block"
+                                copied={copied}
+                                onCopy={handleCopy}
+                                multiline={false}
+                            />
+                        </div>
+                    </Tile>
+
+                    <Tile style={{ width: '100%' }}>
+                        <div style={{ padding: '1.5rem' }}>
+                            <h3 style={{ fontWeight: 600, margin: '0 0 0.5rem 0' }}>Script Embed (Recommended)</h3>
+                            <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: '0 0 1rem 0' }}>
+                                Paste this before the closing <code>&lt;/body&gt;</code> tag. It renders a
+                                compact launcher first, injects the iframe when opened, resizes it from
+                                the widget expand button, and hides it from the widget close button.
+                            </p>
+                            <CodeBlock
+                                code={generateScriptCode()}
+                                copyKey="script"
+                                copied={copied}
+                                onCopy={handleCopy}
+                            />
+                        </div>
+                    </Tile>
+
+                    <Tile style={{ width: '100%' }}>
+                        <div style={{ padding: '1.5rem' }}>
+                            <h3 style={{ fontWeight: 600, margin: '0 0 0.5rem 0' }}>iFrame Embed</h3>
+                            <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: '0 0 1rem 0' }}>
+                                Use this static iframe when the host page cannot run custom JavaScript.
+                                It does not provide the launcher restore behavior.
+                            </p>
+                            <CodeBlock
+                                code={generateIframeCode()}
+                                copyKey="iframe"
+                                copied={copied}
+                                onCopy={handleCopy}
+                            />
+                        </div>
+                    </Tile>
+                </div>
+            )}
+
+            {/* ───────────────────────── Chat API Integration Tab ───────────────────────── */}
+            {tab === 'chat-api' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1.5rem' }}>
+                    <Notification type="neutral" defaultOpen>
+                        Use the widget iframe for browser embeds. Use these Chat API examples when a backend
+                        service, middleware, bot, or custom application needs to call this project's agent directly.
+                    </Notification>
+
+                    <Tile>
+                        <div style={{ padding: '1.5rem' }}>
+                            <h3 style={{ fontWeight: 600, margin: '0 0 0.5rem 0' }}>Base Contract</h3>
+                            <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: '0 0 1rem 0' }}>
+                                All tenant-scoped chat calls must include <code>X-User-ID</code>. For this project,
+                                use:
+                            </p>
+                            <CodeBlock
+                                code={`BASE_URL=${baseUrl}
+PROJECT_ID=${projectId}
+TENANT_ID=${tenantId}
+
+Required headers:
+Content-Type: application/json
+X-User-ID: ${tenantId}`}
+                                copyKey="chat-api-contract"
+                                copied={copied}
+                                onCopy={handleCopy}
+                            />
+                        </div>
+                    </Tile>
+
+                    <Tile>
+                        <div style={{ padding: '1.5rem' }}>
+                            <h3 style={{ fontWeight: 600, margin: '0 0 0.5rem 0' }}>Non-Streaming Chat</h3>
+                            <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: '0 0 1rem 0' }}>
+                                Use <code>POST /api/v1/projects/{'{project_id}'}/chat</code> when your backend
+                                wants a single JSON response after the agent finishes.
+                            </p>
+                            <CodeBlock
+                                code={`curl -X POST "${baseUrl}/api/v1/projects/${projectId}/chat" \\
+  -H "Content-Type: application/json" \\
+  -H "X-User-ID: ${tenantId}" \\
+  -d '{
+    "query": "How can I reset my application access?",
+    "session_id": "optional-session-id",
+    "metadata": {
+      "source": "backend-integration"
+    }
+  }'`}
+                                copyKey="chat-api-curl"
+                                copied={copied}
+                                onCopy={handleCopy}
+                            />
+                        </div>
+                    </Tile>
+
+                    <Tile>
+                        <div style={{ padding: '1.5rem' }}>
+                            <h3 style={{ fontWeight: 600, margin: '0 0 0.5rem 0' }}>Streaming Chat</h3>
+                            <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: '0 0 1rem 0' }}>
+                                Use <code>POST /api/v1/projects/{'{project_id}'}/chat/stream</code> for a
+                                Server-Sent Events stream. Events are sent as <code>data: ...</code> lines and
+                                terminate with <code>[DONE]</code>.
+                            </p>
+                            <CodeBlock
+                                code={`curl -N -X POST "${baseUrl}/api/v1/projects/${projectId}/chat/stream" \\
+  -H "Accept: text/event-stream" \\
+  -H "Content-Type: application/json" \\
+  -H "X-User-ID: ${tenantId}" \\
+  -d '{
+    "query": "Summarize the latest support incidents.",
+    "session_id": "optional-session-id"
+  }'`}
+                                copyKey="chat-api-stream-curl"
+                                copied={copied}
+                                onCopy={handleCopy}
+                            />
+                        </div>
+                    </Tile>
+
+                    <Tile>
+                        <div style={{ padding: '1.5rem' }}>
+                            <h3 style={{ fontWeight: 600, margin: '0 0 0.5rem 0' }}>Node.js Backend Example</h3>
+                            <p style={{ color: 'var(--app-text-secondary)', fontSize: '0.875rem', margin: '0 0 1rem 0' }}>
+                                This example proxies a user question through your backend. Keep tenant and
+                                auth decisions on the server side rather than exposing privileged integration
+                                logic in browser code.
+                            </p>
+                            <CodeBlock
+                                language="ts"
+                                code={`export async function askProjectAgent(query: string) {
+  const response = await fetch("${baseUrl}/api/v1/projects/${projectId}/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-User-ID": "${tenantId}",
+    },
+    body: JSON.stringify({
+      query,
+      metadata: { source: "custom-backend" },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json();
+}`}
+                                copyKey="chat-api-node"
+                                copied={copied}
+                                onCopy={handleCopy}
+                            />
+                        </div>
+                    </Tile>
+
+                    <Tile>
+                        <div style={{ padding: '1.5rem' }}>
+                            <h3 style={{ fontWeight: 600, margin: '0 0 0.5rem 0' }}>Operational Notes</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', color: 'var(--app-text-secondary)', fontSize: '0.875rem' }}>
+                                <p style={{ margin: 0 }}>
+                                    <strong style={{ color: 'var(--app-text)' }}>Sessions:</strong> pass
+                                    <code> session_id</code> to continue a conversation. Omit it to let the
+                                    backend create a new session.
+                                </p>
+                                <p style={{ margin: 0 }}>
+                                    <strong style={{ color: 'var(--app-text)' }}>Files and images:</strong> send
+                                    base64 payloads in <code>files</code> or <code>images</code> when your
+                                    custom backend needs multimodal input.
+                                </p>
+                                <p style={{ margin: 0 }}>
+                                    <strong style={{ color: 'var(--app-text)' }}>Quotas:</strong> handle
+                                    <code> 429</code> responses and show a retry or quota-request path in your
+                                    calling application.
+                                </p>
+                                <p style={{ margin: 0 }}>
+                                    <strong style={{ color: 'var(--app-text)' }}>Activation:</strong> chat calls
+                                    require the project to be active. Draft or archived projects should be blocked
+                                    before invoking the API.
+                                </p>
                             </div>
                         </div>
                     </Tile>

@@ -32,6 +32,7 @@ import { MembersPanel, RoleBadge } from '../components/sharing';
 import { DatabaseConnection } from '../components/database';
 import { TracingPanel } from '../components/tracing';
 import { McpServersPanel } from '../components/mcp';
+import { EvaluationPanel } from '../components/evaluation';
 import { PaginationControls } from '../components/common';
 import { useAuth } from '../context';
 import { Project, Document, SourceReference, UploadTaskStatus, StepProgress, AgentAction, ChatSession, ChatMessage as BackendChatMessage, getUserRole, hasPermission, ConnectionStatus } from '../types';
@@ -59,6 +60,7 @@ const PROJECT_DETAIL_TABS = {
     SETTINGS: 7,
     MEMBERS: 8,
     TRACING: 9,
+    EVALUATION: 10,
 } as const;
 
 interface ChatMessage {
@@ -917,6 +919,12 @@ export const ProjectDetailPage: React.FC = () => {
                     <Tab value={PROJECT_DETAIL_TABS.SETTINGS}>Settings</Tab>
                     <Tab value={PROJECT_DETAIL_TABS.MEMBERS}>Members</Tab>
                     <Tab value={PROJECT_DETAIL_TABS.TRACING}>Tracing</Tab>
+                    <Tab value={PROJECT_DETAIL_TABS.EVALUATION}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <FrokIcon name="AutoGraph" />
+                            Evaluation
+                        </span>
+                    </Tab>
                 </TabNavigation>
             </div>
 
@@ -1269,6 +1277,17 @@ export const ProjectDetailPage: React.FC = () => {
                         projectId={projectId!}
                         selectedTraceId={selectedTraceId}
                         onSelectedTraceIdChange={setSelectedTraceId}
+                    />
+                )}
+            </TabPanel>
+
+            {/* Evaluation Tab */}
+            <TabPanel value={tab} index={PROJECT_DETAIL_TABS.EVALUATION}>
+                {apiClient && (
+                    <EvaluationPanel
+                        projectId={projectId!}
+                        apiClient={apiClient}
+                        canManage={isOwner}
                     />
                 )}
             </TabPanel>

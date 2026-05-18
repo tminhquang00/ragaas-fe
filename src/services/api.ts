@@ -71,6 +71,19 @@ import {
     PipelineHealthResponse,
     TopProjectsMetric,
     TopProjectsResponse,
+    EvalDataset,
+    EvalCase,
+    EvalRun,
+    EvalCaseResult,
+    EvalRunDiff,
+    CreateDatasetRequest,
+    UpdateDatasetRequest,
+    StartRunRequest,
+    SyntheticGenerationRequest,
+    SyntheticGenerationResponse,
+    ProjectBlueprint,
+    InstantiateBlueprintRequest,
+    InstantiateBlueprintResponse,
 } from '../types';
 
 /** Thrown by API methods when the server returns a non-2xx status. Carries the HTTP status code so callers can distinguish e.g. 429 from 500. */
@@ -132,7 +145,7 @@ export class RAGaaSClient {
         });
 
         if (!response.ok) {
-            throw new Error(await this.getErrorDetail(response));
+            throw new ApiHttpError(response.status, await this.getErrorDetail(response));
         }
 
         if (response.status === 204) {
@@ -162,6 +175,37 @@ export class RAGaaSClient {
             method: 'POST',
             body: JSON.stringify(request),
         });
+    }
+
+    async listProjectBlueprints(params?: {
+        page?: number;
+        page_size?: number;
+    }): Promise<ProjectBlueprint[]> {
+        const q = new URLSearchParams();
+        if (params?.page) q.set('page', String(params.page));
+        if (params?.page_size) q.set('page_size', String(params.page_size));
+        const qs = q.toString();
+        return this.request(`/api/v1/project-blueprints${qs ? `?${qs}` : ''}`);
+    }
+
+    async getProjectBlueprint(blueprintId: string, version: string): Promise<ProjectBlueprint> {
+        return this.request(
+            `/api/v1/project-blueprints/${encodeURIComponent(blueprintId)}/${encodeURIComponent(version)}`
+        );
+    }
+
+    async instantiateProjectBlueprint(
+        blueprintId: string,
+        version: string,
+        request: InstantiateBlueprintRequest
+    ): Promise<InstantiateBlueprintResponse> {
+        return this.request(
+            `/api/v1/project-blueprints/${encodeURIComponent(blueprintId)}/${encodeURIComponent(version)}/instantiate`,
+            {
+                method: 'POST',
+                body: JSON.stringify(request),
+            }
+        );
     }
 
     async createProject(data: CreateProjectRequest): Promise<CreateProjectResponse> {
@@ -1000,6 +1044,170 @@ export class RAGaaSClient {
     /** Last 24h pipeline health rollup (success/error/latency). */
     async getPipelineHealth(): Promise<PipelineHealthResponse> {
         return this.request('/api/v1/dashboard/pipeline-health');
+    }
+
+    // ============ Evaluation Framework ============
+    // All evaluation endpoints require the caller to be a project owner.
+    // See docs/features/evaluation-frontend.md.
+
+    async listEvalDatasets(
+        projectId: string,
+        skip: number = 0,
+        limit: number = 100
+    ): Promise<EvalDataset[]> {
+        return this.request(
+            `/api/v1/projects/${projectId}/eval/datasets?skip=${skip}&limit=${limit}`
+        );
+    }
+
+    async createEvalDataset(
+        projectId: string,
+        data: CreateDatasetRequest
+    ): Promise<EvalDataset> {
+        return this.request(`/api/v1/projects/${projectId}/eval/datasets`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async updateEvalDataset(
+        projectId: string,
+        datasetId: string,
+        data: UpdateDatasetRequest
+    ): Promise<EvalDataset> {
+        return this.request(`/api/v1/projects/${projectId}/eval/datasets/${datasetId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteEvalDataset(projectId: string, datasetId: string): Promise<void> {
+        return this.request(`/api/v1/projects/${projectId}/eval/datasets/${datasetId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    /**
+     * Upload a CSV or JSON file of cases to a dataset. Browser sets the
+     * multipart boundary, so we omit Content-Type.
+     */
+    async uploadEvalCases(
+        projectId: string,
+        datasetId: string,
+        file: File
+    ): Promise<EvalCase[]> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(
+            `${this.baseUrl}/api/v1/projects/${projectId}/eval/datasets/${datasetId}/cases:upload`,
+            {
+                method: 'POST',
+                headers: {
+                    'X-User-ID': this.tenantId,
+                    ...this.getAuthHeaders(),
+                },
+                body: formData,
+            }
+        );
+
+        if (!response.ok) {
+            throw new ApiHttpError(response.status, await this.getErrorDetail(response));
+        }
+        return response.json();
+    }
+
+    async generateSyntheticEvalCases(
+        projectId: string,
+        datasetId: string,
+        targetCount: number
+    ): Promise<SyntheticGenerationResponse> {
+        const body: SyntheticGenerationRequest = { target_count: targetCount };
+        return this.request(
+            `/api/v1/projects/${projectId}/eval/datasets/${datasetId}/cases:generate-synthetic`,
+            {
+                method: 'POST',
+                body: JSON.stringify(body),
+            }
+        );
+    }
+
+    async listEvalCases(
+        projectId: string,
+        datasetId: string,
+        skip: number = 0,
+        limit: number = 100
+    ): Promise<EvalCase[]> {
+        return this.request(
+            `/api/v1/projects/${projectId}/eval/datasets/${datasetId}/cases?skip=${skip}&limit=${limit}`
+        );
+    }
+
+    async deleteEvalCase(
+        projectId: string,
+        datasetId: string,
+        caseId: string
+    ): Promise<void> {
+        return this.request(
+            `/api/v1/projects/${projectId}/eval/datasets/${datasetId}/cases/${caseId}`,
+            { method: 'DELETE' }
+        );
+    }
+
+    async startEvalRun(projectId: string, request: StartRunRequest): Promise<EvalRun> {
+        return this.request(`/api/v1/projects/${projectId}/eval/runs`, {
+            method: 'POST',
+            body: JSON.stringify({ triggered_via: 'ui', ...request }),
+        });
+    }
+
+    async getEvalRun(projectId: string, runId: string): Promise<EvalRun> {
+        return this.request(`/api/v1/projects/${projectId}/eval/runs/${runId}`);
+    }
+
+    async listEvalRuns(
+        projectId: string,
+        params?: { datasetId?: string; skip?: number; limit?: number }
+    ): Promise<EvalRun[]> {
+        const q = new URLSearchParams();
+        if (params?.datasetId) q.set('dataset_id', params.datasetId);
+        if (params?.skip !== undefined) q.set('skip', String(params.skip));
+        if (params?.limit !== undefined) q.set('limit', String(params.limit));
+        const qs = q.toString();
+        return this.request(
+            `/api/v1/projects/${projectId}/eval/runs${qs ? `?${qs}` : ''}`
+        );
+    }
+
+    async listEvalRunCases(
+        projectId: string,
+        runId: string,
+        skip: number = 0,
+        limit: number = 100
+    ): Promise<EvalCaseResult[]> {
+        return this.request(
+            `/api/v1/projects/${projectId}/eval/runs/${runId}/cases?skip=${skip}&limit=${limit}`
+        );
+    }
+
+    async abortEvalRun(
+        projectId: string,
+        runId: string
+    ): Promise<{ status: string; run_id: string }> {
+        return this.request(`/api/v1/projects/${projectId}/eval/runs/${runId}:abort`, {
+            method: 'POST',
+        });
+    }
+
+    async diffEvalRuns(
+        projectId: string,
+        runA: string,
+        runB: string
+    ): Promise<EvalRunDiff> {
+        const params = new URLSearchParams({ run_a: runA, run_b: runB });
+        return this.request(
+            `/api/v1/projects/${projectId}/eval/runs/diff?${params.toString()}`
+        );
     }
 
     // ============ Health ============
